@@ -1,0 +1,17 @@
+
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>UniServe Frontend</title></head>
+<body>
+<h1>UniServe Frontend</h1>
+<p>Connected to backend on port 5001.</p>
+<div id="users"></div>
+<script>
+fetch("http://localhost:5001/api/users")
+  .then(r=>r.json())
+  .then(d=>{
+    document.getElementById("users").innerHTML = "<pre>"+JSON.stringify(d,null,2)+"</pre>";
+  });
+</script>
+</body>
+</html>

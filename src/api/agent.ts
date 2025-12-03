@@ -1,0 +1,31 @@
+import { api } from "./client";
+
+export interface Listing {
+  _id?: string;
+  title: string;
+  description: string;
+  price: number;
+  currency: string;
+  category: string;
+  imageUrl?: string;
+  status?: "ACTIVE" | "SOLD" | "ARCHIVED";
+}
+
+export async function getMyListings(): Promise<Listing[]> {
+  const res = await api.get("/api/agent/listings");
+  return res.data.items || res.data;
+}
+
+export async function createListing(input: Listing): Promise<Listing> {
+  const res = await api.post("/api/agent/listings", input);
+  return res.data;
+}
+
+export async function updateListing(id: string, input: Partial<Listing>): Promise<Listing> {
+  const res = await api.put(`/api/agent/listings/${id}`, input);
+  return res.data;
+}
+
+export async function deleteListing(id: string): Promise<void> {
+  await api.delete(`/api/agent/listings/${id}`);
+}
