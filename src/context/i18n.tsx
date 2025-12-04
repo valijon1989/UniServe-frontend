@@ -5,8 +5,33 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 export type Language = "en" | "uz" | "ru" | "ko";
 
 type TranslationKey =
+  | "nav.home"
+  | "nav.news"
+  | "nav.products"
+  | "nav.services"
+  | "nav.agents"
+  | "nav.community"
   | "nav.feed"
   | "nav.agentPanel"
+  | "nav.explore"
+  | "nav.profile"
+  | "nav.agent.listings"
+  | "nav.agent.new"
+  | "nav.admin.dashboard"
+  | "nav.admin.users"
+  | "nav.admin.agents"
+  | "nav.admin.moderation"
+  | "footer.title"
+  | "footer.description"
+  | "footer.tagline"
+  | "footer.rights"
+  | "contact.facebook"
+  | "contact.instagram"
+  | "contact.telegram"
+  | "contact.kakao"
+  | "contact.email"
+  | "contact.phone"
+  | "contact.address"
   | "header.subtitle"
   | "auth.login.title"
   | "auth.login.subtitle"
@@ -30,6 +55,27 @@ type TranslationKey =
   | "home.subtitle"
   | "home.loading"
   | "home.empty"
+  | "home.hero.platform"
+  | "home.hero.title"
+  | "home.hero.description"
+  | "home.hero.tag.search"
+  | "home.hero.tag.verified"
+  | "home.hero.tag.community"
+  | "home.hero.slide.products.title"
+  | "home.hero.slide.products.desc"
+  | "home.hero.slide.products.badge"
+  | "home.hero.slide.services.title"
+  | "home.hero.slide.services.desc"
+  | "home.hero.slide.services.badge"
+  | "home.hero.slide.community.title"
+  | "home.hero.slide.community.desc"
+  | "home.hero.slide.community.badge"
+  | "home.hero.slide.agents.title"
+  | "home.hero.slide.agents.desc"
+  | "home.hero.slide.agents.badge"
+  | "home.hero.slide.feed.title"
+  | "home.hero.slide.feed.desc"
+  | "home.hero.slide.feed.badge"
   | "agents.panelTitle"
   | "agents.panelSubtitle"
   | "agents.newListing"
@@ -62,8 +108,33 @@ type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
+    "nav.home": "Home",
+    "nav.news": "News",
+    "nav.products": "Products",
+    "nav.services": "Services",
+    "nav.agents": "Agents",
+    "nav.community": "Community",
     "nav.feed": "Feed",
     "nav.agentPanel": "Agent Panel",
+    "nav.explore": "Explore",
+    "nav.profile": "Profile",
+    "nav.agent.listings": "My Listings",
+    "nav.agent.new": "Add Listing",
+    "nav.admin.dashboard": "Dashboard",
+    "nav.admin.users": "Manage Users",
+    "nav.admin.agents": "Manage Agents",
+    "nav.admin.moderation": "Feed Moderation",
+    "footer.title": "UniServe",
+    "footer.description": "UniServe connects services and products worldwide. With trusted partners and a simple experience, people quickly find solutions that fit.",
+    "footer.tagline": "Global services and products in one place.",
+    "footer.rights": "All rights reserved.",
+    "contact.facebook": "Facebook",
+    "contact.instagram": "Instagram",
+    "contact.telegram": "Telegram",
+    "contact.kakao": "KakaoTalk",
+    "contact.email": "Email",
+    "contact.phone": "Phone",
+    "contact.address": "Address",
     "header.subtitle": "Global services hub",
     "auth.login.title": "Sign in",
     "auth.login.subtitle": "Enter as admin, agent, or regular user.",
@@ -87,6 +158,27 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "home.subtitle": "Services, products, and social posts from agents and users appear here.",
     "home.loading": "Loading...",
     "home.empty": "No posts yet. Seed backend data to see initial feed items.",
+    "home.hero.platform": "Platform",
+    "home.hero.title": "Find products and services in one place; connect with agents and community",
+    "home.hero.description": "UniServe brings together products, services, and community posts. With quick filters, verified agents, and global collaboration, find the solution you need faster.",
+    "home.hero.tag.search": "⚡ Fast search",
+    "home.hero.tag.verified": "✅ Verified agents",
+    "home.hero.tag.community": "🌍 Community",
+    "home.hero.slide.products.title": "Products",
+    "home.hero.slide.products.desc": "Electronics, fashion, toys, and more",
+    "home.hero.slide.products.badge": "Products",
+    "home.hero.slide.services.title": "Services",
+    "home.hero.slide.services.desc": "IT, marketing, design, and education",
+    "home.hero.slide.services.badge": "Services",
+    "home.hero.slide.community.title": "Community",
+    "home.hero.slide.community.desc": "Share ideas and find new partners",
+    "home.hero.slide.community.badge": "Forum",
+    "home.hero.slide.agents.title": "Agents",
+    "home.hero.slide.agents.desc": "Verified sellers and providers",
+    "home.hero.slide.agents.badge": "Verified",
+    "home.hero.slide.feed.title": "Feed",
+    "home.hero.slide.feed.desc": "News and offers in one stream",
+    "home.hero.slide.feed.badge": "Feed",
     "agents.panelTitle": "Agent console",
     "agents.panelSubtitle": "Share your services and products to the UniServe feeds. A minimal CRUD form is available for now.",
     "agents.newListing": "New listing",
@@ -118,8 +210,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "auth.signupLink": "Sign up"
   },
   uz: {
+    "nav.home": "Bosh sahifa",
+    "nav.news": "Yangiliklar",
+    "nav.products": "Mahsulotlar",
+    "nav.services": "Xizmatlar",
+    "nav.agents": "Agentlar",
+    "nav.community": "Jamiyat",
     "nav.feed": "Lenta",
     "nav.agentPanel": "Agent Panel",
+    "nav.explore": "Katalog",
+    "nav.profile": "Profil",
+    "nav.agent.listings": "Mening e'lonlarim",
+    "nav.agent.new": "Yangi e'lon",
+    "nav.admin.dashboard": "Boshqaruv",
+    "nav.admin.users": "Foydalanuvchilar",
+    "nav.admin.agents": "Agentlar",
+    "nav.admin.moderation": "Moderatsiya",
+    "footer.title": "UniServe",
+    "footer.description": "UniServe butun dunyo bo‘ylab xizmatlar va mahsulotlarni bog‘laydi. Ishonchli hamkorlar va qulay tajriba bilan odamlar tezda o‘ziga mos yechimni topadi.",
+    "footer.tagline": "Global xizmatlar va mahsulotlar bir joyda.",
+    "footer.rights": "Barcha huquqlar himoyalangan.",
+    "contact.facebook": "Facebook",
+    "contact.instagram": "Instagram",
+    "contact.telegram": "Telegram",
+    "contact.kakao": "KakaoTalk",
+    "contact.email": "Email",
+    "contact.phone": "Telefon",
+    "contact.address": "Manzil",
     "header.subtitle": "Global services hub",
     "auth.login.title": "Kirish",
     "auth.login.subtitle": "Admin, agent yoki oddiy foydalanuvchi sifatida tizimga kiring.",
@@ -143,6 +260,27 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "home.subtitle": "Agentlar va foydalanuvchilarning xizmatlari, mahsulotlari va ijtimoiy postlari shu yerda ko'rinadi.",
     "home.loading": "Yuklanmoqda...",
     "home.empty": "Hozircha postlar yo'q. Dastlabki ma'lumotlarni seed qilib ko'ring.",
+    "home.hero.platform": "Platforma",
+    "home.hero.title": "Tovar va xizmatlarni bir joyda toping, agentlar va hamjamiyat bilan bog‘laning",
+    "home.hero.description": "UniServe — mahsulotlar, xizmatlar va hamjamiyat postlari jamlangan markaz. Tez filtrlar, tasdiqlangan agentlar va global hamkorlik orqali kerakli yechimni toping.",
+    "home.hero.tag.search": "⚡ Tezkor qidiruv",
+    "home.hero.tag.verified": "✅ Tasdiqlangan agentlar",
+    "home.hero.tag.community": "🌍 Hamjamiyat",
+    "home.hero.slide.products.title": "Mahsulotlar",
+    "home.hero.slide.products.desc": "Elektronika, moda, o'yinchoqlar va boshqa",
+    "home.hero.slide.products.badge": "Mahsulotlar",
+    "home.hero.slide.services.title": "Xizmatlar",
+    "home.hero.slide.services.desc": "IT, marketing, dizayn va ta'lim",
+    "home.hero.slide.services.badge": "Xizmatlar",
+    "home.hero.slide.community.title": "Hamjamiyat",
+    "home.hero.slide.community.desc": "Fikr almashish va hamkor topish",
+    "home.hero.slide.community.badge": "Forum",
+    "home.hero.slide.agents.title": "Agentlar",
+    "home.hero.slide.agents.desc": "Tasdiqlangan sotuvchilar va ijrochilar",
+    "home.hero.slide.agents.badge": "Verified",
+    "home.hero.slide.feed.title": "Lenta",
+    "home.hero.slide.feed.desc": "Yangiliklar va takliflar bir oqimda",
+    "home.hero.slide.feed.badge": "Lenta",
     "agents.panelTitle": "Agent paneli",
     "agents.panelSubtitle": "Bu yerda siz xizmat va mahsulotlaringizni UniServe lentalariga joylashtirasiz. Hozircha minimal CRUD shakli ishlatilmoqda.",
     "agents.newListing": "Yangi e'lon",
@@ -174,8 +312,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "auth.signupLink": "Ro'yhatdan o'tish"
   },
   ru: {
+    "nav.home": "Главная",
+    "nav.news": "Новости",
+    "nav.products": "Товары",
+    "nav.services": "Услуги",
+    "nav.agents": "Агенты",
+    "nav.community": "Сообщество",
     "nav.feed": "Лента",
     "nav.agentPanel": "Панель агента",
+    "nav.explore": "Каталог",
+    "nav.profile": "Профиль",
+    "nav.agent.listings": "Мои объявления",
+    "nav.agent.new": "Добавить объявление",
+    "nav.admin.dashboard": "Дашборд",
+    "nav.admin.users": "Пользователи",
+    "nav.admin.agents": "Агенты",
+    "nav.admin.moderation": "Модерация",
+    "footer.title": "UniServe",
+    "footer.description": "UniServe объединяет услуги и товары по всему миру. С надежными партнерами и простой подачей люди быстро находят подходящие решения.",
+    "footer.tagline": "Глобальные услуги и товары в одном месте.",
+    "footer.rights": "Все права защищены.",
+    "contact.facebook": "Facebook",
+    "contact.instagram": "Instagram",
+    "contact.telegram": "Telegram",
+    "contact.kakao": "KakaoTalk",
+    "contact.email": "Email",
+    "contact.phone": "Телефон",
+    "contact.address": "Адрес",
     "header.subtitle": "Платформа услуг и товаров",
     "auth.login.title": "Вход",
     "auth.login.subtitle": "Войдите как админ, агент или пользователь.",
@@ -199,6 +362,27 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "home.subtitle": "Услуги, товары и посты агентов и пользователей появляются здесь.",
     "home.loading": "Загрузка...",
     "home.empty": "Пока нет постов. Засидируйте данные бэкенда, чтобы увидеть примеры.",
+    "home.hero.platform": "Платформа",
+    "home.hero.title": "Найдите товары и услуги в одном месте, общайтесь с агентами и сообществом",
+    "home.hero.description": "UniServe объединяет товары, услуги и посты сообщества. Быстрые фильтры, проверенные агенты и глобальное взаимодействие помогают быстрее найти нужное решение.",
+    "home.hero.tag.search": "⚡ Быстрый поиск",
+    "home.hero.tag.verified": "✅ Проверенные агенты",
+    "home.hero.tag.community": "🌍 Сообщество",
+    "home.hero.slide.products.title": "Товары",
+    "home.hero.slide.products.desc": "Электроника, мода, игрушки и другое",
+    "home.hero.slide.products.badge": "Товары",
+    "home.hero.slide.services.title": "Услуги",
+    "home.hero.slide.services.desc": "IT, маркетинг, дизайн и обучение",
+    "home.hero.slide.services.badge": "Услуги",
+    "home.hero.slide.community.title": "Сообщество",
+    "home.hero.slide.community.desc": "Обмен идеями и поиск новых партнеров",
+    "home.hero.slide.community.badge": "Форум",
+    "home.hero.slide.agents.title": "Агенты",
+    "home.hero.slide.agents.desc": "Проверенные продавцы и исполнители",
+    "home.hero.slide.agents.badge": "Verified",
+    "home.hero.slide.feed.title": "Лента",
+    "home.hero.slide.feed.desc": "Новости и предложения в одном потоке",
+    "home.hero.slide.feed.badge": "Лента",
     "agents.panelTitle": "Панель агента",
     "agents.panelSubtitle": "Публикуйте свои услуги и товары в ленту UniServe. Сейчас доступна минимальная форма CRUD.",
     "agents.newListing": "Новое объявление",
@@ -230,8 +414,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "auth.signupLink": "Регистрация"
   },
   ko: {
+    "nav.home": "홈",
+    "nav.news": "뉴스",
+    "nav.products": "상품",
+    "nav.services": "서비스",
+    "nav.agents": "에이전트",
+    "nav.community": "커뮤니티",
     "nav.feed": "피드",
     "nav.agentPanel": "에이전트 패널",
+    "nav.explore": "탐색",
+    "nav.profile": "프로필",
+    "nav.agent.listings": "내 게시물",
+    "nav.agent.new": "새 게시물",
+    "nav.admin.dashboard": "대시보드",
+    "nav.admin.users": "사용자 관리",
+    "nav.admin.agents": "에이전트 관리",
+    "nav.admin.moderation": "피드 모더레이션",
+    "footer.title": "UniServe",
+    "footer.description": "UniServe는 전 세계의 서비스와 상품을 연결합니다. 신뢰할 수 있는 파트너와 간단한 경험으로 원하는 해법을 빠르게 찾을 수 있습니다.",
+    "footer.tagline": "글로벌 서비스와 상품, 한곳에.",
+    "footer.rights": "판권 소유.",
+    "contact.facebook": "Facebook",
+    "contact.instagram": "Instagram",
+    "contact.telegram": "Telegram",
+    "contact.kakao": "KakaoTalk",
+    "contact.email": "Email",
+    "contact.phone": "전화",
+    "contact.address": "주소",
     "header.subtitle": "글로벌 서비스 허브",
     "auth.login.title": "로그인",
     "auth.login.subtitle": "관리자, 에이전트 또는 일반 사용자로 로그인하세요.",
@@ -255,6 +464,27 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "home.subtitle": "에이전트와 사용자의 서비스, 상품, 소셜 포스트가 여기에 표시됩니다.",
     "home.loading": "로딩 중...",
     "home.empty": "아직 포스트가 없습니다. 백엔드 데이터를 시드하면 예시가 보입니다.",
+    "home.hero.platform": "플랫폼",
+    "home.hero.title": "상품과 서비스를 한 곳에서 찾고, 에이전트와 커뮤니티와 연결하세요",
+    "home.hero.description": "UniServe는 상품, 서비스, 커뮤니티 포스트를 모두 모았습니다. 빠른 필터, 검증된 에이전트, 글로벌 협업으로 원하는 해법을 더 빨리 찾을 수 있습니다.",
+    "home.hero.tag.search": "⚡ 빠른 검색",
+    "home.hero.tag.verified": "✅ 검증된 에이전트",
+    "home.hero.tag.community": "🌍 커뮤니티",
+    "home.hero.slide.products.title": "상품",
+    "home.hero.slide.products.desc": "전자제품, 패션, 장난감 등",
+    "home.hero.slide.products.badge": "상품",
+    "home.hero.slide.services.title": "서비스",
+    "home.hero.slide.services.desc": "IT, 마케팅, 디자인, 교육",
+    "home.hero.slide.services.badge": "서비스",
+    "home.hero.slide.community.title": "커뮤니티",
+    "home.hero.slide.community.desc": "아이디어 공유 및 파트너 찾기",
+    "home.hero.slide.community.badge": "포럼",
+    "home.hero.slide.agents.title": "에이전트",
+    "home.hero.slide.agents.desc": "검증된 판매자와 제공자",
+    "home.hero.slide.agents.badge": "Verified",
+    "home.hero.slide.feed.title": "피드",
+    "home.hero.slide.feed.desc": "뉴스와 제안을 한 스트림에",
+    "home.hero.slide.feed.badge": "피드",
     "agents.panelTitle": "에이전트 패널",
     "agents.panelSubtitle": "여기서 서비스와 상품을 UniServe 피드에 게시하세요. 현재는 최소 CRUD 폼이 제공됩니다.",
     "agents.newListing": "새 게시물",

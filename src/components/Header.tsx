@@ -14,6 +14,18 @@ export function Header() {
   const { t } = useI18n();
   const { role, profile, isAuthenticated, hydrateFromStorage, logout } = useAuthStore();
 
+  const baseNav = useMemo(
+    () => [
+      { href: "/", label: t("nav.home") },
+      { href: "/?section=news", label: t("nav.news") },
+      { href: "/products", label: t("nav.products") },
+      { href: "/agents?view=services", label: t("nav.services") },
+      { href: "/agents", label: t("nav.agents") },
+      { href: "/community", label: t("nav.community") }
+    ],
+    [t]
+  );
+
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
@@ -23,40 +35,53 @@ export function Header() {
     router.push("/login");
   };
 
-  const navItems = useMemo(() => {
+  const extraNav = useMemo(() => {
     if (!isAuthenticated || !role) {
-      return [
-        { href: "/", label: "Home" },
-        { href: "/login", label: "Login" },
-        { href: "/signup", label: "Signup" }
-      ];
+      return [];
     }
     if (role === "ADMIN") {
       return [
-        { href: "/admin", label: "Dashboard" },
-        { href: "/admin/users", label: "Manage Users" },
-        { href: "/admin/agents", label: "Manage Agents" },
-        { href: "/admin/moderation", label: "Feed Moderation" }
+        { href: "/admin", label: t("nav.admin.dashboard") },
+        { href: "/admin/users", label: t("nav.admin.users") },
+        { href: "/admin/agents", label: t("nav.admin.agents") },
+        { href: "/admin/moderation", label: t("nav.admin.moderation") }
       ];
     }
     if (role === "AGENT") {
       return [
-        { href: "/", label: "Home" },
-        { href: "/agent/listings", label: "My Listings" },
-        { href: "/agent/listings/new", label: "Add Listing" },
-        { href: "/profile", label: "Profile" }
+        { href: "/agent/listings", label: t("nav.agent.listings") },
+        { href: "/agent/listings/new", label: t("nav.agent.new") },
+        { href: "/profile", label: t("nav.profile") }
       ];
     }
     return [
-      { href: "/", label: "Home" },
-      { href: "/agents", label: "Explore" },
-      { href: "/profile", label: "Profile" }
+      { href: "/agents", label: t("nav.explore") },
+      { href: "/profile", label: t("nav.profile") }
     ];
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, role, t]);
+
+  const navItems = useMemo(() => {
+    const combined = isAuthenticated ? [...baseNav, ...extraNav] : baseNav;
+    const seen = new Set<string>();
+    return combined.filter((item) => {
+      if (seen.has(item.href)) return false;
+      seen.add(item.href);
+      return true;
+    });
+  }, [baseNav, extraNav, isAuthenticated]);
+
+  const isActive = (href: string) => {
+    const base = href.split("?")[0];
+    return pathname === base || pathname.startsWith(`${base}/`);
+  };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-800 bg-black/40 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[url('/header-bg.png')] bg-cover bg-center opacity-60"
+        aria-hidden="true"
+      />
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-8">
         <Link href="/" className="flex items-center gap-2">
           <div className="relative h-9 w-9">
             <Image
@@ -77,15 +102,15 @@ export function Header() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-4 text-sm text-slate-300 md:flex">
+        <nav className="hidden items-center gap-4 text-sm text-slate-800 md:flex">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={`rounded-full px-3 py-1 transition ${
-                pathname === item.href
-                  ? "bg-sky-500/10 text-sky-300"
-                  : "hover:bg-slate-800/70"
+                isActive(item.href)
+                  ? "bg-sky-100 text-sky-700"
+                  : "hover:bg-slate-200"
               }`}
             >
               {item.label}
@@ -119,7 +144,7 @@ export function Header() {
             <>
               <Link
                 href="/login"
-                className="rounded-full px-3 py-1 text-xs text-slate-300 hover:bg-slate-800/70"
+                className="rounded-full px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
               >
                 {t("auth.loginLink")}
               </Link>
