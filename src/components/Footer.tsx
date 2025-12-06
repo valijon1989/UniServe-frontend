@@ -99,7 +99,7 @@ export function Footer() {
       </div>
       <div className="relative border-t border-slate-800/80 bg-black/70">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <span>© {new Date().getFullYear()} {t("footer.title")}. {t("footer.rights")}</span>
+          <span>(c) {new Date().getFullYear()} {t("footer.title")}. {t("footer.rights")}</span>
           <span className="text-slate-400">{t("footer.tagline")}</span>
         </div>
       </div>

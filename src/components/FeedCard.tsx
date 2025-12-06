@@ -39,7 +39,7 @@ export function FeedCard({ item }: Props) {
               {authorName}
             </span>
             <span className="text-xs text-slate-400">
-              {authorRole} · {created}
+              {authorRole} - {created}
             </span>
           </div>
         </header>
@@ -63,8 +63,8 @@ export function FeedCard({ item }: Props) {
         )}
 
         <footer className="flex items-center gap-4 text-xs text-slate-400">
-          <span>❤️ {item.likesCount}</span>
-          <span>💬 {item.commentsCount}</span>
+          <span>Love {item.likesCount}</span>
+          <span>Comments {item.commentsCount}</span>
           <span className="ml-auto rounded-full bg-slate-900/80 px-2 py-0.5 text-[11px] uppercase tracking-wide text-slate-400">
             {category}
           </span>

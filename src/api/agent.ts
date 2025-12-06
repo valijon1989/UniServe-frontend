@@ -11,6 +11,24 @@ export interface Listing {
   status?: "ACTIVE" | "SOLD" | "ARCHIVED";
 }
 
+export interface TopAgent {
+  _id?: string;
+  id?: string;
+  rating?: number;
+  verifiedByAdmin?: boolean;
+  faceIdVerified?: boolean;
+  kind?: "SELLER" | "SERVICE";
+  serviceCategory?: string;
+  user?: {
+    _id?: string;
+    name?: string;
+    username?: string;
+    avatarUrl?: string;
+    bio?: string;
+    region?: string;
+  };
+}
+
 export async function getMyListings(): Promise<Listing[]> {
   const res = await api.get("/api/agent/listings");
   return res.data.items || res.data;
@@ -28,4 +46,13 @@ export async function updateListing(id: string, input: Partial<Listing>): Promis
 
 export async function deleteListing(id: string): Promise<void> {
   await api.delete(`/api/agent/listings/${id}`);
+}
+
+export async function getTopAgents(limit = 20): Promise<TopAgent[]> {
+  const res = await api.get("/api/agents/top", { params: { limit } });
+  const agents: TopAgent[] = res.data?.agents || res.data?.items || res.data || [];
+  return agents.map((a, idx) => ({
+    ...a,
+    id: a.id || a._id || String(idx)
+  }));
 }

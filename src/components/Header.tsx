@@ -17,7 +17,7 @@ export function Header() {
   const baseNav = useMemo(
     () => [
       { href: "/", label: t("nav.home") },
-      { href: "/?section=news", label: t("nav.news") },
+      { href: "/news", label: t("nav.news") },
       { href: "/products", label: t("nav.products") },
       { href: "/agents?view=services", label: t("nav.services") },
       { href: "/agents", label: t("nav.agents") },
@@ -130,7 +130,7 @@ export function Header() {
                   {profile?.name?.[0]?.toUpperCase() || "U"}
                 </span>
                 <span className="hidden sm:inline">
-                  {profile?.name || "User"} · {role}
+                  {profile?.name || "User"} - {role}
                 </span>
               </button>
               <button

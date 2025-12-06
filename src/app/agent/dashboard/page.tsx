@@ -72,7 +72,7 @@ export default function AgentDashboardPage() {
           Your listings
         </h2>
         {loading && (
-          <p className="text-slate-400">Loading listings…</p>
+          <p className="text-slate-400">Loading listings...</p>
         )}
         {!loading && listings.length === 0 && (
           <p className="text-slate-400">
@@ -92,8 +92,8 @@ export default function AgentDashboardPage() {
                     {item.title}
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    {item.type.toLowerCase()} • {item.category}{" "}
-                    {item.location ? `• ${item.location}` : ""}
+                    {item.type.toLowerCase()} - {item.category}{" "}
+                    {item.location ? `- ${item.location}` : ""}
                   </p>
                 </div>
                 <div className="text-right text-[11px] text-slate-300">

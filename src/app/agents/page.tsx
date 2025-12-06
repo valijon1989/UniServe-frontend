@@ -71,7 +71,7 @@ export default function AgentDashboardPage() {
                       {item.title}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {item.category} · {item.price} {item.currency}
+                      {item.category} - {item.price} {item.currency}
                     </p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-400">
                       {item.description}
