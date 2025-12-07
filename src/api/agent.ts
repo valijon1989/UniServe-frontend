@@ -14,11 +14,15 @@ export interface Listing {
 export interface TopAgent {
   _id?: string;
   id?: string;
+  name?: string;
   rating?: number;
+  score?: number;
+  posts?: number;
   verifiedByAdmin?: boolean;
   faceIdVerified?: boolean;
   kind?: "SELLER" | "SERVICE";
   serviceCategory?: string;
+  snippet?: string;
   user?: {
     _id?: string;
     name?: string;
@@ -26,6 +30,7 @@ export interface TopAgent {
     avatarUrl?: string;
     bio?: string;
     region?: string;
+    postsCount?: number;
   };
 }
 

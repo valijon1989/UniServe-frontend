@@ -13,6 +13,8 @@ export function Header() {
   const router = useRouter();
   const { t } = useI18n();
   const { role, profile, isAuthenticated, hydrateFromStorage, logout } = useAuthStore();
+  const isNewsPage = pathname?.startsWith("/news");
+  const headerBg = isNewsPage ? "url('/images/news/news1.jpg')" : "url('/header-bg.png')";
 
   const baseNav = useMemo(
     () => [
@@ -78,7 +80,13 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm relative overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-0 bg-[url('/header-bg.png')] bg-cover bg-center opacity-60"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-60"
+        style={{
+          backgroundImage: headerBg,
+          backgroundSize: isNewsPage ? "contain" : "cover",
+          backgroundRepeat: isNewsPage ? "no-repeat" : undefined,
+          backgroundPosition: "center"
+        }}
         aria-hidden="true"
       />
       <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-8">

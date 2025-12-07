@@ -166,7 +166,7 @@ export default function HomePage() {
     communityPage * threadsPerPage + threadsPerPage
   );
 
-  const sampleSellerAgents = useMemo(
+  const sampleSellerAgents = useMemo<TopAgent[]>(
     () => [
       { id: "s1", name: "Dilshod Karimov", rating: 4.9, score: 132, posts: 12, snippet: "Elektronika va texnika sotuvlari" },
       { id: "s2", name: "Madina Omonova", rating: 4.8, score: 118, posts: 10, snippet: "Kiyim-kechak premium toifasi" },
@@ -182,7 +182,7 @@ export default function HomePage() {
     []
   );
 
-  const sampleServiceAgents = useMemo(
+  const sampleServiceAgents = useMemo<TopAgent[]>(
     () => [
       { id: "sv1", name: "Diyorbek Raximov", rating: 4.9, score: 140, posts: 14, snippet: "SMM va marketing xizmatlari" },
       { id: "sv2", name: "Aziza Tursunova", rating: 4.8, score: 126, posts: 12, snippet: "Grafik dizayn va brending" },
@@ -807,13 +807,13 @@ export default function HomePage() {
             </div>
             <div className="flex flex-wrap gap-2 text-[12px] md:text-sm text-slate-200">
               <span className="rounded-full bg-slate-800 px-2 py-0.5">
-                Reyting {selectedAgent.rating.toFixed(1)}
+                Reyting {(selectedAgent.rating ?? 0).toFixed(1)}
               </span>
               <span className="rounded-full bg-slate-800 px-2 py-0.5">
-                Reaksiya {selectedAgent.score}
+                Reaksiya {selectedAgent.score ?? 0}
               </span>
               <span className="rounded-full bg-slate-800 px-2 py-0.5">
-                Post {selectedAgent.posts}
+                Post {selectedAgent.posts ?? selectedAgent.user?.postsCount ?? 0}
               </span>
             </div>
           </div>

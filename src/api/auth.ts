@@ -20,14 +20,19 @@ export interface MeResponse {
   avatarUrl?: string;
 }
 
-export async function login(payload: LoginPayload) {
+export interface LoginResponse {
+  token: string;
+  user: MeResponse & { id?: string };
+}
+
+export async function login(payload: LoginPayload): Promise<LoginResponse> {
   const res = await api.post("/api/auth/login", payload);
-  const { token, user } = res.data;
+  const { token, user } = res.data as { token: string; user: MeResponse };
   if (typeof window !== "undefined") {
     localStorage.setItem("uniserve_token", token);
     localStorage.setItem("uniserve_user", JSON.stringify(user));
   }
-  return user as MeResponse;
+  return { token, user };
 }
 
 export async function signup(payload: SignupPayload) {
