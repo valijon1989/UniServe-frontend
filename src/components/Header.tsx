@@ -14,7 +14,12 @@ export function Header() {
   const { t } = useI18n();
   const { role, profile, isAuthenticated, hydrateFromStorage, logout } = useAuthStore();
   const isNewsPage = pathname?.startsWith("/news");
-  const headerBg = isNewsPage ? "url('/images/news/news1.jpg')" : "url('/header-bg.png')";
+  const isProductsPage = pathname?.startsWith("/products");
+  const headerBg = isProductsPage
+    ? "linear-gradient(90deg, rgba(12,12,12,0.78), rgba(0,0,0,0.55)), url('/images/products/bosh.png'), url('/header-bg.png')"
+    : isNewsPage
+      ? "url('/images/news/news1.jpg')"
+      : "url('/header-bg.png')";
 
   const baseNav = useMemo(
     () => [
@@ -83,8 +88,8 @@ export function Header() {
         className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-60"
         style={{
           backgroundImage: headerBg,
-          backgroundSize: isNewsPage ? "contain" : "cover",
-          backgroundRepeat: isNewsPage ? "no-repeat" : undefined,
+          backgroundSize: isProductsPage ? "cover, cover, cover" : isNewsPage ? "contain" : "cover",
+          backgroundRepeat: isProductsPage ? "no-repeat, no-repeat, no-repeat" : isNewsPage ? "no-repeat" : undefined,
           backgroundPosition: "center"
         }}
         aria-hidden="true"

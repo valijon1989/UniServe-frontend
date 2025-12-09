@@ -26,7 +26,7 @@ export interface LoginResponse {
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const res = await api.post("/api/auth/login", payload);
+  const res = await api.post("/auth/login", payload);
   const { token, user } = res.data as { token: string; user: MeResponse };
   if (typeof window !== "undefined") {
     localStorage.setItem("uniserve_token", token);
@@ -36,13 +36,13 @@ export async function login(payload: LoginPayload): Promise<LoginResponse> {
 }
 
 export async function signup(payload: SignupPayload) {
-  const res = await api.post("/api/auth/register", payload);
+  const res = await api.post("/auth/register", payload);
   return res.data;
 }
 
 export async function getMe(): Promise<MeResponse | null> {
   try {
-    const res = await api.get("/api/auth/me");
+    const res = await api.get("/auth/me");
     return res.data as MeResponse;
   } catch {
     return null;

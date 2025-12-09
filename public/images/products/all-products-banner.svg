@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-label="All Products - Foods, Clothes and More">
+  <defs>
+    <linearGradient id="bag1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbcfe8"/>
+      <stop offset="100%" stop-color="#f9a8d4"/>
+    </linearGradient>
+    <linearGradient id="bag2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bfdbfe"/>
+      <stop offset="100%" stop-color="#93c5fd"/>
+    </linearGradient>
+    <linearGradient id="bag3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="500" fill="#f4d9d3"/>
+  <g opacity="0.6">
+    <rect x="360" y="90" width="240" height="280" rx="12" fill="url(#bag2)" />
+    <rect x="590" y="110" width="240" height="260" rx="12" fill="url(#bag1)" />
+    <rect x="820" y="100" width="240" height="270" rx="12" fill="url(#bag3)" />
+  </g>
+  <text x="800" y="220" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-size="90" font-weight="700" fill="#5c2b64">
+    All Products
+  </text>
+  <text x="800" y="270" text-anchor="middle" font-family="'Raleway', 'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="600" fill="#8a4f7d" letter-spacing="2">
+    Foods, Clothes and More
+  </text>
+</svg>

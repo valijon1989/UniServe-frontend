@@ -44,12 +44,12 @@ const normalizeTrend = <T extends { _id?: string; id?: string }>(data: any): Tre
 };
 
 export async function getTrendingServices(page = 1, limit = 9): Promise<TrendResponse<TrendService>> {
-  const res = await api.get("/api/services/trending", { params: { page, limit } });
+  const res = await api.get("/services/trending", { params: { page, limit } });
   return normalizeTrend<TrendService>(res.data);
 }
 
 export async function getLatestServices(): Promise<TrendService[]> {
-  const res = await api.get("/api/services");
+  const res = await api.get("/services");
   const services: TrendService[] = res.data?.services || res.data?.items || res.data || [];
   return services
     .map((s, idx) => ({ ...s, id: s.id || s._id || String(idx) }))

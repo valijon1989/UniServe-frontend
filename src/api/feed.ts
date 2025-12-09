@@ -23,7 +23,7 @@ export interface FeedItem {
 }
 
 export async function getFeed(): Promise<FeedItem[]> {
-  const res = await api.get("/api/feed");
+  const res = await api.get("/feed");
   const normalize = (value: any): FeedItem[] | null => {
     if (Array.isArray(value)) return value;
     if (value && typeof value === "object") {

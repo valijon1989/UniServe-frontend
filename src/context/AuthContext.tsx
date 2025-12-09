@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setToken(storedToken);
       setAuthToken(storedToken);
       api
-        .get<User>("/api/auth/me")
+        .get<User>("/auth/me")
         .then((res) => setUser(res.data))
         .catch(() => {
           window.localStorage.removeItem(TOKEN_KEY);
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await api.post<AuthResponse>("/api/auth/login", {
+    const res = await api.post<AuthResponse>("/auth/login", {
       email,
       password,
     });
@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string;
     role: "USER" | "AGENT";
   }) => {
-    const res = await api.post<AuthResponse>("/api/auth/register", data);
+    const res = await api.post<AuthResponse>("/auth/register", data);
     setUser(res.data.user);
     setToken(res.data.token);
     setAuthToken(res.data.token);

@@ -29,7 +29,7 @@ export default function AgentDashboardPage() {
       return;
     }
     api
-      .get<AgentListing[]>("/api/agents/me/listings")
+      .get<AgentListing[]>("/agents/me/listings")
       .then((res) => setListings(res.data))
       .catch((err) => console.error("Failed to load listings", err))
       .finally(() => setLoading(false));
