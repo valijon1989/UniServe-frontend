@@ -14,6 +14,14 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const productId = data._id || data.id || "";
 
   const handleOpen = () => {
+    if (typeof window !== "undefined" && productId) {
+      try {
+        const key = `product-preview-${productId}`;
+        window.sessionStorage.setItem(key, JSON.stringify(data));
+      } catch {
+        // storage may be unavailable; fail silently
+      }
+    }
     if (disableNavigation) {
       onCardClick?.();
       return;

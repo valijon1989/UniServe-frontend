@@ -22,12 +22,16 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    const cached = loadCachedProduct(id);
+    if (cached) {
+      setData((prev) => mergeProductData(cached, prev));
+    }
     let active = true;
     setLoading(true);
     void addProductView(id);
     getProductDetail(id)
       .then((res) => {
-        if (active) setData(res);
+        if (active) setData((prev) => mergeProductData(cached, res ?? prev ?? undefined));
       })
       .catch((err) => {
         console.error("Product detail load error", err);
@@ -132,8 +136,12 @@ export default function ProductDetailPage() {
   }
 
   const stats = data.stats || { views: data.views ?? 0, likes: data.likes ?? 0, purchases: data.orders ?? 0 };
-  const price = data.price ? data.price.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
-  const oldPrice = data.oldPrice ? data.oldPrice.toLocaleString("en-US", { maximumFractionDigits: 2 }) : null;
+  const priceValue = data.price ?? null;
+  const price = priceValue !== null ? priceValue.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
+  const oldPriceValue = data.oldPrice ?? null;
+  const oldPrice = oldPriceValue !== null ? oldPriceValue.toLocaleString("en-US", { maximumFractionDigits: 2 }) : null;
+  const discount =
+    priceValue !== null && oldPriceValue !== null && oldPriceValue > 0 ? Math.round(((oldPriceValue - priceValue) / oldPriceValue) * 100) : null;
 
   return (
     <div className="space-y-6">
@@ -150,7 +158,16 @@ export default function ProductDetailPage() {
             <RatingBadge rating={data.rating?.avg ?? 0} count={data.rating?.count ?? 0} />
           </div>
 
-          <p className="text-sm text-slate-600">
+          <Badges
+            brand={data.brand}
+            condition={data.condition}
+            audience={data.audience}
+            size={data.size}
+            season={data.season}
+            createdAt={data.createdAt}
+          />
+
+          <p className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
             {data.description || "Mahsulot haqidagi batafsil ma'lumot hali qo'shilmagan."}
           </p>
 
@@ -158,7 +175,10 @@ export default function ProductDetailPage() {
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">Narx</p>
               <p className="text-4xl font-extrabold text-slate-900">${price}</p>
-              {oldPrice && <p className="text-sm text-slate-400 line-through">${oldPrice}</p>}
+              <div className="flex items-center gap-2">
+                {oldPrice && <p className="text-sm text-slate-400 line-through">${oldPrice}</p>}
+                {discount !== null && <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800">-{discount}%</span>}
+              </div>
             </div>
             <div className="ml-auto flex gap-2">
               <button
@@ -197,20 +217,25 @@ export default function ProductDetailPage() {
 
           <StatsRow stats={stats} />
 
-          <Description text={data.description} />
+          <QuickFacts data={data} />
 
           <VendorBox vendor={data.vendor} />
         </div>
       </section>
 
       <Specifications data={data.specifications} />
+      <Description text={data.description} category={data.category} images={data.images} />
     </div>
   );
 }
 
 function ImageSlider({ images, alt }: { images?: string[]; alt?: string }) {
-  const safeImages = images && images.length > 0 ? images : ["/placeholder.png"];
+  const safeImages = useMemo(() => normalizeImagesList(images), [images]);
   const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (active >= safeImages.length) setActive(0);
+  }, [active, safeImages.length]);
 
   return (
     <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-lg">
@@ -271,11 +296,50 @@ function StatsRow({ stats }: { stats: { views?: number; likes?: number; purchase
   );
 }
 
-function Description({ text }: { text?: string }) {
-  if (!text) return null;
+function Description({ text, category, images }: { text?: string; category?: string; images?: string[] }) {
+  const highlights = getCategoryHighlights(category);
+  const previewImages = normalizeImagesList(images).slice(0, 3);
+  if (!text && highlights.length === 0 && previewImages.length === 0) return null;
+
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-      {text}
+    <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg">
+      <h2 className="text-xl font-bold text-slate-900">Batafsil tavsif</h2>
+      {text && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{text}</p>}
+
+      {highlights.length > 0 && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {highlights.map((item) => (
+            <div key={item.title} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div className="text-2xl">{item.icon}</div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-500">{item.title}</p>
+                <p className="text-sm font-semibold text-slate-900">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {previewImages.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {previewImages.map((src, idx) => (
+            <div
+              key={`${src}-${idx}`}
+              className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50 shadow-sm"
+            >
+              <img
+                src={src}
+                alt={`Preview ${idx + 1}`}
+                className="h-28 w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/placeholder.png";
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -300,6 +364,74 @@ function Specifications({ data }: { data?: Record<string, string> }) {
   );
 }
 
+function Badges({
+  brand,
+  condition,
+  audience,
+  size,
+  season,
+  createdAt
+}: {
+  brand?: string;
+  condition?: string;
+  audience?: string;
+  size?: string;
+  season?: string;
+  createdAt?: string;
+}) {
+  const items = [
+    brand ? `Brend: ${brand}` : null,
+    condition ? `Holati: ${condition}` : null,
+    audience ? `Auditoriya: ${audience}` : null,
+    size ? `O'lcham: ${size}` : null,
+    season ? `Mavsum: ${season}` : null,
+    createdAt ? `Joylandi: ${formatDate(createdAt)}` : null
+  ].filter(Boolean);
+
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span
+          key={item}
+          className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm"
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function QuickFacts({ data }: { data: Product }) {
+  const facts = [
+    { label: "Kategoriya", value: data.category },
+    { label: "Brend", value: data.brand },
+    { label: "Holati", value: data.condition },
+    { label: "O'lcham", value: data.size },
+    { label: "Mavsum", value: data.season },
+    { label: "Auditoriya", value: data.audience },
+    { label: "Tashkil etilgan", value: data.createdAt ? formatDate(data.createdAt) : undefined },
+    { label: "ID", value: data.id || data._id }
+  ].filter((item) => item.value);
+
+  if (facts.length === 0) return null;
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg">
+      <h2 className="text-xl font-bold text-slate-900">Asosiy ma'lumotlar</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {facts.map((fact) => (
+          <div key={`${fact.label}-${fact.value}`} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm">
+            <p className="text-xs uppercase tracking-[0.12em] text-slate-500">{fact.label}</p>
+            <p className="mt-1 font-semibold text-slate-900">{fact.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function VendorBox({ vendor }: { vendor?: Product["vendor"] }) {
   if (!vendor) return null;
   return (
@@ -313,4 +445,82 @@ function VendorBox({ vendor }: { vendor?: Product["vendor"] }) {
       </div>
     </div>
   );
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("uz-UZ", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function loadCachedProduct(id: string): Product | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const key = `product-preview-${id}`;
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as Product;
+  } catch {
+    return null;
+  }
+}
+
+function mergeProductData(base?: Product | null, next?: Product | null): Product | null {
+  if (!base && !next) return null;
+  const combined: Product = { ...(base || {}), ...(next || {}) };
+  combined.rating = next?.rating || base?.rating;
+  combined.stats = next?.stats || base?.stats || {
+    views: next?.views ?? base?.views ?? 0,
+    likes: next?.likes ?? base?.likes ?? 0,
+    purchases: (next?.orders ?? base?.orders) || 0
+  };
+  combined.images = normalizeImagesList(next?.images || base?.images);
+  combined.thumbnail = next?.thumbnail || base?.thumbnail || combined.images?.[0];
+  combined.name = next?.name || next?.title || base?.name || base?.title;
+  combined.title = combined.name || next?.title || base?.title;
+  combined.description = next?.description || base?.description;
+  combined.price = next?.price ?? base?.price;
+  combined.oldPrice = next?.oldPrice ?? base?.oldPrice;
+  combined.category = next?.category || base?.category;
+  return combined;
+}
+
+function normalizeImagesList(images?: string[]) {
+  const base = (images ?? []).filter(Boolean);
+  const prepared = base.length ? base.slice(0, 20) : ["/placeholder.png"];
+  const result = [...prepared];
+
+  while (result.length < 3) {
+    const next = prepared[result.length % prepared.length] || "/placeholder.png";
+    result.push(next);
+  }
+
+  return result.slice(0, 20);
+}
+
+function getCategoryHighlights(category?: string) {
+  if (!category) return [];
+  const key = category.toLowerCase();
+  const presets: Record<string, { title: string; desc: string; icon: string }[]> = {
+    electronics: [
+      { title: "Texnik", desc: "Energiyani tejovchi va yuqori unumli protsessor", icon: "🔋" },
+      { title: "Monitor", desc: "Yorqin va ravshan displey, ko'z uchun qulay", icon: "🖥️" }
+    ],
+    fashion: [
+      { title: "Material", desc: "Yumshoq va havo o'tkazuvchi mato", icon: "🧵" },
+      { title: "Dizayn", desc: "Kundalik va bayramona uslubda mos keladi", icon: "👗" }
+    ],
+    grocery: [
+      { title: "Yangi", desc: "Mahalliy fermadan yetkazilgan yangiligi tekshirilgan", icon: "🥬" },
+      { title: "Paket", desc: "Sertifikatlangan va xavfsiz o'ralgan", icon: "📦" }
+    ],
+    beauty: [
+      { title: "Tarkib", desc: "Paraben va sulfatlarsiz muloyim formula", icon: "🧴" },
+      { title: "Natija", desc: "Namlikni ushlab turadi va jiloni tiklaydi", icon: "✨" }
+    ]
+  };
+
+  return presets[key] || [
+    { title: "Kategoriya", desc: `${category} uchun asosiy afzalliklar to'plangan.`, icon: "📌" }
+  ];
 }
