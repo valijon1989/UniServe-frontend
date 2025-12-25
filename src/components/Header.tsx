@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 
 export function Header() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { t } = useI18n();
   const { role, profile, isAuthenticated, hydrateFromStorage, logout } = useAuthStore();
@@ -78,8 +79,22 @@ export function Header() {
   }, [baseNav, extraNav, isAuthenticated]);
 
   const isActive = (href: string) => {
-    const base = href.split("?")[0];
-    return pathname === base || pathname.startsWith(`${base}/`);
+    const [base, query] = href.split("?");
+    const pathMatch = pathname === base || pathname.startsWith(`${base}/`);
+    if (!pathMatch) return false;
+    if (!query) {
+      if (base === "/agents" && searchParams?.get("view") === "services") {
+        return false;
+      }
+      return true;
+    }
+    const requiredParams = new URLSearchParams(query);
+    for (const [key, value] of requiredParams.entries()) {
+      if (searchParams?.get(key) !== value) {
+        return false;
+      }
+    }
+    return true;
   };
 
   return (

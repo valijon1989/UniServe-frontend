@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AgentListingForm } from "@/components/AgentListingForm";
+import { ServicesHub } from "@/components/ServicesHub";
 import { createListing, getMyListings, type Listing } from "@/api/agent";
 import { useI18n } from "@/context/i18n";
 
 export default function AgentDashboardPage() {
+  const view = useSearchParams().get("view");
+  const isServicesView = view === "services";
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const { t } = useI18n();
@@ -22,13 +26,19 @@ export default function AgentDashboardPage() {
   };
 
   useEffect(() => {
-    void loadListings();
-  }, []);
+    if (!isServicesView) {
+      void loadListings();
+    }
+  }, [isServicesView]);
 
   const handleCreate = async (values: Listing) => {
     const created = await createListing(values);
     setListings((prev) => [created, ...prev]);
   };
+
+  if (isServicesView) {
+    return <ServicesHub />;
+  }
 
   return (
     <div className="space-y-4">

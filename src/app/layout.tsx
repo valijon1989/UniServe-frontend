@@ -6,7 +6,10 @@ import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "UniServe",
-  description: "Global services and products platform"
+  description: "Global services and products platform",
+  icons: {
+    icon: "/favicon.ico"
+  }
 };
 
 export default function RootLayout({

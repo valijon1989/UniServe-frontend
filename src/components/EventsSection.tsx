@@ -22,14 +22,21 @@ export function EventsSection({ saleProducts, saleServices }: Props) {
 
   useEffect(() => {
     let ctx: { revert: () => void } | undefined;
+    let mounted = true;
 
     const setup = async () => {
       const gsap = (await import("gsap")).default;
       const ScrollTrigger = (await import("gsap/ScrollTrigger")).default;
+      const scope = ref.current;
+
+      if (!mounted || !scope) {
+        return;
+      }
+
       gsap.registerPlugin(ScrollTrigger);
 
       ctx = gsap.context(() => {
-        const cards = ref.current?.querySelectorAll<HTMLElement>("[data-lag]") || [];
+        const cards = scope.querySelectorAll<HTMLElement>("[data-lag]");
         cards.forEach((card) => {
           const lag = parseFloat(card.dataset.lag || "0");
           const shift = Math.min(1, Math.abs(lag) / 0.2) * 60; // px chegarasi
@@ -42,7 +49,7 @@ export function EventsSection({ saleProducts, saleServices }: Props) {
               y: shift * direction,
               ease: "none",
               scrollTrigger: {
-                trigger: ref.current,
+                trigger: scope,
                 start: "top bottom",
                 end: "bottom top",
                 scrub: true
@@ -50,12 +57,13 @@ export function EventsSection({ saleProducts, saleServices }: Props) {
             }
           );
         });
-      }, ref);
+      }, scope);
     };
 
     setup();
 
     return () => {
+      mounted = false;
       ctx?.revert();
     };
   }, []);
