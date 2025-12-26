@@ -2,12 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   getCategoryImagePool,
   serviceCatalog,
   type ServiceAgent,
   type ServiceCatalogGroup
 } from "@/data/serviceCatalog";
+import {
+  taxiClassOptions,
+  taxiSeatOptions,
+  type TaxiSeatCount,
+  type TaxiVehicleClass
+} from "@/data/taxiOptions";
+import { useRideSocket } from "@/hooks/useRideSocket";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 
@@ -63,6 +71,11 @@ const toWordsCount = (value: string) =>
 const formatCount = (value: number) => value.toLocaleString("en-US");
 
 export function ServicesHub() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const taxiSeatStorageKey = "uniserve_taxi_seat";
+  const taxiClassStorageKey = "uniserve_taxi_class";
   const [activeGroup, setActiveGroup] = useState<ServiceCatalogGroup["id"]>("material");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("taxi");
   const [sortMode, setSortMode] = useState<"top" | "new">("top");
@@ -73,8 +86,16 @@ export function ServicesHub() {
   const [agentKind, setAgentKind] = useState<"SERVICE" | "SELLER" | null>(null);
   const [agentGroup, setAgentGroup] = useState<"material" | "spiritual" | null>(null);
   const [agentCategory, setAgentCategory] = useState<string | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<"all" | TaxiSeatCount>("all");
+  const [selectedClass, setSelectedClass] = useState<"all" | TaxiVehicleClass>("all");
   const { t } = useI18n();
-  const { role, isAuthenticated, hydrateFromStorage } = useAuthStore();
+  const { role, isAuthenticated, hydrateFromStorage, token } = useAuthStore();
+  const { status: rideSocketStatus, latestRide, sendRideEvent } = useRideSocket({
+    token,
+    enabled: activeCategoryId === "taxi"
+  });
+
+  const getParam = (params: URLSearchParams, key: string) => params.get(key) || "";
 
   useEffect(() => {
     hydrateFromStorage();
@@ -215,7 +236,7 @@ export function ServicesHub() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeGroup, activeCategoryId, sortMode]);
+  }, [activeGroup, activeCategoryId, sortMode, selectedClass, selectedSeat]);
 
   useEffect(() => {
     if (!agentGroup || !agentCategory) return;
@@ -226,9 +247,87 @@ export function ServicesHub() {
     }));
   }, [agentCategory, agentGroup]);
 
+  useEffect(() => {
+    if (activeCategoryId !== "taxi") {
+      if (selectedSeat !== "all") setSelectedSeat("all");
+      if (selectedClass !== "all") setSelectedClass("all");
+      return;
+    }
+
+    const seatParam = getParam(searchParams, "seat");
+    const classParam = getParam(searchParams, "class");
+    let nextSeat: "all" | TaxiSeatCount = "all";
+    let nextClass: "all" | TaxiVehicleClass = "all";
+
+    if (seatParam || classParam) {
+      nextSeat = taxiSeatOptions.includes(Number(seatParam) as TaxiSeatCount)
+        ? (Number(seatParam) as TaxiSeatCount)
+        : "all";
+      nextClass = taxiClassOptions.some((option) => option.value === classParam)
+        ? (classParam as TaxiVehicleClass)
+        : "all";
+    } else if (typeof window !== "undefined") {
+      const storedSeat = window.localStorage.getItem(taxiSeatStorageKey) || "";
+      const storedClass = window.localStorage.getItem(taxiClassStorageKey) || "";
+      nextSeat = taxiSeatOptions.includes(Number(storedSeat) as TaxiSeatCount)
+        ? (Number(storedSeat) as TaxiSeatCount)
+        : "all";
+      nextClass = taxiClassOptions.some((option) => option.value === storedClass)
+        ? (storedClass as TaxiVehicleClass)
+        : "all";
+    }
+
+    if (nextSeat !== selectedSeat) setSelectedSeat(nextSeat);
+    if (nextClass !== selectedClass) setSelectedClass(nextClass);
+  }, [activeCategoryId, searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const nextSeat = activeCategoryId === "taxi" && selectedSeat !== "all" ? String(selectedSeat) : "";
+    const nextClass = activeCategoryId === "taxi" && selectedClass !== "all" ? selectedClass : "";
+
+    if (nextSeat) params.set("seat", nextSeat);
+    else params.delete("seat");
+
+    if (nextClass) params.set("class", nextClass);
+    else params.delete("class");
+
+    const nextQuery = params.toString();
+    const currentQuery = searchParams.toString();
+
+    if (nextQuery === currentQuery) return;
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [activeCategoryId, pathname, router, searchParams, selectedClass, selectedSeat]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (activeCategoryId !== "taxi") return;
+    if (selectedSeat === "all") {
+      window.localStorage.removeItem(taxiSeatStorageKey);
+    } else {
+      window.localStorage.setItem(taxiSeatStorageKey, String(selectedSeat));
+    }
+    if (selectedClass === "all") {
+      window.localStorage.removeItem(taxiClassStorageKey);
+    } else {
+      window.localStorage.setItem(taxiClassStorageKey, selectedClass);
+    }
+  }, [activeCategoryId, selectedClass, selectedSeat, taxiClassStorageKey, taxiSeatStorageKey]);
+
+  const taxiAgents = useMemo(() => {
+    if (!activeCategory) return [];
+    if (activeCategory.id !== "taxi") return activeCategory.agents;
+
+    return activeCategory.agents.filter((agent) => {
+      if (selectedSeat !== "all" && agent.seatCount !== selectedSeat) return false;
+      if (selectedClass !== "all" && agent.vehicleClass !== selectedClass) return false;
+      return true;
+    });
+  }, [activeCategory, selectedClass, selectedSeat]);
+
   const displayServices = useMemo<DisplayService[]>(() => {
     if (!activeCategory) return [];
-    const baseServices: DisplayService[] = activeCategory.agents.flatMap((agent) =>
+    const baseServices: DisplayService[] = taxiAgents.flatMap((agent) =>
       agent.services.map((service) => ({
         displayId: service.id,
         title: service.title,
@@ -286,7 +385,7 @@ export function ServicesHub() {
     });
 
     return sorted;
-  }, [activeCategory, sortMode, t]);
+  }, [activeCategory, sortMode, t, taxiAgents]);
 
   const pageSize = 8;
   const totalPages = Math.min(100, Math.max(1, Math.ceil(displayServices.length / pageSize)));
@@ -322,6 +421,36 @@ export function ServicesHub() {
     `${t("services.agent.shares")}: ${formatCount(agent.shareCount)}`,
     `${t("services.agent.reviews")}: ${formatCount(agent.reviewCount)}`
   ];
+
+  const formatTaxiClassLabel = (value: TaxiVehicleClass) =>
+    taxiClassOptions.find((option) => option.value === value)?.label ?? value;
+
+  const formatRideStatus = (status: string) => {
+    const map: Record<string, string> = {
+      requested: "So'rov yuborildi",
+      assigned: "Haydovchi biriktirildi",
+      taken: "Haydovchi qabul qildi",
+      confirmed: "Mijoz tasdiqladi",
+      completed: "Safar yakunlandi"
+    };
+    return map[status] || status;
+  };
+
+  const formatSocketStatus = (status: string) => {
+    const map: Record<string, string> = {
+      idle: "To'xtatilgan",
+      connecting: "Ulanmoqda",
+      open: "Onlayn",
+      closed: "Ulanish uzildi",
+      error: "Xatolik"
+    };
+    return map[status] || status;
+  };
+
+  const handleConfirmRide = () => {
+    if (!latestRide) return;
+    sendRideEvent("ride_confirmed", { rideId: latestRide.rideId });
+  };
 
   return (
     <div className="space-y-6">
@@ -631,6 +760,133 @@ export function ServicesHub() {
               </div>
             </div>
 
+            {activeCategory.id === "taxi" && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span>O'rinlar:</span>
+                    <select
+                      className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                      value={selectedSeat}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedSeat(value === "all" ? "all" : Number(value) as TaxiSeatCount);
+                      }}
+                    >
+                      <option value="all">Barchasi</option>
+                      {taxiSeatOptions.map((seat) => (
+                        <option key={seat} value={seat}>
+                          {seat} kishi
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>Tur:</span>
+                    <select
+                      className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value as "all" | TaxiVehicleClass)}
+                    >
+                      <option value="all">Barchasi</option>
+                      {taxiClassOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
+                    {taxiAgents.length} ta agent topildi
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {activeCategory.id === "taxi" && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-400">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-200">Real-time buyurtma holati</p>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
+                    {formatSocketStatus(rideSocketStatus)}
+                  </span>
+                </div>
+                {latestRide ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-slate-500">Ride ID</p>
+                      <p className="text-sm text-slate-100">{latestRide.rideId}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-slate-500">Holat</p>
+                      <p className="text-sm text-emerald-200">{formatRideStatus(latestRide.status)}</p>
+                    </div>
+                    {latestRide.pickupLocation && (
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Qayerdan</p>
+                        <p className="text-sm text-slate-200">{latestRide.pickupLocation}</p>
+                      </div>
+                    )}
+                    {latestRide.dropoffLocation && (
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Qayerga</p>
+                        <p className="text-sm text-slate-200">{latestRide.dropoffLocation}</p>
+                      </div>
+                    )}
+                    {(latestRide.seatCount || latestRide.taxiClass) && (
+                      <div className="flex flex-wrap gap-2 text-[11px]">
+                        {latestRide.seatCount && (
+                          <span className="rounded-full bg-slate-900 px-2 py-1 text-slate-300">
+                            {latestRide.seatCount} kishi
+                          </span>
+                        )}
+                        {latestRide.taxiClass && (
+                          <span className="rounded-full bg-slate-900 px-2 py-1 text-slate-300">
+                            {formatTaxiClassLabel(latestRide.taxiClass as TaxiVehicleClass)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {(latestRide.offeredFare || latestRide.estimatedFare || latestRide.finalFare) && (
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Narx</p>
+                        <p className="text-sm text-slate-100">
+                          {latestRide.finalFare
+                            ? `${formatCount(latestRide.finalFare)} ${latestRide.currency || "UZS"}`
+                            : latestRide.offeredFare
+                            ? `${formatCount(latestRide.offeredFare)} ${latestRide.currency || "UZS"}`
+                            : latestRide.estimatedFare
+                            ? `${formatCount(latestRide.estimatedFare)} ${latestRide.currency || "UZS"}`
+                            : "—"}
+                        </p>
+                      </div>
+                    )}
+                    {["assigned", "taken"].includes(latestRide.status) && (
+                      <div className="sm:col-span-2">
+                        <button
+                          type="button"
+                          onClick={handleConfirmRide}
+                          className="rounded-full bg-emerald-400/20 px-4 py-1 text-xs text-emerald-200"
+                          disabled={rideSocketStatus !== "open"}
+                        >
+                          Safarni tasdiqlash
+                        </button>
+                        {rideSocketStatus !== "open" && (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Tasdiqlash uchun real-time ulanish kerak.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Hozircha real-time buyurtma yo'q.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="grid gap-4 lg:grid-cols-2">
               {pagedServices.map((service) => (
                 <div key={service.displayId} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
@@ -651,6 +907,26 @@ export function ServicesHub() {
                       {t("services.agent.verified")}
                     </span>
                   </div>
+
+                  {activeCategory.id === "taxi" && (service.agent.vehicleClass || service.agent.seatCount) && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                      {service.agent.vehicleClass && (
+                        <span className="rounded-full bg-slate-900 px-2 py-1">
+                          {formatTaxiClassLabel(service.agent.vehicleClass)}
+                        </span>
+                      )}
+                      {service.agent.seatCount && (
+                        <span className="rounded-full bg-slate-900 px-2 py-1">
+                          {service.agent.seatCount} kishi
+                        </span>
+                      )}
+                      {service.agent.vehicleModel && (
+                        <span className="rounded-full bg-slate-900 px-2 py-1">
+                          {service.agent.vehicleModel}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mt-3 flex items-start justify-between gap-3">
                     <div>

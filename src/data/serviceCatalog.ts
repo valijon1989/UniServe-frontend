@@ -29,6 +29,9 @@ export type ServiceAgent = {
   specialty: string;
   location: string;
   experienceYears: number;
+  vehicleClass?: "comfort" | "business" | "limuzin";
+  seatCount?: 4 | 7 | 9 | 13 | 20 | 30 | 40;
+  vehicleModel?: string;
   verified: boolean;
   followers: number;
   totalClients: number;
@@ -133,7 +136,8 @@ const makeAgent = (
   seed: number,
   avatarIndex: number,
   services: ServiceItem[],
-  canRate = false
+  canRate = false,
+  extras: Partial<Pick<ServiceAgent, "vehicleClass" | "seatCount" | "vehicleModel">> = {}
 ): ServiceAgent => ({
   id,
   name,
@@ -150,7 +154,8 @@ const makeAgent = (
   niceCount: 140 + seed * 9,
   shareCount: 55 + seed * 5,
   canRate,
-  services
+  services,
+  ...extras
 });
 
 export const serviceCatalog: ServiceCatalogGroup[] = [
@@ -166,70 +171,211 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
         description: "Shahar ichida va shaharlararo tezkor tashish.",
         agents: [
           makeAgent(
-            "taxi-1",
+            "taxi-comfort-1",
             "Sardor Jo'rayev",
-            "SardorTaxi",
-            "Shahar ichida taxi va xavfsiz tashish",
+            "SardorComfort",
+            "Qulay va tejamkor shahar ichi taxi",
             "Toshkent",
             6,
             1,
             1,
             [
               makeService(
-                "taxi-1-1",
-                "Shahar ichida tezkor eltib qo'yish",
+                "taxi-comfort-1-1",
+                "Shahar ichida komfort taxi",
                 45000,
                 "yo'l",
-                "24/7 ishlaydi, buyurtma bo'yicha mashina tanlash mumkin.",
+                "Konditsioner, toza salon va yumshoq haydash.",
                 ["Haydovchilik guvohnomasi", "Texnik ko'rik"],
                 "taxi",
                 1,
                 true
               ),
               makeService(
-                "taxi-1-2",
-                "Aeroport transfer xizmati",
-                90000,
+                "taxi-comfort-1-2",
+                "Kechki navbatchilik",
+                55000,
                 "yo'l",
-                "Bagaj bilan qulay transfer, oldindan bron qilish.",
+                "22:00 dan keyin tezkor chaqiruvlar.",
                 ["Sug'urta polisi", "Texnik ko'rik"],
                 "taxi",
                 2
               )
             ],
-            true
+            true,
+            { vehicleClass: "comfort", seatCount: 4, vehicleModel: "Chevrolet Malibu" }
           ),
           makeAgent(
-            "taxi-2",
+            "taxi-comfort-2",
             "Dilnoza Sodiqova",
-            "DilnozaRide",
-            "Oilaviy va bolalar uchun xavfsiz transport",
+            "DilnozaComfort",
+            "Oilaviy yo'lovchilar uchun xavfsiz xizmat",
             "Samarqand",
             4,
             2,
             2,
             [
               makeService(
-                "taxi-2-1",
-                "Bolali oilalar uchun taxi",
-                55000,
+                "taxi-comfort-2-1",
+                "Oila uchun 7 o'rinli taxi",
+                65000,
                 "yo'l",
-                "Bolalar kreslosi bilan xizmat, xavfsiz marshrutlar.",
+                "Keng salon, bolalar kreslosi mavjud.",
                 ["Haydovchilik guvohnomasi", "Bolalar kreslosi sertifikati"],
                 "taxi",
                 3
               ),
               makeService(
-                "taxi-2-2",
-                "Shaharlararo tezkor tashish",
-                180000,
+                "taxi-comfort-2-2",
+                "Shaharlararo komfort",
+                190000,
                 "yo'l",
-                "Dam olish va ish safari uchun qulay mashina.",
+                "Uzoq masofada qulaylik va xavfsizlik.",
                 ["Sug'urta polisi", "Texnik ko'rik"],
                 "taxi",
                 4
               )
-            ]
+            ],
+            false,
+            { vehicleClass: "comfort", seatCount: 7, vehicleModel: "Hyundai Staria" }
+          ),
+          makeAgent(
+            "taxi-business-1",
+            "Azizbek Qodirov",
+            "AzizBusiness",
+            "Biznes uchrashuvlar uchun premium xizmat",
+            "Toshkent",
+            8,
+            5,
+            3,
+            [
+              makeService(
+                "taxi-business-1-1",
+                "Biznes transfer",
+                95000,
+                "yo'l",
+                "Xizmat darajasi yuqori, vaqtga rioya.",
+                ["VIP litsenziya", "Texnik ko'rik"],
+                "taxi",
+                5,
+                true
+              ),
+              makeService(
+                "taxi-business-1-2",
+                "Mehmonlarni kutib olish",
+                140000,
+                "yo'l",
+                "Mehmonxona va aeroport uchun premium servis.",
+                ["Sug'urta polisi", "VIP litsenziya"],
+                "taxi",
+                6
+              )
+            ],
+            true,
+            { vehicleClass: "business", seatCount: 9, vehicleModel: "Toyota Hiace" }
+          ),
+          makeAgent(
+            "taxi-business-2",
+            "Mohira Islomova",
+            "MohiraBusiness",
+            "Konferensiya va delegatsiya tashish",
+            "Buxoro",
+            7,
+            6,
+            4,
+            [
+              makeService(
+                "taxi-business-2-1",
+                "Delegatsiya uchun transport",
+                180000,
+                "yo'l",
+                "Qulay salon, Wi-Fi va suv bilan.",
+                ["VIP litsenziya", "Texnik ko'rik"],
+                "taxi",
+                7
+              ),
+              makeService(
+                "taxi-business-2-2",
+                "Shaharlararo biznes marshrut",
+                260000,
+                "yo'l",
+                "Uzoq masofa uchun qulay joylashuv.",
+                ["Sug'urta polisi", "VIP litsenziya"],
+                "taxi",
+                8
+              )
+            ],
+            false,
+            { vehicleClass: "business", seatCount: 13, vehicleModel: "Mercedes Sprinter" }
+          ),
+          makeAgent(
+            "taxi-limuzin-1",
+            "Kamol Tojiyev",
+            "KamolLimuzin",
+            "Tadbirlar va to'ylar uchun limuzin",
+            "Toshkent",
+            10,
+            7,
+            5,
+            [
+              makeService(
+                "taxi-limuzin-1-1",
+                "To'y marosimi transporti",
+                350000,
+                "soat",
+                "20 kishigacha qulay va keng salon.",
+                ["Maxsus litsenziya", "Texnik ko'rik"],
+                "taxi",
+                9,
+                true
+              ),
+              makeService(
+                "taxi-limuzin-1-2",
+                "Shahar bo'ylab tantanali aylanish",
+                280000,
+                "soat",
+                "Tantanali bezak va musiqiy imkoniyatlar.",
+                ["Maxsus litsenziya", "Sug'urta polisi"],
+                "taxi",
+                10
+              )
+            ],
+            true,
+            { vehicleClass: "limuzin", seatCount: 20, vehicleModel: "Higer Coach" }
+          ),
+          makeAgent(
+            "taxi-limuzin-2",
+            "Shahnoza Rasulova",
+            "ShahnozaLimuzin",
+            "Katta guruhlar uchun limuzin xizmat",
+            "Urganch",
+            9,
+            8,
+            6,
+            [
+              makeService(
+                "taxi-limuzin-2-1",
+                "30-40 o'rinli maxsus reys",
+                520000,
+                "soat",
+                "Katta guruhlar uchun keng avtobus.",
+                ["Maxsus litsenziya", "Texnik ko'rik"],
+                "taxi",
+                11
+              ),
+              makeService(
+                "taxi-limuzin-2-2",
+                "Shaharlararo tantanali tashish",
+                780000,
+                "reys",
+                "Qulaylik va xavfsizlikka urg'u.",
+                ["Sug'urta polisi", "Maxsus litsenziya"],
+                "taxi",
+                12
+              )
+            ],
+            false,
+            { vehicleClass: "limuzin", seatCount: 40, vehicleModel: "Yutong Coach" }
           )
         ]
       },
