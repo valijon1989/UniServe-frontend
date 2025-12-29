@@ -25,13 +25,20 @@ export type ServiceAgent = {
   id: string;
   name: string;
   nickname: string;
+  gender?: "Ayol" | "Erkak";
   avatar: ServiceImage;
   specialty: string;
   location: string;
+  region?: string;
+  distanceKm?: number;
   experienceYears: number;
   vehicleClass?: "comfort" | "business" | "limuzin";
   seatCount?: 4 | 7 | 9 | 13 | 20 | 30 | 40;
   vehicleModel?: string;
+  vehiclePlate?: string;
+  vehicleOptions?: string[];
+  contactPhone?: string;
+  contactTelegram?: string;
   verified: boolean;
   followers: number;
   totalClients: number;
@@ -137,7 +144,21 @@ const makeAgent = (
   avatarIndex: number,
   services: ServiceItem[],
   canRate = false,
-  extras: Partial<Pick<ServiceAgent, "vehicleClass" | "seatCount" | "vehicleModel">> = {}
+  extras: Partial<
+    Pick<
+      ServiceAgent,
+      | "vehicleClass"
+      | "seatCount"
+      | "vehicleModel"
+      | "vehiclePlate"
+      | "vehicleOptions"
+      | "contactPhone"
+      | "contactTelegram"
+      | "gender"
+      | "region"
+      | "distanceKm"
+    >
+  > = {}
 ): ServiceAgent => ({
   id,
   name,
@@ -203,7 +224,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             true,
-            { vehicleClass: "comfort", seatCount: 4, vehicleModel: "Chevrolet Malibu" }
+            {
+              vehicleClass: "comfort",
+              seatCount: 4,
+              vehicleModel: "Chevrolet Malibu",
+              region: "Seul",
+              distanceKm: 6.4
+            }
           ),
           makeAgent(
             "taxi-comfort-2",
@@ -237,7 +264,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             false,
-            { vehicleClass: "comfort", seatCount: 7, vehicleModel: "Hyundai Staria" }
+            {
+              vehicleClass: "comfort",
+              seatCount: 7,
+              vehicleModel: "Hyundai Staria",
+              region: "Incheon",
+              distanceKm: 18.2
+            }
           ),
           makeAgent(
             "taxi-business-1",
@@ -272,7 +305,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             true,
-            { vehicleClass: "business", seatCount: 9, vehicleModel: "Toyota Hiace" }
+            {
+              vehicleClass: "business",
+              seatCount: 9,
+              vehicleModel: "Toyota Hiace",
+              region: "Busan",
+              distanceKm: 3.9
+            }
           ),
           makeAgent(
             "taxi-business-2",
@@ -306,7 +345,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             false,
-            { vehicleClass: "business", seatCount: 13, vehicleModel: "Mercedes Sprinter" }
+            {
+              vehicleClass: "business",
+              seatCount: 13,
+              vehicleModel: "Mercedes Sprinter",
+              region: "Daegu",
+              distanceKm: 25.6
+            }
           ),
           makeAgent(
             "taxi-limuzin-1",
@@ -341,7 +386,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             true,
-            { vehicleClass: "limuzin", seatCount: 20, vehicleModel: "Higer Coach" }
+            {
+              vehicleClass: "limuzin",
+              seatCount: 20,
+              vehicleModel: "Higer Coach",
+              region: "Gwangju",
+              distanceKm: 12.8
+            }
           ),
           makeAgent(
             "taxi-limuzin-2",
@@ -375,7 +426,18 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
               )
             ],
             false,
-            { vehicleClass: "limuzin", seatCount: 40, vehicleModel: "Yutong Coach" }
+            {
+              vehicleClass: "limuzin",
+              seatCount: 40,
+              vehicleModel: "Yutong Coach",
+              vehiclePlate: "01 A 777 ZA",
+              vehicleOptions: ["Keng salon", "Konditsioner", "Mikrofon", "Katta bagaj bo'limi"],
+              contactPhone: "+998 90 123 45 67",
+              contactTelegram: "@ShahnozaLimuzin",
+              gender: "Ayol",
+              region: "Daejeon",
+              distanceKm: 31.4
+            }
           )
         ]
       },

@@ -422,6 +422,19 @@ export function ServicesHub() {
     `${t("services.agent.reviews")}: ${formatCount(agent.reviewCount)}`
   ];
 
+  const handleServiceCardClick = (event: React.MouseEvent<HTMLDivElement>, serviceId: string) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("a, button")) return;
+    router.push(`/services/${serviceId}`);
+  };
+
+  const handleServiceCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, serviceId: string) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      router.push(`/services/${serviceId}`);
+    }
+  };
+
   const formatTaxiClassLabel = (value: TaxiVehicleClass) =>
     taxiClassOptions.find((option) => option.value === value)?.label ?? value;
 
@@ -889,7 +902,14 @@ export function ServicesHub() {
 
             <div className="grid gap-4 lg:grid-cols-2">
               {pagedServices.map((service) => (
-                <div key={service.displayId} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <div
+                  key={service.displayId}
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => handleServiceCardClick(event, service.displayId)}
+                  onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
+                  className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
                       <img
@@ -901,6 +921,11 @@ export function ServicesHub() {
                       <div>
                         <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
                         <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
+                        {(service.agent.region || service.agent.distanceKm) && (
+                          <p className="text-[11px] text-slate-500">
+                            {service.agent.region || "Hudud"} · {service.agent.distanceKm ?? "—"} km
+                          </p>
+                        )}
                       </div>
                     </Link>
                     <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">

@@ -13,3 +13,64 @@ body {
 .card {
   @apply rounded-2xl bg-card/80 border border-slate-800 shadow-lg;
 }
+
+.taxi-detail {
+  color: #111827;
+}
+
+.taxi-detail-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  padding: 24px;
+}
+
+.taxi-detail-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+}
+
+.taxi-detail-subcard {
+  background: rgba(249, 250, 251, 0.9);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+}
+
+.taxi-detail-heading {
+  color: #111827;
+}
+
+.taxi-detail-secondary {
+  color: #4b5563;
+}
+
+.taxi-detail-muted {
+  color: #6b7280;
+}
+
+.taxi-detail-label {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.taxi-detail-value {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.taxi-detail-input {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+}
+
+.taxi-detail-input::placeholder {
+  color: #6b7280;
+}
