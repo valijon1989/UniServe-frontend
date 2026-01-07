@@ -18,6 +18,7 @@ import {
 import { useRideSocket } from "@/hooks/useRideSocket";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
+import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
 
 type ServiceFormState = {
   type: "material" | "spiritual";
@@ -139,6 +140,7 @@ export function ServicesHub() {
     () => group.categories.find((cat) => cat.id === activeCategoryId) ?? group.categories[0],
     [activeCategoryId, group.categories]
   );
+  const isDeliveryCategory = activeCategory?.id === "delivery";
 
   const wordCount = useMemo(() => toWordsCount(form.description), [form.description]);
 
@@ -721,7 +723,11 @@ export function ServicesHub() {
           <p className="mt-2 text-sm text-slate-300">{getGroupDescription(group.id)}</p>
         </div>
 
-        {activeCategory && (
+        {activeCategory && isDeliveryCategory ? (
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
+            <DeliveryServiceSection />
+          </div>
+        ) : activeCategory ? (
           <div className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
             <div>
               <h3 className="text-lg font-semibold text-slate-100">
@@ -1025,7 +1031,7 @@ export function ServicesHub() {
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </section>
     </div>
   );

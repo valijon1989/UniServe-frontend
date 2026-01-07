@@ -7,6 +7,7 @@ import { CategoryChipsRow } from "@/components/services/CategoryChipsRow";
 import { ServicesTopBar } from "@/components/services/ServicesTopBar";
 import { ServicesFilterPanel } from "@/components/services/ServicesFilterPanel";
 import { ServicesFeed } from "@/components/services/ServicesFeed";
+import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
 import { useServiceCategories } from "@/hooks/useServiceCategories";
 import { useServicesFeed } from "@/hooks/useServicesFeed";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -49,6 +50,7 @@ export default function ServicesPage() {
   const [optimisticMap, setOptimisticMap] = useState<Record<string, { liked?: boolean; saved?: boolean; likes?: number; saves?: number }>>({});
   const debouncedQuery = useDebouncedValue(query, 400);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const isDeliveryCategory = selectedTab === "material" && selectedCategory === "delivery";
 
   useEffect(() => {
     if (filterOpen) {
@@ -362,7 +364,11 @@ export default function ServicesPage() {
           </div>
         )}
 
-        {isLoading && renderedItems.length === 0 ? (
+        {isDeliveryCategory ? (
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
+            <DeliveryServiceSection />
+          </div>
+        ) : isLoading && renderedItems.length === 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, idx) => (
               <div key={idx} className="h-72 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/60" />
