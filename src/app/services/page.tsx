@@ -8,6 +8,7 @@ import { ServicesTopBar } from "@/components/services/ServicesTopBar";
 import { ServicesFilterPanel } from "@/components/services/ServicesFilterPanel";
 import { ServicesFeed } from "@/components/services/ServicesFeed";
 import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
+import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
 import { useServiceCategories } from "@/hooks/useServiceCategories";
 import { useServicesFeed } from "@/hooks/useServicesFeed";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -51,6 +52,7 @@ export default function ServicesPage() {
   const debouncedQuery = useDebouncedValue(query, 400);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isDeliveryCategory = selectedTab === "material" && selectedCategory === "delivery";
+  const isTechnicalCategory = selectedTab === "material" && selectedCategory === "technical";
 
   useEffect(() => {
     if (filterOpen) {
@@ -367,6 +369,10 @@ export default function ServicesPage() {
         {isDeliveryCategory ? (
           <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
             <DeliveryServiceSection />
+          </div>
+        ) : isTechnicalCategory ? (
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
+            <TechnicalServiceSection />
           </div>
         ) : isLoading && renderedItems.length === 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

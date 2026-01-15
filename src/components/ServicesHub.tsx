@@ -19,6 +19,7 @@ import { useRideSocket } from "@/hooks/useRideSocket";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
+import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
 
 type ServiceFormState = {
   type: "material" | "spiritual";
@@ -141,14 +142,10 @@ export function ServicesHub() {
     [activeCategoryId, group.categories]
   );
   const isDeliveryCategory = activeCategory?.id === "delivery";
+  const isTechnicalCategory = activeCategory?.id === "technical";
 
   const wordCount = useMemo(() => toWordsCount(form.description), [form.description]);
 
-  const getGroupLabel = (id: ServiceCatalogGroup["id"]) =>
-    id === "material" ? t("services.group.material") : t("services.group.spiritual");
-
-  const getGroupDescription = (id: ServiceCatalogGroup["id"]) =>
-    id === "material" ? t("services.group.material.desc") : t("services.group.spiritual.desc");
 
   const getCategoryLabel = (id: string, fallback: string) => {
     const map: Record<string, string> = {
@@ -493,7 +490,7 @@ export function ServicesHub() {
                   : "bg-slate-900/70 text-slate-300 ring-1 ring-slate-700/70 hover:text-slate-100"
               }`}
             >
-              {getGroupLabel(item.id)}
+              {item.title}
             </button>
           ))}
         </div>
@@ -718,14 +715,13 @@ export function ServicesHub() {
       </section>
 
       <section className="space-y-6">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">{getGroupLabel(group.id)}</p>
-          <p className="mt-2 text-sm text-slate-300">{getGroupDescription(group.id)}</p>
-        </div>
-
         {activeCategory && isDeliveryCategory ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
             <DeliveryServiceSection />
+          </div>
+        ) : activeCategory && isTechnicalCategory ? (
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
+            <TechnicalServiceSection />
           </div>
         ) : activeCategory ? (
           <div className="space-y-4 rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
