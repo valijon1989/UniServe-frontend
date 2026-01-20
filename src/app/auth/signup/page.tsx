@@ -13,6 +13,9 @@ export default function SignupPage() {
   const [agentKind, setAgentKind] = useState<"SERVICE" | "SELLER">("SERVICE");
   const [agentGroup, setAgentGroup] = useState<"material" | "spiritual">("material");
   const [agentCategory, setAgentCategory] = useState<string>("taxi");
+  const [agentServices, setAgentServices] = useState<string[]>([]);
+  const [officeAddress, setOfficeAddress] = useState("");
+  const [qualification, setQualification] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,24 +57,42 @@ export default function SignupPage() {
   const selectedGroup = groupOptions.find((group) => group.id === agentGroup) || groupOptions[0];
   const categoryOptions = selectedGroup?.categories || [];
 
+  const toggleAgentService = (id: string) => {
+    setAgentServices((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    if (role === "AGENT" && agentKind === "SERVICE" && agentServices.length === 0) {
+      setError("Iltimos, kamida bitta xizmat turini belgilang.");
+      setLoading(false);
+      return;
+    }
     if (typeof window !== "undefined") {
       if (role === "AGENT") {
         window.localStorage.setItem("uniserve_agent_kind", agentKind);
         if (agentKind === "SERVICE") {
           window.localStorage.setItem("uniserve_agent_group", agentGroup);
           window.localStorage.setItem("uniserve_agent_category", agentCategory);
+          window.localStorage.setItem("uniserve_agent_services", JSON.stringify(agentServices));
+          window.localStorage.setItem("uniserve_agent_office", officeAddress);
+          window.localStorage.setItem("uniserve_agent_qualification", qualification);
         } else {
           window.localStorage.removeItem("uniserve_agent_group");
           window.localStorage.removeItem("uniserve_agent_category");
+          window.localStorage.removeItem("uniserve_agent_services");
+          window.localStorage.removeItem("uniserve_agent_office");
+          window.localStorage.removeItem("uniserve_agent_qualification");
         }
       } else {
         window.localStorage.removeItem("uniserve_agent_kind");
         window.localStorage.removeItem("uniserve_agent_group");
         window.localStorage.removeItem("uniserve_agent_category");
+        window.localStorage.removeItem("uniserve_agent_services");
+        window.localStorage.removeItem("uniserve_agent_office");
+        window.localStorage.removeItem("uniserve_agent_qualification");
       }
     }
     try {
@@ -219,6 +240,7 @@ export default function SignupPage() {
                     const nextCategories =
                       serviceCatalog.find((group) => group.id === nextGroup)?.categories || [];
                     setAgentCategory(nextCategories[0]?.id || "");
+                    setAgentServices([]);
                   }}
                 >
                   {groupOptions.map((group) => (
@@ -243,6 +265,43 @@ export default function SignupPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs text-slate-300">Qaysi xizmat turlari</label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {categoryOptions.map((cat) => (
+                    <label
+                      key={cat.id}
+                      className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3 w-3 accent-emerald-500"
+                        checked={agentServices.includes(cat.id)}
+                        onChange={() => toggleAgentService(cat.id)}
+                      />
+                      <span>{cat.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs text-slate-300">Ofis manzili (agar bo'lsa)</label>
+                <input
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                  value={officeAddress}
+                  onChange={(e) => setOfficeAddress(e.target.value)}
+                  placeholder="Masalan: Toshkent, Yunusobod, 12-uy"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs text-slate-300">Malaka va tajriba</label>
+                <textarea
+                  className="min-h-[80px] w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                  value={qualification}
+                  onChange={(e) => setQualification(e.target.value)}
+                  placeholder="Malaka, sertifikatlar yoki tajriba haqida"
+                />
               </div>
             </div>
           )}

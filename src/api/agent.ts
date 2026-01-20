@@ -34,6 +34,116 @@ export interface TopAgent {
   };
 }
 
+export type AgentListParams = {
+  active?: boolean;
+  sort?: "recent" | "oldest" | "likes" | "views" | "rating";
+  page?: number;
+  limit?: number;
+  search?: string;
+};
+
+export interface AgentListItem {
+  _id?: string;
+  id?: string;
+  name?: string;
+  nickname?: string;
+  username?: string;
+  avatarUrl?: string;
+  rating?: number;
+  views?: number;
+  likes?: number;
+  active?: boolean;
+  verifiedByAdmin?: boolean;
+  isVerified?: boolean;
+  user?: {
+    _id?: string;
+    name?: string;
+    username?: string;
+    avatarUrl?: string;
+  };
+}
+
+export interface AgentListingCard {
+  id: string;
+  type: "product" | "service" | "education" | "construction" | "taxi";
+  title?: string;
+  imageUrl?: string;
+}
+
+export interface AgentDetail {
+  _id?: string;
+  id?: string;
+  name?: string;
+  nickname?: string;
+  username?: string;
+  avatarUrl?: string;
+  rating?: number;
+  views?: number;
+  likes?: number;
+  region?: string;
+  regionDetail?: string;
+  bio?: string;
+  listings?: {
+    listingCards?: AgentListingCard[];
+  };
+}
+
+export interface AgentReview {
+  _id?: string;
+  id?: string;
+  user?: {
+    name?: string;
+    username?: string;
+    avatarUrl?: string;
+  };
+  rating: number;
+  comment: string;
+  createdAt?: string;
+}
+
+export async function getAgents(params: AgentListParams) {
+  const res = await api.get("/agents", { params });
+  const payload = res.data || {};
+  const items: AgentListItem[] =
+    payload.items ||
+    payload.agents?.items ||
+    payload.agents?.data ||
+    payload.agents ||
+    payload.data?.items ||
+    payload.data?.agents ||
+    payload.data ||
+    payload.results ||
+    [];
+  return {
+    items,
+    total:
+      payload.total ??
+      payload.count ??
+      payload.agents?.total ??
+      payload.data?.total ??
+      payload.results?.total ??
+      items.length
+  };
+}
+
+export async function getAgentById(agentId: string): Promise<AgentDetail | null> {
+  const res = await api.get(`/agents/${agentId}`);
+  return res.data?.agent || res.data || null;
+}
+
+export async function getAgentReviews(agentId: string): Promise<AgentReview[]> {
+  const res = await api.get(`/agents/${agentId}/reviews`);
+  return res.data?.items || res.data?.reviews || res.data || [];
+}
+
+export async function createAgentReview(
+  agentId: string,
+  payload: { rating: number; comment: string }
+): Promise<AgentReview> {
+  const res = await api.post(`/agents/${agentId}/reviews`, payload);
+  return res.data;
+}
+
 export async function getMyListings(): Promise<Listing[]> {
   const res = await api.get("/agent/listings");
   return res.data.items || res.data;

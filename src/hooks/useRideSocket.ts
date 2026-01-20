@@ -102,6 +102,14 @@ const buildWsUrl = (token?: string | null) => {
   return `${baseUrl}${hasQuery ? "&" : "?"}token=${encodeURIComponent(token)}`;
 };
 
+const isWsBlocked = () =>
+  typeof window !== "undefined" && Boolean((window as Window & { __UNISERVE_WS_BLOCKED?: boolean }).__UNISERVE_WS_BLOCKED);
+
+const blockWs = () => {
+  if (typeof window === "undefined") return;
+  (window as Window & { __UNISERVE_WS_BLOCKED?: boolean }).__UNISERVE_WS_BLOCKED = true;
+};
+
 const normalizeMessage = (raw: unknown): { type: RideEventType; payload: RidePayload } | null => {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -189,8 +197,8 @@ export const useRideSocket = ({ token, enabled = true }: RideSocketOptions = {})
     const resolvedToken =
       token ?? (typeof window !== "undefined" ? window.localStorage.getItem("uniserve_token") : null);
     const wsUrl = buildWsUrl(resolvedToken);
-    if (!wsUrl || typeof window === "undefined") {
-      setState((prev) => ({ ...prev, status: "error", error: "WebSocket URL topilmadi." }));
+    if (!wsUrl || typeof window === "undefined" || isWsBlocked()) {
+      setState((prev) => ({ ...prev, status: "idle", error: null }));
       return;
     }
 
@@ -198,16 +206,20 @@ export const useRideSocket = ({ token, enabled = true }: RideSocketOptions = {})
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+    let didOpen = false;
 
     ws.onopen = () => {
+      didOpen = true;
       setState((prev) => ({ ...prev, status: "open" }));
     };
 
     ws.onerror = () => {
+      if (!didOpen) blockWs();
       setState((prev) => ({ ...prev, status: "error", error: "WebSocket ulanishida xatolik." }));
     };
 
     ws.onclose = () => {
+      if (!didOpen) blockWs();
       setState((prev) => ({ ...prev, status: "closed" }));
     };
 

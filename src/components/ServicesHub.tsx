@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,6 +20,8 @@ import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
 import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
+import { EmploymentServiceSection } from "@/components/services/EmploymentServiceSection";
+import { EducationServiceSection } from "@/components/services/EducationServiceSection";
 
 type ServiceFormState = {
   type: "material" | "spiritual";
@@ -50,6 +52,7 @@ type DisplayService = {
   canRate: boolean;
   createdAt: string;
   agent: ServiceAgent;
+  subCategory?: string;
 };
 
 const emptyForm: ServiceFormState = {
@@ -76,6 +79,7 @@ export function ServicesHub() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const replaceTimerRef = useRef<number | null>(null);
   const taxiSeatStorageKey = "uniserve_taxi_seat";
   const taxiClassStorageKey = "uniserve_taxi_class";
   const [activeGroup, setActiveGroup] = useState<ServiceCatalogGroup["id"]>("material");
@@ -90,6 +94,13 @@ export function ServicesHub() {
   const [agentCategory, setAgentCategory] = useState<string | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<"all" | TaxiSeatCount>("all");
   const [selectedClass, setSelectedClass] = useState<"all" | TaxiVehicleClass>("all");
+  const [constructionSection, setConstructionSection] = useState("construction-exterior");
+  const [constructionSubCategory, setConstructionSubCategory] = useState("all");
+  const [nannyAgeMin, setNannyAgeMin] = useState("");
+  const [nannyAgeMax, setNannyAgeMax] = useState("");
+  const [nannyTimeStart, setNannyTimeStart] = useState("");
+  const [nannyTimeEnd, setNannyTimeEnd] = useState("");
+  const [nannyType, setNannyType] = useState("all");
   const { t } = useI18n();
   const { role, isAuthenticated, hydrateFromStorage, token } = useAuthStore();
   const { status: rideSocketStatus, latestRide, sendRideEvent } = useRideSocket({
@@ -143,6 +154,50 @@ export function ServicesHub() {
   );
   const isDeliveryCategory = activeCategory?.id === "delivery";
   const isTechnicalCategory = activeCategory?.id === "technical";
+  const isEmploymentCategory = activeCategory?.id === "employment";
+  const isEducationCategory = activeCategory?.id === "education";
+  const isConstructionCategory = activeCategory?.id === "construction";
+  const isNannyCategory = activeCategory?.id === "nanny";
+
+  const nannyTypes = useMemo(
+    () => [
+      { id: "all", title: "Barcha enagalar" },
+      { id: "nanny-child", title: "Bolalar enagasi" },
+      { id: "nanny-elderly", title: "Qariyalar parvarishi" },
+      { id: "nanny-hospital", title: "Shifoxona bemorlari" },
+      { id: "nanny-homecare", title: "Uy sharoitidagi kasallar" },
+      { id: "nanny-pet", title: "Uy hayvonlari enagasi" }
+    ],
+    []
+  );
+
+  const constructionSections = useMemo(
+    () => [
+      {
+        id: "construction-exterior",
+        title: "Tashqi qurilish ishlari",
+        subCategories: [
+          { id: "exterior-facade", title: "Fasad ishlari" },
+          { id: "exterior-concrete", title: "Beton ishlari" },
+          { id: "exterior-brick", title: "G'isht terish" },
+          { id: "exterior-roofing", title: "Tom yopish" },
+          { id: "exterior-roof-repair", title: "Tom ta'mirlash" }
+        ]
+      },
+      {
+        id: "construction-interior",
+        title: "Ichki qurilish ishlari",
+        subCategories: [
+          { id: "interior-paint", title: "Bo'yoqchilik" },
+          { id: "interior-wallpaper", title: "Gul qog'oz" },
+          { id: "interior-design", title: "Dizayner xizmati" },
+          { id: "interior-doors-windows", title: "Eshik/deraza romlari" },
+          { id: "interior-ceiling", title: "Shift ta'mirlash" }
+        ]
+      }
+    ],
+    []
+  );
 
   const wordCount = useMemo(() => toWordsCount(form.description), [form.description]);
 
@@ -230,12 +285,52 @@ export function ServicesHub() {
   };
 
   useEffect(() => {
-    setActiveCategoryId(group.categories[0]?.id || "");
-  }, [group.categories]);
+    const groupParam = getParam(searchParams, "group");
+    const categoryParam = getParam(searchParams, "category");
+    if (!groupParam && !categoryParam) return;
+
+    const nextGroup: ServiceCatalogGroup["id"] =
+      groupParam === "material" || groupParam === "spiritual" ? groupParam : activeGroup;
+    const groupData = serviceCatalog.find((item) => item.id === nextGroup) ?? serviceCatalog[0];
+
+    if (nextGroup !== activeGroup) {
+      setActiveGroup(nextGroup);
+    }
+
+    if (categoryParam && groupData.categories.some((cat) => cat.id === categoryParam)) {
+      if (activeCategoryId !== categoryParam) {
+        setActiveCategoryId(categoryParam);
+      }
+    } else if (!groupData.categories.some((cat) => cat.id === activeCategoryId)) {
+      setActiveCategoryId(groupData.categories[0]?.id || "");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeGroup, activeCategoryId, sortMode, selectedClass, selectedSeat]);
+  }, [activeGroup, activeCategoryId, constructionSection, constructionSubCategory, sortMode, selectedClass, selectedSeat]);
+
+  useEffect(() => {
+    if (!isNannyCategory) {
+      setNannyAgeMin("");
+      setNannyAgeMax("");
+      setNannyTimeStart("");
+      setNannyTimeEnd("");
+      setNannyType("all");
+    }
+  }, [isNannyCategory]);
+
+  useEffect(() => {
+    if (activeCategoryId !== "construction") return;
+    setConstructionSubCategory("all");
+  }, [constructionSection, activeCategoryId]);
+
+  useEffect(() => {
+    if (activeCategoryId !== "construction") {
+      setConstructionSection("construction-exterior");
+      setConstructionSubCategory("all");
+    }
+  }, [activeCategoryId]);
 
   useEffect(() => {
     if (!agentGroup || !agentCategory) return;
@@ -285,17 +380,44 @@ export function ServicesHub() {
     const nextSeat = activeCategoryId === "taxi" && selectedSeat !== "all" ? String(selectedSeat) : "";
     const nextClass = activeCategoryId === "taxi" && selectedClass !== "all" ? selectedClass : "";
 
-    if (nextSeat) params.set("seat", nextSeat);
-    else params.delete("seat");
+    if (params.get("group") !== activeGroup) {
+      params.set("group", activeGroup);
+    }
+    if (activeCategoryId) {
+      if (params.get("category") !== activeCategoryId) {
+        params.set("category", activeCategoryId);
+      }
+    } else {
+      params.delete("category");
+    }
 
-    if (nextClass) params.set("class", nextClass);
-    else params.delete("class");
+    if (nextSeat) {
+      if (params.get("seat") !== nextSeat) params.set("seat", nextSeat);
+    } else {
+      params.delete("seat");
+    }
+
+    if (nextClass) {
+      if (params.get("class") !== nextClass) params.set("class", nextClass);
+    } else {
+      params.delete("class");
+    }
 
     const nextQuery = params.toString();
     const currentQuery = searchParams.toString();
 
     if (nextQuery === currentQuery) return;
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    if (replaceTimerRef.current) {
+      window.clearTimeout(replaceTimerRef.current);
+    }
+    replaceTimerRef.current = window.setTimeout(() => {
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    }, 120);
+    return () => {
+      if (replaceTimerRef.current) {
+        window.clearTimeout(replaceTimerRef.current);
+      }
+    };
   }, [activeCategoryId, pathname, router, searchParams, selectedClass, selectedSeat]);
 
   useEffect(() => {
@@ -343,9 +465,100 @@ export function ServicesHub() {
         shareCount: service.shareCount,
         canRate: service.canRate,
         createdAt: service.createdAt,
-        agent
+        agent,
+        subCategory: service.subCategory
       }))
     );
+
+    if (isConstructionCategory) {
+      const section =
+        constructionSections.find((item) => item.id === constructionSection) || constructionSections[0];
+      const allowed = new Set(section.subCategories.map((item) => item.id));
+      const filtered = baseServices.filter((service) => {
+        const sub = service.subCategory;
+        if (!sub || !allowed.has(sub)) return false;
+        if (constructionSubCategory !== "all" && sub !== constructionSubCategory) return false;
+        return true;
+      });
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+
+      return sorted;
+    }
+
+    if (isNannyCategory) {
+      const minAge = Number(nannyAgeMin || 0);
+      const maxAge = Number(nannyAgeMax || 0);
+      const timeStart = nannyTimeStart;
+      const timeEnd = nannyTimeEnd;
+
+      const toMinutes = (value: string) => {
+        const [h, m] = value.split(":").map(Number);
+        if (Number.isNaN(h) || Number.isNaN(m)) return null;
+        return h * 60 + m;
+      };
+
+      const overlaps = (reqStart: number, reqEnd: number, slotStart: number, slotEnd: number) => {
+        const reqCross = reqEnd < reqStart;
+        const slotCross = slotEnd < slotStart;
+        const normalize = (start: number, end: number) =>
+          start <= end ? [[start, end]] : [[start, 1440], [0, end]];
+        const reqRanges = reqCross ? normalize(reqStart, reqEnd) : [[reqStart, reqEnd]];
+        const slotRanges = slotCross ? normalize(slotStart, slotEnd) : [[slotStart, slotEnd]];
+        return reqRanges.some((req) =>
+          slotRanges.some((slot) => req[0] <= slot[1] && slot[0] <= req[1])
+        );
+      };
+
+      const filtered = baseServices.filter((service) => {
+        const age = service.agent.age ?? 0;
+        if (minAge && age < minAge) return false;
+        if (maxAge && age > maxAge) return false;
+
+        if (!timeStart || !timeEnd) return true;
+        const reqStart = toMinutes(timeStart);
+        const reqEnd = toMinutes(timeEnd);
+        if (reqStart === null || reqEnd === null) return true;
+        const availability = service.agent.availability || [];
+        if (availability.includes("24/7")) return true;
+        return availability.some((slot) => {
+          if (!slot.includes("-")) return false;
+          const [startStr, endStr] = slot.split("-");
+          const slotStart = toMinutes(startStr.trim());
+          const slotEnd = toMinutes(endStr.trim());
+          if (slotStart === null || slotEnd === null) return false;
+          return overlaps(reqStart, reqEnd, slotStart, slotEnd);
+        });
+      });
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+
+      if (nannyType === "all") {
+        const grouped: Record<string, DisplayService[]> = {};
+        for (const service of sorted) {
+          const typeId = service.subCategory || "nanny-child";
+          if (!grouped[typeId]) grouped[typeId] = [];
+          if (grouped[typeId].length < 2) {
+            grouped[typeId].push(service);
+          }
+        }
+        return nannyTypes.flatMap((type) => grouped[type.id] ?? []);
+      }
+
+      return sorted.filter((service) => (service.subCategory || "nanny-child") === nannyType);
+    }
 
     if (baseServices.length === 0) return [];
 
@@ -384,9 +597,27 @@ export function ServicesHub() {
     });
 
     return sorted;
-  }, [activeCategory, sortMode, t, taxiAgents]);
+  }, [
+    activeCategory,
+    constructionSection,
+    constructionSections,
+    constructionSubCategory,
+    isConstructionCategory,
+    isNannyCategory,
+    nannyAgeMin,
+    nannyAgeMax,
+    nannyTimeStart,
+    nannyTimeEnd,
+    nannyType,
+    nannyTypes,
+    sortMode,
+    t,
+    taxiAgents
+  ]);
 
-  const pageSize = 8;
+  const pageSize = isNannyCategory
+    ? Math.max(1, nannyType === "all" ? displayServices.length : 2)
+    : 8;
   const totalPages = Math.min(100, Math.max(1, Math.ceil(displayServices.length / pageSize)));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * pageSize;
@@ -421,6 +652,9 @@ export function ServicesHub() {
     `${t("services.agent.reviews")}: ${formatCount(agent.reviewCount)}`
   ];
 
+  const getNannyTypeLabel = (value?: string) =>
+    nannyTypes.find((type) => type.id === (value || "nanny-child"))?.title || "Bolalar enagasi";
+
   const handleServiceCardClick = (event: React.MouseEvent<HTMLDivElement>, serviceId: string) => {
     const target = event.target as HTMLElement;
     if (target.closest("a, button")) return;
@@ -436,6 +670,35 @@ export function ServicesHub() {
 
   const formatTaxiClassLabel = (value: TaxiVehicleClass) =>
     taxiClassOptions.find((option) => option.value === value)?.label ?? value;
+
+  const constructionFallbacks = useMemo(
+    () =>
+      Array.from(
+        { length: 36 },
+        (_, idx) => `/services/construction/${String(idx + 1).padStart(2, "0")}.jpg`
+      ),
+    []
+  );
+
+  const nannyFallbacks = useMemo(() => getCategoryImagePool("nanny"), []);
+
+  const getConstructionFallback = (serviceId: string, idx: number) => {
+    let hash = 0;
+    for (let i = 0; i < serviceId.length; i += 1) {
+      hash = (hash * 31 + serviceId.charCodeAt(i)) % 2147483647;
+    }
+    const start = hash % constructionFallbacks.length;
+    return constructionFallbacks[(start + idx) % constructionFallbacks.length];
+  };
+
+  const getNannyFallback = (serviceId: string, idx: number) => {
+    let hash = 0;
+    for (let i = 0; i < serviceId.length; i += 1) {
+      hash = (hash * 41 + serviceId.charCodeAt(i)) % 2147483647;
+    }
+    const start = hash % nannyFallbacks.length;
+    return nannyFallbacks[(start + idx) % nannyFallbacks.length]?.src;
+  };
 
   const formatRideStatus = (status: string) => {
     const map: Record<string, string> = {
@@ -525,199 +788,335 @@ export function ServicesHub() {
               </button>
             ))}
           </div>
+          {isConstructionCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Qurilish va quruvchilar xizmati
+                </p>
+                <p className="mt-2 text-sm text-slate-300">Remont, ustalik va obodonlashtirish.</p>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {constructionSections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setConstructionSection(section.id)}
+                    className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                      constructionSection === section.id
+                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    <span>{section.title}</span>
+                    <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-300">
+                      Bo'limga o'tish
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setConstructionSubCategory("all")}
+                  className={`rounded-full px-3 py-1 ${
+                    constructionSubCategory === "all"
+                      ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                      : "bg-slate-900/70 text-slate-300"
+                  }`}
+                >
+                  Barcha bo'limlar
+                </button>
+                {(constructionSections.find((item) => item.id === constructionSection)?.subCategories ||
+                  constructionSections[0].subCategories
+                ).map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => setConstructionSubCategory(sub.id)}
+                    className={`rounded-full px-3 py-1 ${
+                      constructionSubCategory === sub.id
+                        ? "bg-sky-500/20 text-sky-100 ring-1 ring-sky-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    {sub.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isNannyCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="mb-3 flex flex-wrap gap-2 text-[11px]">
+                {nannyTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => setNannyType(type.id)}
+                    className={`rounded-full px-3 py-1 ${
+                      nannyType === type.id
+                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    {type.title}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-end gap-3 text-xs text-slate-300">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Yosh (min)</label>
+                  <input
+                    type="number"
+                    min={18}
+                    className="w-24 rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={nannyAgeMin}
+                    onChange={(e) => setNannyAgeMin(e.target.value)}
+                    placeholder="18"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Yosh (max)</label>
+                  <input
+                    type="number"
+                    min={18}
+                    className="w-24 rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={nannyAgeMax}
+                    onChange={(e) => setNannyAgeMax(e.target.value)}
+                    placeholder="45"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Boshlanish</label>
+                  <input
+                    type="time"
+                    className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={nannyTimeStart}
+                    onChange={(e) => setNannyTimeStart(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tugash</label>
+                  <input
+                    type="time"
+                    className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={nannyTimeEnd}
+                    onChange={(e) => setNannyTimeEnd(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNannyTimeStart("08:00");
+                      setNannyTimeEnd("18:00");
+                    }}
+                    className="rounded-full bg-slate-900/60 px-3 py-1 text-slate-300 ring-1 ring-slate-700"
+                  >
+                    08:00-18:00
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNannyTimeStart("18:00");
+                      setNannyTimeEnd("08:00");
+                    }}
+                    className="rounded-full bg-slate-900/60 px-3 py-1 text-slate-300 ring-1 ring-slate-700"
+                  >
+                    18:00-08:00
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNannyTimeStart("00:00");
+                      setNannyTimeEnd("23:59");
+                    }}
+                    className="rounded-full bg-slate-900/60 px-3 py-1 text-slate-300 ring-1 ring-slate-700"
+                  >
+                    24/7
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNannyAgeMin("");
+                      setNannyAgeMax("");
+                      setNannyTimeStart("");
+                      setNannyTimeEnd("");
+                      setNannyType("all");
+                    }}
+                    className="rounded-full bg-rose-500/10 px-3 py-1 text-rose-200 ring-1 ring-rose-500/40"
+                  >
+                    Tozalash
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-lg shadow-black/20">
-        {canShowAddService ? (
-          <>
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.28em] text-sky-200">{t("services.add.badge")}</p>
-                <h2 className="text-xl font-semibold text-slate-50">{t("services.add.title")}</h2>
-                <p className="mt-1 text-sm text-slate-400">{t("services.add.description")}</p>
-              </div>
-              <div className="text-xs text-slate-400">
-                {t("services.hub.wordLabel")}:{" "}
-                <span className={wordCount > 500 ? "text-red-400" : "text-slate-200"}>{wordCount}</span>/500
-              </div>
+      {canShowAddService && (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-lg shadow-black/20">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-sky-200">{t("services.add.badge")}</p>
+              <h2 className="text-xl font-semibold text-slate-50">{t("services.add.title")}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t("services.add.description")}</p>
             </div>
-
-            <form onSubmit={handleSubmit} className="mt-4 grid gap-4 text-sm md:grid-cols-[1.2fr,1fr]">
-              <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-300">{t("services.add.typeLabel")}</label>
-                    <select
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                      value={form.type}
-                      onChange={(e) =>
-                        handleFormChange("type", e.target.value as ServiceFormState["type"])
-                      }
-                      disabled={isServiceAgentLocked}
-                    >
-                      <option value="material">{t("services.add.type.material")}</option>
-                      <option value="spiritual">{t("services.add.type.spiritual")}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-300">{t("services.add.categoryLabel")}</label>
-                    <select
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                      value={form.categoryId}
-                      onChange={(e) => handleFormChange("categoryId", e.target.value)}
-                      disabled={isServiceAgentLocked}
-                    >
-                      {(isServiceAgentLocked
-                        ? formGroup.categories.filter((cat) => cat.id === agentCategory)
-                        : formGroup.categories
-                      ).map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {getCategoryLabel(cat.id, cat.title)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-300">{t("services.add.nameLabel")}</label>
-                    <input
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                      value={form.title}
-                      onChange={(e) => handleFormChange("title", e.target.value)}
-                      placeholder={t("services.add.namePlaceholder")}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-300">{t("services.add.priceLabel")}</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                        value={form.price}
-                        onChange={(e) => handleFormChange("price", e.target.value)}
-                        placeholder="150000"
-                      />
-                      <select
-                        className="w-24 rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100"
-                        value={form.currency}
-                        onChange={(e) =>
-                          handleFormChange("currency", e.target.value as ServiceFormState["currency"])
-                        }
-                      >
-                        <option value="UZS">UZS</option>
-                        <option value="USD">USD</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.certLabel")}</label>
-                  <input
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                    value={form.certificates}
-                    onChange={(e) => handleFormChange("certificates", e.target.value)}
-                    placeholder={t("services.add.certPlaceholder")}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.descLabel")}</label>
-                  <textarea
-                    className="min-h-[120px] w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
-                    value={form.description}
-                    onChange={(e) => handleFormChange("description", e.target.value)}
-                    placeholder={t("services.add.descPlaceholder")}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                  <p className="text-xs font-semibold text-slate-200">{t("services.add.imagesTitle")}</p>
-                  <p className="mt-1 text-xs text-slate-400">{t("services.add.imagesDesc")}</p>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="mt-3 block w-full text-xs text-slate-300"
-                    onChange={(e) => handleFormChange("images", Array.from(e.target.files || []))}
-                  />
-                  <p className="mt-2 text-xs text-slate-500">
-                    {t("services.add.imagesSelected")}: {form.images.length}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                  <label className="flex items-start gap-3 text-xs text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={form.agree}
-                      onChange={(e) => handleFormChange("agree", e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-400"
-                    />
-                    <span>{t("services.add.agree")}</span>
-                  </label>
-                </div>
-
-                {formError && <p className="text-xs text-red-400">{formError}</p>}
-                {formSuccess && <p className="text-xs text-emerald-300">{formSuccess}</p>}
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-emerald-400/90 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 hover:bg-emerald-300"
-                >
-                  {t("services.add.submit")}
-                </button>
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm text-slate-300">
-            <p className="text-base font-semibold text-slate-100">
-              {isSellerAgent ? t("services.add.sellerTitle") : t("services.add.restrictedTitle")}
-            </p>
-            <p className="mt-2 text-sm text-slate-400">
-              {isSellerAgent ? t("services.add.sellerDesc") : t("services.add.restrictedDesc")}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              {!isAuthenticated && (
-                <Link
-                  href="/login"
-                  className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-100"
-                >
-                  {t("services.add.loginCta")}
-                </Link>
-              )}
-              {isSellerAgent && (
-                <Link
-                  href="/products"
-                  className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-                >
-                  {t("services.add.sellerCta")}
-                </Link>
-              )}
-              {isAuthenticated && !isSellerAgent && role === "AGENT" && !agentKind && (
-                <Link
-                  href="/profile"
-                  className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-                >
-                  {t("nav.profile")}
-                </Link>
-              )}
+            <div className="text-xs text-slate-400">
+              {t("services.hub.wordLabel")}:{" "}
+              <span className={wordCount > 500 ? "text-red-400" : "text-slate-200"}>{wordCount}</span>/500
             </div>
           </div>
-        )}
-      </section>
+
+          <form onSubmit={handleSubmit} className="mt-4 grid gap-4 text-sm md:grid-cols-[1.2fr,1fr]">
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.typeLabel")}</label>
+                  <select
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                    value={form.type}
+                    onChange={(e) =>
+                      handleFormChange("type", e.target.value as ServiceFormState["type"])
+                    }
+                    disabled={isServiceAgentLocked}
+                  >
+                    <option value="material">{t("services.add.type.material")}</option>
+                    <option value="spiritual">{t("services.add.type.spiritual")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.categoryLabel")}</label>
+                  <select
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                    value={form.categoryId}
+                    onChange={(e) => handleFormChange("categoryId", e.target.value)}
+                    disabled={isServiceAgentLocked}
+                  >
+                    {(isServiceAgentLocked
+                      ? formGroup.categories.filter((cat) => cat.id === agentCategory)
+                      : formGroup.categories
+                    ).map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {getCategoryLabel(cat.id, cat.title)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.nameLabel")}</label>
+                  <input
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                    value={form.title}
+                    onChange={(e) => handleFormChange("title", e.target.value)}
+                    placeholder={t("services.add.namePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.priceLabel")}</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                      value={form.price}
+                      onChange={(e) => handleFormChange("price", e.target.value)}
+                      placeholder="150000"
+                    />
+                    <select
+                      className="w-24 rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100"
+                      value={form.currency}
+                      onChange={(e) =>
+                        handleFormChange("currency", e.target.value as ServiceFormState["currency"])
+                      }
+                    >
+                      <option value="UZS">UZS</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300">{t("services.add.certLabel")}</label>
+                <input
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                  value={form.certificates}
+                  onChange={(e) => handleFormChange("certificates", e.target.value)}
+                  placeholder={t("services.add.certPlaceholder")}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-slate-300">{t("services.add.descLabel")}</label>
+                <textarea
+                  className="min-h-[120px] w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+                  value={form.description}
+                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  placeholder={t("services.add.descPlaceholder")}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-xs font-semibold text-slate-200">{t("services.add.imagesTitle")}</p>
+                <p className="mt-1 text-xs text-slate-400">{t("services.add.imagesDesc")}</p>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="mt-3 block w-full text-xs text-slate-300"
+                  onChange={(e) => handleFormChange("images", Array.from(e.target.files || []))}
+                />
+                <p className="mt-2 text-xs text-slate-500">
+                  {t("services.add.imagesSelected")}: {form.images.length}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <label className="flex items-start gap-3 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={form.agree}
+                    onChange={(e) => handleFormChange("agree", e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-400"
+                  />
+                  <span>{t("services.add.agree")}</span>
+                </label>
+              </div>
+
+              {formError && <p className="text-xs text-red-400">{formError}</p>}
+              {formSuccess && <p className="text-xs text-emerald-300">{formSuccess}</p>}
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-emerald-400/90 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 hover:bg-emerald-300"
+              >
+                {t("services.add.submit")}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       <section className="space-y-6">
         {activeCategory && isDeliveryCategory ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
             <DeliveryServiceSection />
+          </div>
+        ) : activeCategory && isEmploymentCategory ? (
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
+            <EmploymentServiceSection />
+          </div>
+        ) : activeCategory && isEducationCategory ? (
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
+            <EducationServiceSection />
           </div>
         ) : activeCategory && isTechnicalCategory ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-5">
@@ -959,6 +1358,11 @@ export function ServicesHub() {
                     <div>
                       <p className="text-sm font-semibold text-slate-100">{service.title}</p>
                       <p className="text-xs text-slate-400">{service.description}</p>
+                      {isNannyCategory && (
+                        <p className="mt-1 text-[11px] text-emerald-200">
+                          {getNannyTypeLabel(service.subCategory)}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-emerald-200">
@@ -977,15 +1381,29 @@ export function ServicesHub() {
                   </div>
 
                   <div className="mt-2 grid grid-cols-3 gap-2">
-                    {service.images.map((image, idx) => (
-                      <img
-                        key={`${service.displayId}-${idx}`}
-                        src={image.src}
-                        alt={image.alt}
-                        className="h-20 w-full rounded-lg object-cover"
-                        loading="lazy"
-                      />
-                    ))}
+                    {service.images.map((image, idx) => {
+                      const fallback = isConstructionCategory
+                        ? getConstructionFallback(service.displayId, idx)
+                        : isNannyCategory
+                          ? getNannyFallback(service.displayId, idx)
+                          : undefined;
+                      const src =
+                        isConstructionCategory || (isNannyCategory && fallback) ? fallback : image.src;
+                      return (
+                        <img
+                          key={`${service.displayId}-${idx}`}
+                          src={src}
+                          alt={image.alt}
+                          className="h-20 w-full rounded-lg object-cover"
+                          loading="lazy"
+                          onError={(event) => {
+                            if (fallback) {
+                              event.currentTarget.src = fallback;
+                            }
+                          }}
+                        />
+                      );
+                    })}
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">

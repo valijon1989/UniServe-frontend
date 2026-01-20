@@ -9,6 +9,8 @@ import { ServicesFilterPanel } from "@/components/services/ServicesFilterPanel";
 import { ServicesFeed } from "@/components/services/ServicesFeed";
 import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSection";
 import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
+import { EmploymentServiceSection } from "@/components/services/EmploymentServiceSection";
+import { ConstructionServiceSection } from "@/components/services/ConstructionServiceSection";
 import { useServiceCategories } from "@/hooks/useServiceCategories";
 import { useServicesFeed } from "@/hooks/useServicesFeed";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -53,6 +55,8 @@ export default function ServicesPage() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const isDeliveryCategory = selectedTab === "material" && selectedCategory === "delivery";
   const isTechnicalCategory = selectedTab === "material" && selectedCategory === "technical";
+  const isEmploymentCategory = selectedTab === "material" && selectedCategory === "employment";
+  const isConstructionCategory = selectedTab === "material" && selectedCategory === "construction";
 
   useEffect(() => {
     if (filterOpen) {
@@ -112,6 +116,15 @@ export default function ServicesPage() {
       setSelectedSubCategory("");
     }
   }, [categories, selectedCategory, selectedTab]);
+
+  useEffect(() => {
+    if (selectedCategory === "construction" && !selectedSubCategory) {
+      setSelectedSubCategory("construction-exterior");
+    }
+    if (selectedCategory !== "construction" && selectedSubCategory) {
+      setSelectedSubCategory("");
+    }
+  }, [selectedCategory, selectedSubCategory]);
 
   const queryString = useMemo(() => {
     return toQuery({
@@ -369,6 +382,17 @@ export default function ServicesPage() {
         {isDeliveryCategory ? (
           <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
             <DeliveryServiceSection />
+          </div>
+        ) : isEmploymentCategory ? (
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
+            <EmploymentServiceSection />
+          </div>
+        ) : isConstructionCategory ? (
+          <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">
+            <ConstructionServiceSection
+              selectedSection={selectedSubCategory || "construction-exterior"}
+              onSectionChange={(next) => setSelectedSubCategory(next)}
+            />
           </div>
         ) : isTechnicalCategory ? (
           <div className="rounded-3xl border border-slate-800/80 bg-slate-950/70 p-4">

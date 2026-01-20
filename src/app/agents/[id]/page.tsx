@@ -1,5 +1,15 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { serviceAgents } from "@/data/serviceCatalog";
+import { useAuthStore } from "@/store/auth";
+import {
+  createAgentReview,
+  getAgentById,
+  getAgentReviews,
+  type AgentDetail,
+  type AgentReview
+} from "@/api/agent";
 
 type PageProps = {
   params: { id: string };
@@ -7,18 +17,87 @@ type PageProps = {
 
 const formatCount = (value: number) => value.toLocaleString("en-US");
 
+const resolveListingHref = (type: string, id: string) => {
+  if (type === "product") return `/products/${id}`;
+  if (type === "service") return `/services/${id}`;
+  if (type === "education") return `/education/listings/${id}`;
+  if (type === "construction") return `/construction/listings/${id}`;
+  if (type === "taxi") return `/taxi/listings/${id}`;
+  return "#";
+};
+
 export default function AgentDetailPage({ params }: PageProps) {
-  const agent = serviceAgents.find((item) => item.id === params.id);
+  const { isAuthenticated, hydrateFromStorage } = useAuthStore();
+  const [agent, setAgent] = useState<AgentDetail | null>(null);
+  const [reviews, setReviews] = useState<AgentReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+
+  useEffect(() => {
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await getAgentById(params.id);
+        setAgent(data);
+        const reviews = await getAgentReviews(params.id);
+        setReviews(reviews);
+      } catch (err) {
+        console.error("Agent detail error", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, [params.id]);
+
+  const listingCards = useMemo(() => agent?.listings?.listingCards || [], [agent]);
+
+  const handleReviewSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!reviewComment.trim()) {
+      setReviewError("Izohni kiriting.");
+      return;
+    }
+    setReviewError(null);
+    setReviewLoading(true);
+    try {
+      await createAgentReview(params.id, { rating: reviewRating, comment: reviewComment.trim() });
+      setReviewComment("");
+      const [updatedAgent, updatedReviews] = await Promise.all([
+        getAgentById(params.id),
+        getAgentReviews(params.id)
+      ]);
+      setAgent(updatedAgent);
+      setReviews(updatedReviews);
+    } catch (err) {
+      console.error("Review submit error", err);
+      setReviewError("Review yuborishda xatolik yuz berdi.");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-300">
+        Yuklanmoqda...
+      </section>
+    );
+  }
 
   if (!agent) {
     return (
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-300">
         <p>Agent topilmadi.</p>
-        <Link
-          href="/agents?view=services"
-          className="mt-3 inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200"
-        >
-          Xizmatlar bo'limiga qaytish
+        <Link href="/agents" className="mt-3 inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
+          Agentlar bo'limiga qaytish
         </Link>
       </section>
     );
@@ -29,143 +108,135 @@ export default function AgentDetailPage({ params }: PageProps) {
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
         <div className="flex flex-wrap items-start gap-4">
           <img
-            src={agent.avatar.src}
-            alt={agent.avatar.alt}
+            src={agent.avatarUrl || "/avatars/agent-01.jpg"}
+            alt={agent.name || "Agent"}
             className="h-16 w-16 rounded-full object-cover"
           />
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-50">{agent.name}</h1>
+              <h1 className="text-2xl font-semibold text-slate-50">{agent.name || "Noma'lum agent"}</h1>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
-                Verified
+                Active
               </span>
             </div>
-            <p className="text-xs text-slate-400">@{agent.nickname}</p>
-            <p className="mt-2 text-sm text-slate-300">{agent.specialty}</p>
+            <p className="text-xs text-slate-400">@{agent.nickname || agent.username || "agent"}</p>
+            <p className="mt-2 text-sm text-slate-300">{agent.bio || "Biografiya mavjud emas."}</p>
             <p className="text-xs text-slate-500">
-              {agent.location} · Tajriba: {agent.experienceYears} yil
+              {agent.regionDetail || agent.region || "Hudud ko'rsatilmagan"}
             </p>
           </div>
           <div className="rounded-2xl bg-slate-950/70 px-4 py-3 text-xs text-slate-300">
-            <p>Yulduz: {agent.rating.toFixed(1)}/5</p>
-            <p>Baho: {formatCount(agent.reviewCount)}</p>
-            <p>Mijozlar: {formatCount(agent.totalClients)}</p>
+            <p>Reyting: {agent.rating?.toFixed?.(1) ?? agent.rating ?? "—"}</p>
+            <p>Ko'rishlar: {formatCount(agent.views ?? 0)}</p>
+            <p>Layklar: {formatCount(agent.likes ?? 0)}</p>
           </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-200">
-            {agent.groupTitle}
-          </span>
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-200">
-            {agent.categoryTitle}
-          </span>
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-200">
-            Followerlar: {formatCount(agent.followers)}
-          </span>
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-200">
-            Nice: {formatCount(agent.niceCount)}
-          </span>
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-200">
-            Ulashish: {formatCount(agent.shareCount)}
-          </span>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">Nice</button>
-          <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">Follow</button>
-          <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">Ulashish</button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1 ${
-              agent.canRate ? "bg-emerald-400/20 text-emerald-200" : "bg-slate-800 text-slate-400"
-            }`}
-          >
-            {agent.canRate ? "Agentga baho berish" : "Faqat foydalanganlar baholaydi"}
-          </button>
         </div>
       </section>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-100">Agent xizmatlari</h2>
-          <Link href="/agents?view=services" className="text-xs text-sky-300">
-            Xizmatlar ro'yxatiga qaytish
+          <h2 className="text-lg font-semibold text-slate-100">Agent elonlari</h2>
+          <Link href="/agents" className="text-xs text-sky-300">
+            Agentlar ro'yxatiga qaytish
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {agent.services.map((service) => (
-            <div key={service.id} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-100">{service.title}</p>
-                  <p className="text-xs text-slate-400">{service.description}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-emerald-200">
-                    {formatCount(service.price)} {service.currency}
-                  </p>
-                  <p className="text-[11px] text-slate-500">/{service.unit}</p>
-                </div>
-              </div>
-
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                {service.certificates.map((cert) => (
-                  <span key={cert} className="rounded-full bg-slate-900 px-2 py-1">
-                    {cert}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {service.images.map((image, idx) => (
+        {listingCards.length === 0 ? (
+          <p className="text-sm text-slate-400">Hozircha elonlar yo'q.</p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {listingCards.map((card) => (
+              <Link
+                key={`${card.type}-${card.id}`}
+                href={resolveListingHref(card.type, card.id)}
+                className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition hover:-translate-y-0.5 hover:border-emerald-400/60"
+              >
+                <div className="flex items-center gap-3">
                   <img
-                    key={`${service.id}-${idx}`}
-                    src={image.src}
-                    alt={image.alt}
-                    className="h-20 w-full rounded-lg object-cover"
-                    loading="lazy"
+                    src={card.imageUrl || "/placeholder.png"}
+                    alt={card.title || "Listing"}
+                    className="h-12 w-16 rounded-lg object-cover"
                   />
-                ))}
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-slate-900 px-2 py-1">
-                    Yulduz: {service.rating.toFixed(1)}/5
-                  </span>
-                  <span className="rounded-full bg-slate-900 px-2 py-1">
-                    Foydalanganlar: {formatCount(service.usedCount)}
-                  </span>
-                  <span className="rounded-full bg-slate-900 px-2 py-1">
-                    Baho: {formatCount(service.reviewCount)}
-                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-100">{card.title || "Elon"}</p>
+                    <p className="text-xs text-slate-400">Tur: {card.type}</p>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className={`rounded-full px-3 py-1 ${
-                    service.canRate ? "bg-emerald-400/20 text-emerald-200" : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {service.canRate ? "Baho berish" : "Faqat foydalanganlar baholaydi"}
-                </button>
-              </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                  Nice ({formatCount(service.niceCount)})
-                </button>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                  Follow agent
-                </button>
-                <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                  Ulashish ({formatCount(service.shareCount)})
-                </button>
-              </div>
-            </div>
-          ))}
+      <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-100">Fikrlar</h2>
+          <span className="text-xs text-slate-400">{reviews.length} ta</span>
         </div>
+
+        {reviews.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">Hozircha reviewlar yo'q.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {reviews.map((review) => (
+              <div
+                key={review._id || review.id}
+                className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-xs text-slate-300"
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src={review.user?.avatarUrl || "/avatars/agent-01.jpg"}
+                    alt={review.user?.name || "User"}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-100">{review.user?.name || "User"}</p>
+                    <p className="text-[11px] text-slate-400">@{review.user?.username || "user"}</p>
+                  </div>
+                  <span className="ml-auto text-xs text-emerald-200">{review.rating}/5</span>
+                </div>
+                <p className="mt-2 text-xs text-slate-300">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isAuthenticated ? (
+          <form onSubmit={handleReviewSubmit} className="mt-4 space-y-3 text-xs text-slate-300">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                Reyting
+              </label>
+              <select
+                className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                value={reviewRating}
+                onChange={(event) => setReviewRating(Number(event.target.value))}
+              >
+                {[5, 4, 3, 2, 1].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              className="h-24 w-full rounded-2xl border border-slate-700 bg-slate-900/80 p-3 text-xs text-slate-100"
+              placeholder="Izoh yozing..."
+              value={reviewComment}
+              onChange={(event) => setReviewComment(event.target.value)}
+            />
+            {reviewError && <p className="text-xs text-rose-300">{reviewError}</p>}
+            <button
+              type="submit"
+              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200"
+              disabled={reviewLoading}
+            >
+              {reviewLoading ? "Yuborilmoqda..." : "Review yuborish"}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-4 text-xs text-slate-400">Review qoldirish uchun login qiling.</p>
+        )}
       </section>
     </div>
   );
