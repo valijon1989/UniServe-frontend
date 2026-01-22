@@ -20,6 +20,12 @@ export type ServiceItem = {
   reviewCount: number;
   canRate: boolean;
   subCategory?: string;
+  translationMode?: "written" | "oral";
+  translationSpeed?: "oddiy" | "shoshilinch";
+  translationFormat?: "PDF" | "Scan" | "Original";
+  notarization?: boolean;
+  sourceLang?: string;
+  targetLang?: string;
 };
 
 export type ServiceAgent = {
@@ -34,6 +40,13 @@ export type ServiceAgent = {
   regionDetail?: string;
   distanceKm?: number;
   experienceYears: number;
+  languages?: string[];
+  audiences?: string[];
+  achievement?: string;
+  consultationFormats?: string[];
+  consultationDurations?: string[];
+  consultationLanguages?: string[];
+  consultationPackages?: string[];
   equipment?: string[];
   completedOrders?: number;
   movingCapacityTons?: number;
@@ -191,6 +204,13 @@ const makeAgent = (
       | "careFocus"
       | "bio"
       | "regionDetail"
+      | "languages"
+      | "audiences"
+      | "achievement"
+      | "consultationFormats"
+      | "consultationDurations"
+      | "consultationLanguages"
+      | "consultationPackages"
     >
   > = {}
 ): ServiceAgent => ({
@@ -3466,7 +3486,13 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 30
               )
             ],
-            true
+            true,
+            {
+              region: "Toshkent sh.",
+              contactPhone: "+998 90 555 11 22",
+              contactTelegram: "@ulugbekads",
+              bio: "Ulug'bek brendlar uchun qisqa video va story kontentlar tayyorlaydi. U auditoriya moslashtirilgan ssenariy yozadi, post strukturasini rejalaydi va taqdimotga urg'u beradi."
+            }
           ),
           makeAgent(
             "ads-2",
@@ -3498,7 +3524,14 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "marketing",
                 32
               )
-            ]
+            ],
+            false,
+            {
+              region: "Namangan sh.",
+              contactPhone: "+998 93 200 45 67",
+              contactTelegram: "@sabinasmm",
+              bio: "Sabina mahsulot sharhlari va reklama matnlarini yozadi. U kontent yo'nalishini auditoriya statistikasi bilan moslashtirib, postlarni brend tiliga yaqinlashtiradi."
+            }
           )
         ]
       },
@@ -3680,7 +3713,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 ["MBA diplomi", "Konsalting sertifikati"],
                 "consulting",
                 41,
-                true
+                true,
+                { subCategory: "consult-business" }
               ),
               makeService(
                 "cons-1-2",
@@ -3690,10 +3724,25 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Haftalik uchrashuvlar va investor pitch.",
                 ["MBA diplomi"],
                 "consulting",
-                42
+                42,
+                false,
+                { subCategory: "consult-business" }
               )
             ],
-            true
+            true,
+            {
+              region: "Toshkent sh.",
+              languages: ["UZ", "RU", "EN", "KR"],
+              audiences: ["Tadbirkor", "Yangi kelganlar"],
+              achievement: "Koreyada 2 startapni ishga tushirishga yordam bergan.",
+              consultationFormats: ["Online", "Offline"],
+              consultationDurations: ["30 min", "60 min"],
+              consultationLanguages: ["UZ", "RU", "EN", "KR"],
+              consultationPackages: ["1 martalik", "3 ta seans paketi"],
+              contactPhone: "+998 90 111 22 33",
+              contactTelegram: "@sherzodconsult",
+              bio: "Sherzod biznes va startaplar uchun strategik yo'l xaritasi tuzadi. U Koreya bozorida kirish strategiyasi va investor tayyorgarligi bo'yicha amaliy tajribaga ega."
+            }
           ),
           makeAgent(
             "cons-2",
@@ -3713,7 +3762,9 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Pozitsiya, narx va bozorda joylashuv.",
                 ["Marketing sertifikati"],
                 "consulting",
-                43
+                43,
+                false,
+                { subCategory: "consult-education" }
               ),
               makeService(
                 "cons-2-2",
@@ -3723,9 +3774,123 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Kontent va reklama auditlari.",
                 ["Marketing sertifikati"],
                 "consulting",
-                44
+                44,
+                false,
+                { subCategory: "consult-career" }
               )
-            ]
+            ],
+            false,
+            {
+              region: "Samarqand sh.",
+              languages: ["UZ", "RU"],
+              audiences: ["Talaba", "Ishchi", "Ota-ona"],
+              achievement: "Koreya bozoriga chiqqan 10+ brend kampaniyasi.",
+              consultationFormats: ["Online"],
+              consultationDurations: ["60 min"],
+              consultationLanguages: ["UZ", "RU"],
+              consultationPackages: ["1 martalik", "Paket (oylik)"],
+              contactPhone: "+998 91 555 44 33",
+              contactTelegram: "@lolamarketing",
+              bio: "Lola konsaltingi brend strategiya va auditoriya moslashuviga qaratilgan. U reklama matnlari va kontent yo'nalishini koreys bozoriga moslashtiradi."
+            }
+          ),
+          makeAgent(
+            "cons-3",
+            "Jasmina Lee",
+            "JasminaKorea",
+            "Koreya ta'lim va viza konsultanti",
+            "Seul",
+            6,
+            23,
+            23,
+            [
+              makeService(
+                "cons-3-1",
+                "Universitet tanlash va grant",
+                980000,
+                "paket",
+                "TOPIK, GKS va hujjat topshirish yo'l xaritasi.",
+                ["GKS tajribasi"],
+                "consulting",
+                45,
+                false,
+                { subCategory: "consult-education" }
+              ),
+              makeService(
+                "cons-3-2",
+                "Viza hujjatlari tekshiruvi",
+                720000,
+                "xizmat",
+                "D-2, D-4 va E-7 hujjatlari bo'yicha audit.",
+                ["Koreya viza amaliyoti"],
+                "consulting",
+                46,
+                false,
+                { subCategory: "consult-visa" }
+              ),
+              makeService(
+                "cons-3-3",
+                "Til va moslashuv bo'yicha reja",
+                520000,
+                "sessiya",
+                "TOPIK strategiya va kundalik koreyscha.",
+                ["TOPIK 5"],
+                "consulting",
+                47,
+                false,
+                { subCategory: "consult-language" }
+              ),
+              makeService(
+                "cons-3-4",
+                "Huquqiy va maishiy maslahat",
+                680000,
+                "sessiya",
+                "Ijara, bank va telefon masalalari bo'yicha yo'l-yo'riq.",
+                ["Maishiy huquq tajribasi"],
+                "consulting",
+                48,
+                false,
+                { subCategory: "consult-legal" }
+              ),
+              makeService(
+                "cons-3-5",
+                "Sog'liq va ijtimoiy qo'llab-quvvatlash",
+                450000,
+                "sessiya",
+                "Sug'urta va shifoxona tizimi bo'yicha yo'nalish.",
+                ["Koreya sog'liq tizimi"],
+                "consulting",
+                49,
+                false,
+                { subCategory: "consult-health" }
+              ),
+              makeService(
+                "cons-3-6",
+                "Ish va karyera yo'nalishi",
+                760000,
+                "sessiya",
+                "CV, intervyu va ish bozori bo'yicha maslahat.",
+                ["HR tajribasi"],
+                "consulting",
+                50,
+                false,
+                { subCategory: "consult-career" }
+              )
+            ],
+            true,
+            {
+              region: "Seul",
+              languages: ["UZ", "KR", "EN"],
+              audiences: ["Talaba", "Ishchi", "Yangi kelganlar", "Ota-ona"],
+              achievement: "Koreyada 200+ talabaga qabul va viza yo'l xaritasi bergan.",
+              consultationFormats: ["Online", "Offline"],
+              consultationDurations: ["30 min", "60 min"],
+              consultationLanguages: ["UZ", "KR", "EN"],
+              consultationPackages: ["1 martalik", "Paket (3-5 sessiya)"],
+              contactPhone: "+82 10 5555 1234",
+              contactTelegram: "@jasminakorea",
+              bio: "Jasmina Koreyada ta'lim, viza va moslashuv bo'yicha amaliy maslahat beradi. U hujjatlarning aniq ro'yxatini beradi va har bir bosqichni tushuntirib beradi."
+            }
           )
         ]
       },
@@ -3738,7 +3903,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
             "trans-1",
             "Umid Rahmatov",
             "UmidTranslate",
-            "Ingliz-rus tarjimon",
+            "Ingliz va koreys tarjimon",
             "Toshkent",
             9,
             23,
@@ -3746,59 +3911,283 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
             [
               makeService(
                 "trans-1-1",
-                "Hujjat tarjimasi",
-                90000,
-                "bet",
-                "Notarial tasdiqlashga tayyor tarjima.",
+                "Rasmiy hujjatlar tarjimasi",
+                240000,
+                "sahifa",
+                "Pasport, diplom va notarial hujjatlar tarjimasi.",
                 ["Tarjimon guvohnomasi"],
                 "translation",
                 45,
-                true
+                false,
+                {
+                  subCategory: "translation-official",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: true,
+                  sourceLang: "UZ",
+                  targetLang: "KR"
+                }
               ),
               makeService(
                 "trans-1-2",
-                "Sinxron tarjima",
-                1200000,
+                "Og'zaki tarjima (meeting)",
+                1600000,
                 "soat",
-                "Konferensiya va uchrashuvlar uchun.",
+                "Online meeting va intervyu tarjimasi.",
                 ["Tarjimon guvohnomasi"],
                 "translation",
-                46
+                46,
+                false,
+                {
+                  subCategory: "translation-oral",
+                  translationMode: "oral",
+                  translationSpeed: "oddiy",
+                  translationFormat: "Original",
+                  notarization: false,
+                  sourceLang: "KR",
+                  targetLang: "UZ"
+                }
               )
             ],
-            true
+            true,
+            {
+              region: "Toshkent sh.",
+              languages: ["UZ", "KR", "RU", "EN"],
+              audiences: ["Talaba", "Ishchi", "Yangi kelganlar"],
+              achievement: "200+ rasmiy hujjat tarjima qilgan.",
+              contactPhone: "+998 90 333 44 55",
+              contactTelegram: "@umidtranslate",
+              bio: "Umid rasmiy va og'zaki tarjimalar bo'yicha ishlaydi. U hujjatlarning aniqligi va terminlarga alohida e'tibor beradi."
+            }
           ),
           makeAgent(
             "trans-2",
-            "Malohat Alimuhamed",
-            "MalohatLingua",
-            "Turk va ingliz tili tarjimoni",
-            "Navoiy",
+            "Dilnoza Iskandarova",
+            "DilnozaTrans",
+            "Koreys va rus tarjimon",
+            "Farg'ona",
             6,
             24,
             24,
             [
               makeService(
                 "trans-2-1",
-                "Texnik tarjima",
-                110000,
-                "bet",
-                "Texnik hujjatlar va yo'riqnoma.",
+                "Ta'lim hujjatlari tarjimasi",
+                200000,
+                "sahifa",
+                "Universitet hujjatlari, study plan va recommendation.",
                 ["Tarjimon guvohnomasi"],
                 "translation",
-                47
+                47,
+                false,
+                {
+                  subCategory: "translation-education",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "KR",
+                  targetLang: "RU"
+                }
               ),
               makeService(
                 "trans-2-2",
-                "Biznes yozishmalar tarjimasi",
-                75000,
-                "bet",
-                "Rasmiy uslubda tarjima.",
+                "Texnik va IT tarjima",
+                360000,
+                "sahifa",
+                "Texnik dokumentatsiya va IT matnlar.",
+                ["Texnik lug'at"],
+                "translation",
+                48,
+                false,
+                {
+                  subCategory: "translation-technical",
+                  translationMode: "written",
+                  translationSpeed: "shoshilinch",
+                  translationFormat: "Scan",
+                  notarization: false,
+                  sourceLang: "EN",
+                  targetLang: "KR"
+                }
+              )
+            ],
+            true,
+            {
+              region: "Farg'ona",
+              languages: ["UZ", "KR", "RU", "EN"],
+              audiences: ["Talaba", "Ishchi", "Yangi kelganlar"],
+              achievement: "300+ ta hujjat tarjima qilgan.",
+              contactPhone: "+998 93 800 77 66",
+              contactTelegram: "@dilnozatrans",
+              bio: "Dilnoza ta'lim va texnik tarjimalar bo'yicha ixtisoslashgan. U hujjatlarni tekshirish va moslashtirishda tajribaga ega."
+            }
+          ),
+          makeAgent(
+            "trans-3",
+            "Andrew Park",
+            "AndrewLegal",
+            "Biznes va yuridik tarjimon",
+            "Seul",
+            8,
+            25,
+            25,
+            [
+              makeService(
+                "trans-3-1",
+                "Biznes & yuridik tarjima",
+                480000,
+                "sahifa",
+                "Shartnoma, NDA va kompaniya hujjatlari.",
+                ["Legal tajriba"],
+                "translation",
+                49,
+                false,
+                {
+                  subCategory: "translation-business",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: true,
+                  sourceLang: "EN",
+                  targetLang: "KR"
+                }
+              ),
+              makeService(
+                "trans-3-2",
+                "Viza va migratsiya tarjimasi",
+                320000,
+                "sahifa",
+                "D-2, D-4, E-7 va migratsiya formalar.",
+                ["Koreya migratsiya tajribasi"],
+                "translation",
+                50,
+                false,
+                {
+                  subCategory: "translation-visa",
+                  translationMode: "written",
+                  translationSpeed: "shoshilinch",
+                  translationFormat: "Scan",
+                  notarization: true,
+                  sourceLang: "KR",
+                  targetLang: "UZ"
+                }
+              )
+            ],
+            true,
+            {
+              region: "Seul",
+              languages: ["EN", "KR", "UZ", "RU"],
+              audiences: ["Tadbirkor", "Yangi kelganlar"],
+              achievement: "Koreyada 100+ biznes shartnomalar tarjimasi.",
+              contactPhone: "+82 10 8888 9090",
+              contactTelegram: "@andrewlegal",
+              bio: "Andrew biznes va migratsiya hujjatlari bo'yicha tarjima qiladi. U hujjatlarning yuridik aniqligiga e'tibor beradi."
+            }
+          ),
+          makeAgent(
+            "trans-4",
+            "Malika Yuldasheva",
+            "MalikaMed",
+            "Tibbiy tarjimon",
+            "Andijon",
+            5,
+            26,
+            26,
+            [
+              makeService(
+                "trans-4-1",
+                "Tibbiy hujjatlar tarjimasi",
+                260000,
+                "sahifa",
+                "Diagnostika, retsept va sug'urta hujjatlari.",
+                ["Tibbiy terminologiya"],
+                "translation",
+                51,
+                false,
+                {
+                  subCategory: "translation-medical",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "RU",
+                  targetLang: "UZ"
+                }
+              ),
+              makeService(
+                "trans-4-2",
+                "Shifokor bilan uchrashuv",
+                1200000,
+                "soat",
+                "Og'zaki tarjima: shifoxona va konsultatsiya.",
+                ["Tibbiy tajriba"],
+                "translation",
+                52,
+                false,
+                {
+                  subCategory: "translation-oral",
+                  translationMode: "oral",
+                  translationSpeed: "oddiy",
+                  translationFormat: "Original",
+                  notarization: false,
+                  sourceLang: "KR",
+                  targetLang: "UZ"
+                }
+              )
+            ],
+            false,
+            {
+              region: "Andijon",
+              languages: ["UZ", "KR", "RU"],
+              audiences: ["Ishchi", "Ota-ona"],
+              achievement: "Koreya klinikalari uchun 80+ tibbiy tarjima.",
+              contactPhone: "+998 90 322 11 00",
+              contactTelegram: "@malikamed",
+              bio: "Malika tibbiy tarjimalar va shifokor bilan uchrashuvlarda tarjima qiladi. U maxfiylikni qat'iy saqlaydi."
+            }
+          ),
+          makeAgent(
+            "trans-5",
+            "Nargiza Abdullayeva",
+            "NargizaPersonal",
+            "Shaxsiy va kundalik tarjimon",
+            "Buxoro",
+            4,
+            27,
+            27,
+            [
+              makeService(
+                "trans-5-1",
+                "Kundalik va shaxsiy tarjima",
+                150000,
+                "sahifa",
+                "Xatlar, arizalar va shaxsiy yozishmalar.",
                 ["Tarjimon guvohnomasi"],
                 "translation",
-                48
+                53,
+                false,
+                {
+                  subCategory: "translation-personal",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "EN",
+                  targetLang: "UZ"
+                }
               )
-            ]
+            ],
+            false,
+            {
+              region: "Buxoro",
+              languages: ["UZ", "RU", "EN"],
+              audiences: ["Talaba", "Ota-ona"],
+              achievement: "100+ shaxsiy hujjat tarjimasi.",
+              contactPhone: "+998 91 212 33 44",
+              contactTelegram: "@nargizapersonal",
+              bio: "Nargiza shaxsiy yozishmalar va kundalik hujjatlar bo'yicha tarjima qiladi. U tezkor va aniq xizmat ko'rsatadi."
+            }
           )
         ]
       },

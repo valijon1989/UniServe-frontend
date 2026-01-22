@@ -83,6 +83,7 @@ const getDefaultWsUrl = () => {
   if (envUrl) return envUrl;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) return "";
+  if (process.env.NODE_ENV !== "production") return "";
   const normalized = apiUrl.replace(/\/+$/, "");
   const withoutApi = normalized.replace(/\/api$/, "");
   if (withoutApi.startsWith("https://")) {

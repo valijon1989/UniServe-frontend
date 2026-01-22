@@ -101,6 +101,19 @@ export function ServicesHub() {
   const [nannyTimeStart, setNannyTimeStart] = useState("");
   const [nannyTimeEnd, setNannyTimeEnd] = useState("");
   const [nannyType, setNannyType] = useState("all");
+  const [consultingTab, setConsultingTab] = useState("all");
+  const [consultingAudience, setConsultingAudience] = useState("all");
+  const [consultingExperience, setConsultingExperience] = useState("all");
+  const [consultingLanguage, setConsultingLanguage] = useState("all");
+  const [consultingRating, setConsultingRating] = useState("all");
+  const [consultingPrice, setConsultingPrice] = useState("all");
+  const [translationTab, setTranslationTab] = useState("all");
+  const [translationFrom, setTranslationFrom] = useState("");
+  const [translationTo, setTranslationTo] = useState("");
+  const [translationNotarization, setTranslationNotarization] = useState("all");
+  const [translationSpeed, setTranslationSpeed] = useState("all");
+  const [translationFormat, setTranslationFormat] = useState("all");
+  const [translationMode, setTranslationMode] = useState("all");
   const { t } = useI18n();
   const { role, isAuthenticated, hydrateFromStorage, token } = useAuthStore();
   const { status: rideSocketStatus, latestRide, sendRideEvent } = useRideSocket({
@@ -158,6 +171,9 @@ export function ServicesHub() {
   const isEducationCategory = activeCategory?.id === "education";
   const isConstructionCategory = activeCategory?.id === "construction";
   const isNannyCategory = activeCategory?.id === "nanny";
+  const isMarketingCategory = activeCategory?.id === "marketing";
+  const isConsultingCategory = activeCategory?.id === "consulting";
+  const isTranslationCategory = activeCategory?.id === "translation";
 
   const nannyTypes = useMemo(
     () => [
@@ -170,6 +186,66 @@ export function ServicesHub() {
     ],
     []
   );
+
+  const consultingTabs = useMemo(
+    () => [
+      { id: "all", title: "Barchasi" },
+      { id: "consult-education", title: "Ta'lim" },
+      { id: "consult-career", title: "Ish & Karyera" },
+      { id: "consult-visa", title: "Viza" },
+      { id: "consult-language", title: "Til & Moslashuv" },
+      { id: "consult-business", title: "Biznes" },
+      { id: "consult-legal", title: "Huquqiy" },
+      { id: "consult-health", title: "Sog'liq" }
+    ],
+    []
+  );
+
+  const consultingAudiences = useMemo(
+    () => ["Talaba", "Ishchi", "Tadbirkor", "Ota-ona", "Yangi kelganlar"],
+    []
+  );
+
+  const translationTabs = useMemo(
+    () => [
+      { id: "all", title: "Barchasi" },
+      { id: "translation-official", title: "Rasmiy" },
+      { id: "translation-education", title: "Ta'lim" },
+      { id: "translation-visa", title: "Viza" },
+      { id: "translation-business", title: "Biznes" },
+      { id: "translation-medical", title: "Tibbiy" },
+      { id: "translation-technical", title: "Texnik / IT" },
+      { id: "translation-oral", title: "Og'zaki" },
+      { id: "translation-personal", title: "Shaxsiy" }
+    ],
+    []
+  );
+
+  const translationLanguages = useMemo(
+    () => ["UZ", "KR", "RU", "EN", "JP", "CN", "TR", "DE", "FR"],
+    []
+  );
+
+  useEffect(() => {
+    if (activeCategoryId !== "consulting") return;
+    setConsultingTab("all");
+    setConsultingAudience("all");
+    setConsultingExperience("all");
+    setConsultingLanguage("all");
+    setConsultingRating("all");
+    setConsultingPrice("all");
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    if (activeCategoryId !== "translation") return;
+    setTranslationTab("all");
+    setTranslationFrom("");
+    setTranslationTo("");
+    setTranslationNotarization("all");
+    setTranslationSpeed("all");
+    setTranslationFormat("all");
+    setTranslationMode("all");
+  }, [activeCategoryId]);
 
   const constructionSections = useMemo(
     () => [
@@ -560,6 +636,95 @@ export function ServicesHub() {
       return sorted.filter((service) => (service.subCategory || "nanny-child") === nannyType);
     }
 
+    if (isConsultingCategory) {
+      let filtered = baseServices;
+      if (consultingTab !== "all") {
+        filtered = filtered.filter((service) => service.subCategory === consultingTab);
+      }
+      if (consultingAudience !== "all") {
+        filtered = filtered.filter((service) =>
+          service.agent.audiences?.includes(consultingAudience)
+        );
+      }
+      if (consultingExperience !== "all") {
+        filtered = filtered.filter((service) => {
+          const years = service.agent.experienceYears;
+          if (consultingExperience === "1-3") return years >= 1 && years <= 3;
+          if (consultingExperience === "4-6") return years >= 4 && years <= 6;
+          if (consultingExperience === "7+") return years >= 7;
+          return true;
+        });
+      }
+      if (consultingLanguage !== "all") {
+        filtered = filtered.filter((service) =>
+          service.agent.languages?.includes(consultingLanguage)
+        );
+      }
+      if (consultingRating !== "all") {
+        filtered = filtered.filter((service) => {
+          if (consultingRating === "4.7") return service.rating >= 4.7;
+          if (consultingRating === "4.5") return service.rating >= 4.5;
+          if (consultingRating === "4.3") return service.rating >= 4.3;
+          return true;
+        });
+      }
+      if (consultingPrice !== "all") {
+        filtered = filtered.filter((service) => {
+          if (consultingPrice === "0-700") return service.price <= 700000;
+          if (consultingPrice === "700-1500") return service.price > 700000 && service.price <= 1500000;
+          if (consultingPrice === "1500+") return service.price > 1500000;
+          return true;
+        });
+      }
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+
+      return sorted;
+    }
+
+    if (isTranslationCategory) {
+      let filtered = baseServices;
+      if (translationTab !== "all") {
+        filtered = filtered.filter((service) => service.subCategory === translationTab);
+      }
+      if (translationMode !== "all") {
+        filtered = filtered.filter((service) => service.translationMode === translationMode);
+      }
+      if (translationSpeed !== "all") {
+        filtered = filtered.filter((service) => service.translationSpeed === translationSpeed);
+      }
+      if (translationFormat !== "all") {
+        filtered = filtered.filter((service) => service.translationFormat === translationFormat);
+      }
+      if (translationNotarization !== "all") {
+        filtered = filtered.filter((service) =>
+          translationNotarization === "yes" ? service.notarization : !service.notarization
+        );
+      }
+      if (translationFrom) {
+        filtered = filtered.filter((service) => service.sourceLang === translationFrom);
+      }
+      if (translationTo) {
+        filtered = filtered.filter((service) => service.targetLang === translationTo);
+      }
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+
+      return sorted;
+    }
+
     if (baseServices.length === 0) return [];
 
     const targetCount = Math.max(12, baseServices.length);
@@ -584,12 +749,20 @@ export function ServicesHub() {
           pool[(imageStart + 1) % pool.length],
           pool[(imageStart + 2) % pool.length]
         ],
+        niceCount: isMarketingCategory ? base.niceCount + i * 3 : base.niceCount,
         createdAt
       });
     }
 
     const sorted = [...expanded].sort((a, b) => {
       if (sortMode === "new") {
+        const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (diff !== 0) return diff;
+        if (isMarketingCategory) return b.niceCount - a.niceCount;
+        return 0;
+      }
+      if (isMarketingCategory) {
+        if (b.niceCount !== a.niceCount) return b.niceCount - a.niceCount;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
       if (b.rating !== a.rating) return b.rating - a.rating;
@@ -603,7 +776,23 @@ export function ServicesHub() {
     constructionSections,
     constructionSubCategory,
     isConstructionCategory,
+    isConsultingCategory,
+    isTranslationCategory,
+    isMarketingCategory,
     isNannyCategory,
+    consultingAudience,
+    consultingExperience,
+    consultingLanguage,
+    consultingPrice,
+    consultingRating,
+    consultingTab,
+    translationFormat,
+    translationFrom,
+    translationMode,
+    translationNotarization,
+    translationSpeed,
+    translationTab,
+    translationTo,
     nannyAgeMin,
     nannyAgeMax,
     nannyTimeStart,
@@ -615,13 +804,30 @@ export function ServicesHub() {
     taxiAgents
   ]);
 
+  const translationSorted = useMemo(() => {
+    if (!isTranslationCategory) return [];
+    return [...displayServices].sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return b.reviewCount - a.reviewCount;
+    });
+  }, [displayServices, isTranslationCategory]);
+
+  const translationFeatured = isTranslationCategory ? translationSorted.slice(0, 10) : [];
+  const translationRest = isTranslationCategory ? translationSorted.slice(10) : [];
+
   const pageSize = isNannyCategory
     ? Math.max(1, nannyType === "all" ? displayServices.length : 2)
     : 8;
-  const totalPages = Math.min(100, Math.max(1, Math.ceil(displayServices.length / pageSize)));
+  const totalPages = Math.min(
+    100,
+    Math.max(1, Math.ceil((isTranslationCategory ? translationRest.length : displayServices.length) / pageSize))
+  );
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * pageSize;
-  const pagedServices = displayServices.slice(startIndex, startIndex + pageSize);
+  const pagedServices = (isTranslationCategory ? translationRest : displayServices).slice(
+    startIndex,
+    startIndex + pageSize
+  );
 
   const pageButtons = useMemo(() => {
     const maxButtons = 7;
@@ -721,6 +927,184 @@ export function ServicesHub() {
     };
     return map[status] || status;
   };
+
+  const renderServiceCard = (service: DisplayService, keyPrefix = "") => (
+    <div
+      key={`${keyPrefix}${service.displayId}`}
+      role="button"
+      tabIndex={0}
+      onClick={(event) => handleServiceCardClick(event, service.displayId)}
+      onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
+      className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
+          <img
+            src={service.agent.avatar.src}
+            alt={service.agent.avatar.alt}
+            className="h-10 w-10 rounded-full object-cover"
+            loading="lazy"
+          />
+          <div>
+            <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
+            <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
+            {(service.agent.region || service.agent.distanceKm) && (
+              <p className="text-[11px] text-slate-500">
+                {service.agent.region || "Hudud"} · {service.agent.distanceKm ?? "—"} km
+              </p>
+            )}
+          </div>
+        </Link>
+        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
+          {t("services.agent.verified")}
+        </span>
+      </div>
+
+      {activeCategory.id === "taxi" && (service.agent.vehicleClass || service.agent.seatCount) && (
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+          {service.agent.vehicleClass && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {formatTaxiClassLabel(service.agent.vehicleClass)}
+            </span>
+          )}
+          {service.agent.seatCount && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {service.agent.seatCount} kishi
+            </span>
+          )}
+          {service.agent.vehicleModel && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {service.agent.vehicleModel}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-100">{service.title}</p>
+          <p className="text-xs text-slate-400">{service.description}</p>
+          {isNannyCategory && (
+            <p className="mt-1 text-[11px] text-emerald-200">
+              {getNannyTypeLabel(service.subCategory)}
+            </p>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-emerald-200">
+            {formatCount(service.price)} {service.currency}
+          </p>
+          <p className="text-[11px] text-slate-500">/{service.unit}</p>
+        </div>
+      </div>
+
+      {isTranslationCategory && (
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+          {(service.sourceLang || service.targetLang) && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {(service.sourceLang || "—")} → {(service.targetLang || "—")}
+            </span>
+          )}
+          {service.translationMode && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {service.translationMode === "oral" ? "Og'zaki" : "Yozma"}
+            </span>
+          )}
+          {service.translationSpeed && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {service.translationSpeed === "shoshilinch" ? "Shoshilinch" : "Oddiy"}
+            </span>
+          )}
+          {typeof service.notarization === "boolean" && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Notarial: {service.notarization ? "Ha" : "Yo'q"}
+            </span>
+          )}
+          {service.translationFormat && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              {service.translationFormat}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+        {service.certificates.map((cert) => (
+          <span key={`${service.displayId}-${cert}`} className="rounded-full bg-slate-900 px-2 py-1">
+            {cert}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {(isMarketingCategory
+          ? [
+              { src: service.agent.avatar.src, alt: service.agent.avatar.alt },
+              ...service.images.slice(0, 2)
+            ]
+          : service.images
+        ).map((image, idx) => {
+          const fallback = isConstructionCategory
+            ? getConstructionFallback(service.displayId, idx)
+            : isNannyCategory
+              ? getNannyFallback(service.displayId, idx)
+              : undefined;
+          const src =
+            isConstructionCategory || (isNannyCategory && fallback) ? fallback : image.src;
+          return (
+            <img
+              key={`${service.displayId}-${idx}`}
+              src={src}
+              alt={image.alt}
+              className="h-20 w-full rounded-lg object-cover"
+              loading="lazy"
+              onError={(event) => {
+                if (fallback) {
+                  event.currentTarget.src = fallback;
+                }
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-slate-900 px-2 py-1">
+            {renderRating(service.rating)}
+          </span>
+          <span className="rounded-full bg-slate-900 px-2 py-1">
+            {t("services.service.used")}: {formatCount(service.usedCount)}
+          </span>
+          <span className="rounded-full bg-slate-900 px-2 py-1">
+            {t("services.service.reviews")}: {formatCount(service.reviewCount)}
+          </span>
+        </div>
+        <button
+          type="button"
+          className={`rounded-full px-3 py-1 ${
+            service.canRate
+              ? "bg-emerald-400/20 text-emerald-200"
+              : "bg-slate-800 text-slate-400"
+          }`}
+        >
+          {service.canRate ? t("services.service.rate") : t("services.service.rateOnly")}
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+          {t("services.actions.nice")} ({formatCount(service.niceCount)})
+        </button>
+        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+          {t("services.actions.followAgent")}
+        </button>
+        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+          {t("services.actions.share")} ({formatCount(service.shareCount)})
+        </button>
+      </div>
+    </div>
+  );
 
   const handleConfirmRide = () => {
     if (!latestRide) return;
@@ -843,6 +1227,246 @@ export function ServicesHub() {
                     {sub.title}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+          {isConsultingCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Uniserv Consulting
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Konsultantlar aniq yo'nalish bo'yicha maslahat beradi. Oldindan pul olish taqiqlanadi.
+                </p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+                {consultingTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setConsultingTab(tab.id)}
+                    className={`rounded-full px-3 py-1 ${
+                      consultingTab === tab.id
+                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    {tab.title}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
+                  Kim uchun?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setConsultingAudience("all")}
+                  className={`rounded-full px-3 py-1 ${
+                    consultingAudience === "all"
+                      ? "bg-sky-500/20 text-sky-100 ring-1 ring-sky-400/40"
+                      : "bg-slate-900/70 text-slate-300"
+                  }`}
+                >
+                  Barchasi
+                </button>
+                {consultingAudiences.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setConsultingAudience(item)}
+                    className={`rounded-full px-3 py-1 ${
+                      consultingAudience === item
+                        ? "bg-sky-500/20 text-sky-100 ring-1 ring-sky-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingExperience}
+                    onChange={(e) => setConsultingExperience(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="1-3">1-3 yil</option>
+                    <option value="4-6">4-6 yil</option>
+                    <option value="7+">7+ yil</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingLanguage}
+                    onChange={(e) => setConsultingLanguage(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="UZ">UZ</option>
+                    <option value="KR">KR</option>
+                    <option value="RU">RU</option>
+                    <option value="EN">EN</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Reyting</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingRating}
+                    onChange={(e) => setConsultingRating(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="4.7">4.7+</option>
+                    <option value="4.5">4.5+</option>
+                    <option value="4.3">4.3+</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Narx</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingPrice}
+                    onChange={(e) => setConsultingPrice(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="0-700">0 - 700k</option>
+                    <option value="700-1500">700k - 1.5m</option>
+                    <option value="1500+">1.5m+</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          {isTranslationCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Uniserv Translation
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Tarjimonlar 1-2 yo'nalishda ishlaydi. Namuna ishlar va maxfiylik kafolatlanadi.
+                </p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+                {translationTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setTranslationTab(tab.id)}
+                    className={`rounded-full px-3 py-1 ${
+                      translationTab === tab.id
+                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    {tab.title}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTranslationTab("all");
+                    setTranslationFrom("");
+                    setTranslationTo("");
+                    setTranslationNotarization("all");
+                    setTranslationSpeed("all");
+                    setTranslationFormat("all");
+                    setTranslationMode("all");
+                  }}
+                  className="rounded-full bg-slate-900/70 px-3 py-1 text-slate-300"
+                >
+                  Barchasi
+                </button>
+                <span className="text-slate-500">Til va filterlarni tozalash</span>
+              </div>
+              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til (qaysidan)</label>
+                  <input
+                    list="translation-from-list"
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationFrom}
+                    onChange={(e) => setTranslationFrom(e.target.value.toUpperCase())}
+                    placeholder="EN"
+                  />
+                  <datalist id="translation-from-list">
+                    {translationLanguages.map((lang) => (
+                      <option key={`from-${lang}`} value={lang} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til (qaysiga)</label>
+                  <input
+                    list="translation-to-list"
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationTo}
+                    onChange={(e) => setTranslationTo(e.target.value.toUpperCase())}
+                    placeholder="UZ"
+                  />
+                  <datalist id="translation-to-list">
+                    {translationLanguages.map((lang) => (
+                      <option key={`to-${lang}`} value={lang} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Notarial tasdiq</label>
+                  <select
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationNotarization}
+                    onChange={(e) => setTranslationNotarization(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="yes">Ha</option>
+                    <option value="no">Yo'q</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tezlik</label>
+                  <select
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationSpeed}
+                    onChange={(e) => setTranslationSpeed(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="oddiy">Oddiy</option>
+                    <option value="shoshilinch">Shoshilinch</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                  <select
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationFormat}
+                    onChange={(e) => setTranslationFormat(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="PDF">PDF</option>
+                    <option value="Scan">Scan</option>
+                    <option value="Original">Original</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Og'zaki / Yozma</label>
+                  <select
+                    className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationMode}
+                    onChange={(e) => setTranslationMode(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="written">Yozma</option>
+                    <option value="oral">Og'zaki</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -1133,46 +1757,48 @@ export function ServicesHub() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-200">{t("services.list.title")}</p>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
-                  >
-                    {t("services.pagination.prev")}
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {pageButtons.map((page) => (
-                      <button
-                        key={page}
-                        type="button"
-                        onClick={() => setCurrentPage(page)}
-                        className={`h-7 w-7 rounded-full text-xs ${
-                          page === safePage
-                            ? "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-400/60"
-                            : "bg-slate-900 text-slate-300"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ))}
+            {(!isTranslationCategory || translationRest.length > 0) && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-200">{t("services.list.title")}</p>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
+                    >
+                      {t("services.pagination.prev")}
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {pageButtons.map((page) => (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setCurrentPage(page)}
+                          className={`h-7 w-7 rounded-full text-xs ${
+                            page === safePage
+                              ? "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-400/60"
+                              : "bg-slate-900 text-slate-300"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
+                    >
+                      {t("services.pagination.next")}
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      {t("services.pagination.page")} {safePage} {t("services.pagination.of")} {totalPages}
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
-                  >
-                    {t("services.pagination.next")}
-                  </button>
-                  <span className="text-xs text-slate-500">
-                    {t("services.pagination.page")} {safePage} {t("services.pagination.of")} {totalPages}
-                  </span>
                 </div>
               </div>
-            </div>
+            )}
 
             {activeCategory.id === "taxi" && (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -1301,149 +1927,25 @@ export function ServicesHub() {
               </div>
             )}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              {pagedServices.map((service) => (
-                <div
-                  key={service.displayId}
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => handleServiceCardClick(event, service.displayId)}
-                  onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
-                  className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
-                      <img
-                        src={service.agent.avatar.src}
-                        alt={service.agent.avatar.alt}
-                        className="h-10 w-10 rounded-full object-cover"
-                        loading="lazy"
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
-                        <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
-                        {(service.agent.region || service.agent.distanceKm) && (
-                          <p className="text-[11px] text-slate-500">
-                            {service.agent.region || "Hudud"} · {service.agent.distanceKm ?? "—"} km
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
-                      {t("services.agent.verified")}
-                    </span>
-                  </div>
-
-                  {activeCategory.id === "taxi" && (service.agent.vehicleClass || service.agent.seatCount) && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                      {service.agent.vehicleClass && (
-                        <span className="rounded-full bg-slate-900 px-2 py-1">
-                          {formatTaxiClassLabel(service.agent.vehicleClass)}
-                        </span>
-                      )}
-                      {service.agent.seatCount && (
-                        <span className="rounded-full bg-slate-900 px-2 py-1">
-                          {service.agent.seatCount} kishi
-                        </span>
-                      )}
-                      {service.agent.vehicleModel && (
-                        <span className="rounded-full bg-slate-900 px-2 py-1">
-                          {service.agent.vehicleModel}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-100">{service.title}</p>
-                      <p className="text-xs text-slate-400">{service.description}</p>
-                      {isNannyCategory && (
-                        <p className="mt-1 text-[11px] text-emerald-200">
-                          {getNannyTypeLabel(service.subCategory)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-emerald-200">
-                        {formatCount(service.price)} {service.currency}
-                      </p>
-                      <p className="text-[11px] text-slate-500">/{service.unit}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                    {service.certificates.map((cert) => (
-                      <span key={`${service.displayId}-${cert}`} className="rounded-full bg-slate-900 px-2 py-1">
-                        {cert}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {service.images.map((image, idx) => {
-                      const fallback = isConstructionCategory
-                        ? getConstructionFallback(service.displayId, idx)
-                        : isNannyCategory
-                          ? getNannyFallback(service.displayId, idx)
-                          : undefined;
-                      const src =
-                        isConstructionCategory || (isNannyCategory && fallback) ? fallback : image.src;
-                      return (
-                        <img
-                          key={`${service.displayId}-${idx}`}
-                          src={src}
-                          alt={image.alt}
-                          className="h-20 w-full rounded-lg object-cover"
-                          loading="lazy"
-                          onError={(event) => {
-                            if (fallback) {
-                              event.currentTarget.src = fallback;
-                            }
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-slate-900 px-2 py-1">
-                        {renderRating(service.rating)}
-                      </span>
-                      <span className="rounded-full bg-slate-900 px-2 py-1">
-                        {t("services.service.used")}: {formatCount(service.usedCount)}
-                      </span>
-                      <span className="rounded-full bg-slate-900 px-2 py-1">
-                        {t("services.service.reviews")}: {formatCount(service.reviewCount)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 ${
-                        service.canRate
-                          ? "bg-emerald-400/20 text-emerald-200"
-                          : "bg-slate-800 text-slate-400"
-                      }`}
-                    >
-                      {service.canRate ? t("services.service.rate") : t("services.service.rateOnly")}
-                    </button>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                      {t("services.actions.nice")} ({formatCount(service.niceCount)})
-                    </button>
-                    <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                      {t("services.actions.followAgent")}
-                    </button>
-                    <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-                      {t("services.actions.share")} ({formatCount(service.shareCount)})
-                    </button>
-                  </div>
+            {isTranslationCategory && translationFeatured.length > 0 && (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-emerald-100">Eng yuqori baholangan tarjimonlar</p>
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] text-emerald-200">
+                    TOP 10
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {translationFeatured.map((service) => renderServiceCard(service, "top-"))}
+                </div>
+              </div>
+            )}
+
+            {(!isTranslationCategory || pagedServices.length > 0) && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {pagedServices.map((service) => renderServiceCard(service))}
+              </div>
+            )}
           </div>
         ) : null}
       </section>
