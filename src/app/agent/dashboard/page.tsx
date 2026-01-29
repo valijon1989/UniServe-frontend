@@ -109,6 +109,28 @@ export default function AgentDashboardPage() {
 
       <section className="card p-4 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">Xizmat joylash (standart)</h2>
+          <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
+            Konsolting uchun minimal talablar
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          Yangi xizmat yaratishda quyidagi maydonlar majburiy bo'ladi.
+        </p>
+        <div className="mt-3 grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+          <span>• Xizmat nomi</span>
+          <span>• Kategoriya (chip)</span>
+          <span>• Kimlar uchun</span>
+          <span>• Til(lar)</span>
+          <span>• Format (chat/qo'ng'iroq/video)</span>
+          <span>• Narx + birlik</span>
+          <span>• Natija (deliverable)</span>
+          <span>• Qabul shartlari</span>
+        </div>
+      </section>
+
+      <section className="card p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">Live taxi so'rovlari</h2>
           <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
             {formatSocketStatus(rideSocketStatus)}

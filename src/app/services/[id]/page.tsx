@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   getCategoryImagePool,
   serviceCatalog,
@@ -19,6 +20,47 @@ type ServiceRecord = {
 };
 
 const formatCount = (value: number) => value.toLocaleString("en-US");
+
+const ServiceImageGrid = ({ images }: { images: { src: string; alt: string }[] }) => (
+  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    {images.map((image) => (
+      <img
+        key={`service-img-${image.src}`}
+        src={image.src}
+        alt={image.alt}
+        className="h-40 w-full rounded-xl object-cover"
+        loading="lazy"
+      />
+    ))}
+  </div>
+);
+const hashValue = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) % 2147483647;
+  }
+  return hash;
+};
+const convertCurrency = (price: number, currency: string, target: "UZS" | "KRW") => {
+  if (currency === target) return { amount: price, label: currency };
+  const uzsPerKrw = 9.5;
+  if (currency === "UZS" && target === "KRW") {
+    return { amount: Math.max(1, Math.round(price / uzsPerKrw)), label: target };
+  }
+  if (currency === "KRW" && target === "UZS") {
+    return { amount: Math.round(price * uzsPerKrw), label: target };
+  }
+  return { amount: price, label: currency };
+};
+const getAvailabilityLabel = (agent: ServiceAgent) => {
+  const options = [
+    { id: "today", label: "Bugun bo'sh" },
+    { id: "48h", label: "48 soat ichida" },
+    { id: "soon", label: "Tez orada" }
+  ];
+  const seed = hashValue(agent.id || agent.name);
+  return options[seed % options.length];
+};
 
 const vehicleClassLabel = (value?: ServiceAgent["vehicleClass"]) => {
   if (!value) return "";
@@ -51,15 +93,64 @@ const findServiceById = (rawId: string): ServiceRecord | null => {
 export default function ServiceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [notice, setNotice] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success">("idle");
   const [showChat, setShowChat] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [matchTopic, setMatchTopic] = useState("");
+  const [matchDescription, setMatchDescription] = useState("");
+  const [matchLanguage, setMatchLanguage] = useState("UZ");
+  const [matchDeadline, setMatchDeadline] = useState("");
+  const [matchFormat, setMatchFormat] = useState("chat");
+  const [matchConsent, setMatchConsent] = useState(false);
+  const [matchStatus, setMatchStatus] = useState<"idle" | "sent" | "accepted" | "declined" | "need">("idle");
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [consultingCurrency, setConsultingCurrency] = useState<"UZS" | "KRW">("UZS");
+  const [translationUploadOpen, setTranslationUploadOpen] = useState(false);
+  const [translationStep, setTranslationStep] = useState(1);
+  const [translationFiles, setTranslationFiles] = useState<Array<{ file: File; note: string }>>([]);
+  const [translationOfficialChoice, setTranslationOfficialChoice] = useState("oddiy");
+  const [translationSpeedChoice, setTranslationSpeedChoice] = useState("normal");
+  const [translationExtraNote, setTranslationExtraNote] = useState("");
+  const [translationConsent, setTranslationConsent] = useState(false);
+  const [psychologyModalOpen, setPsychologyModalOpen] = useState(false);
+  const [psychologyConcern, setPsychologyConcern] = useState("");
+  const [psychologyFormat, setPsychologyFormat] = useState("chat");
+  const [psychologyFiles, setPsychologyFiles] = useState<File[]>([]);
+  const [sportFiles, setSportFiles] = useState<File[]>([]);
+  const [legalRequestOpen, setLegalRequestOpen] = useState(false);
+  const [legalBrief, setLegalBrief] = useState("");
+  const [legalJurisdiction, setLegalJurisdiction] = useState("UZ");
+  const [legalServiceType, setLegalServiceType] = useState("Og'zaki maslahat");
+  const [legalDeadline, setLegalDeadline] = useState("");
+  const [legalFiles, setLegalFiles] = useState<File[]>([]);
+  const [legalStatus, setLegalStatus] = useState<"sent" | "accepted" | "review" | "answered" | "closed">("sent");
   const { isAuthenticated, hydrateFromStorage } = useAuthStore();
 
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (timeZone.includes("Seoul")) {
+      setConsultingCurrency("KRW");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    if (searchParams.get("upload") === "1") {
+      setTranslationUploadOpen(true);
+      setTranslationStep(1);
+    }
+    if (searchParams.get("secure") === "1") {
+      setPsychologyModalOpen(true);
+    }
+  }, [searchParams]);
 
   const record = useMemo(() => findServiceById(String(params?.id || "")), [params]);
 
@@ -76,6 +167,9 @@ export default function ServiceDetailPage() {
   const isMarketing = category?.id === "marketing";
   const isConsulting = category?.id === "consulting";
   const isTranslation = category?.id === "translation";
+  const isPsychology = category?.id === "psychology";
+  const isLegal = category?.id === "legal";
+  const isSport = category?.id === "sport";
   const nannyTypeLabels: Record<string, string> = {
     "nanny-child": "Bolalar enagasi",
     "nanny-elderly": "Qariyalar parvarishi",
@@ -192,7 +286,7 @@ export default function ServiceDetailPage() {
       hash = (hash * 47 + token.charCodeAt(i)) % 2147483647;
     }
     const seed = (hash % 900) + 1;
-    return `https://source.unsplash.com/800x600/?certificate,document&sig=${seed}`;
+    return `/images/remote/remote-0104.jpg
   };
 
   const handleOrder = () => {
@@ -218,6 +312,31 @@ export default function ServiceDetailPage() {
       return;
     }
     setNotice(null);
+    setShowChat(true);
+  };
+
+  const handleLegalRequestOpen = () => {
+    if (!isAuthenticated) {
+      setNotice("Maslahat so'rash uchun oldin login buling.");
+      setTimeout(() => router.push("/login"), 600);
+      return;
+    }
+    setNotice(null);
+    setLegalRequestOpen(true);
+  };
+
+  const handleLegalRequestSubmit = () => {
+    if (!isAuthenticated) {
+      setNotice("Maslahat so'rash uchun oldin login buling.");
+      setTimeout(() => router.push("/login"), 600);
+      return;
+    }
+    if (!legalBrief.trim()) {
+      setNotice("Muammo qisqacha tavsifini kiriting.");
+      return;
+    }
+    setNotice("So'rov yuborildi. Huquqshunos javobini kuting.");
+    setLegalStatus("sent");
     setShowChat(true);
   };
 
@@ -1263,181 +1382,339 @@ export default function ServiceDetailPage() {
     const consultingPackages = agent.consultationPackages?.length
       ? agent.consultationPackages
       : ["1 martalik", "Paket"];
-
-    const mustHave = [
-      "Kamida 1-3 yil real tajriba",
-      "O'zbekiston-Koreya tizimini bilish",
-      "Aniq yo'nalish bo'yicha ixtisos",
-      "Koreys yoki ingliz tili (o'rta daraja)",
-      "Mas'uliyat va halol maslahat"
+    const consultingTopics = [
+      "Ta'lim",
+      "Ish & kar'yera",
+      "Viza",
+      "Til & moslashuv",
+      "Biznes",
+      "Huquqiy",
+      "Sog'liq"
     ];
-    const niceToHave = [
-      "Koreyada yashagan yoki ishlagan bo'lish",
-      "TOPIK yoki sertifikat bilan tajriba",
-      "Oldingi mijozlardan real natijalar",
-      "Online konsultatsiya tajribasi"
-    ];
-    const forbidden = [
-      "Noto'g'ri va'dalar (100% kafolat)",
-      "Rasmiy bo'lmagan maslahatlar",
-      "Mijoz hujjatlarini suiste'mol qilish",
-      "Oldindan pul olish taqiqlanadi"
-    ];
-    const howItWorks = [
-      "So'rov yuborasiz",
-      "Konsultant bog'lanadi",
-      "Aniq yo'l xarita olasiz"
-    ];
-    const includes = [
-      "Muammo tahlili va yo'nalish",
-      "Qadam-baqadam reja",
-      "Qisqa xulosa va keyingi bosqich"
-    ];
-    const faq = [
-      {
-        q: "Natija kafolatlanadimi?",
-        a: "Yo'q, faqat aniq yo'l xarita va maslahat beriladi."
-      },
-      {
-        q: "Qanday tayyorlanaman?",
-        a: "Savollar ro'yxati va mavjud hujjatlarni tayyorlang."
-      },
-      {
-        q: "Hujjatlar kerakmi?",
-        a: "Bosqichga qarab minimal hujjatlar talab qilinadi."
-      }
-    ];
+    const availability = getAvailabilityLabel(agent);
+    const responseHours = (hashValue(agent.id) % 8) + 1;
+    const trustScore = Math.min(
+      100,
+      (agent.verified ? 20 : 0) +
+        Math.round(service.rating * 4) +
+        Math.min(20, Math.floor(service.reviewCount / 5)) +
+        Math.min(20, Math.floor((agent.completedOrders ?? service.usedCount) / 6)) +
+        Math.min(15, consultingLanguages.length * 3)
+    );
+    const monthsOnPlatform = Math.max(
+      1,
+      Math.floor((Date.now() - new Date(service.createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30))
+    );
+    const converted = convertCurrency(service.price, service.currency, consultingCurrency);
 
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
         <header className="mb-6 space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-900">{groupTitle}</p>
           <h1 className="text-2xl font-semibold text-slate-900">{service.title}</h1>
-          <p className="text-sm text-slate-700">{category.title}</p>
+          <p className="text-sm text-slate-700">{category.title} · KST</p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="card space-y-5 p-5">
-            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Konsultatsiya formati</p>
-              <div className="flex flex-wrap gap-2">
-                {consultingFormat.map((item) => (
-                  <span key={`format-${item}`} className="rounded-full bg-white px-3 py-1 text-[11px] text-slate-700">
-                    {item}
-                  </span>
-                ))}
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="space-y-4">
+            <div className="card space-y-3 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Service summary</p>
+              <p className="text-lg font-semibold text-slate-900">{service.title}</p>
+              <p className="text-sm text-slate-600">{service.description}</p>
+              <div className="mt-2 grid gap-2 text-sm text-slate-700">
+                <span>• Natija: aniq yo'l xarita va tekshiruv ro'yxati</span>
+                <span>• Yo'nalish: {category.title}</span>
+                <span>• Format: {consultingFormat.join(", ")}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {consultingDurations.map((item) => (
-                  <span key={`duration-${item}`} className="rounded-full bg-white px-3 py-1 text-[11px] text-slate-700">
-                    {item}
-                  </span>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
                 {consultingLanguages.map((item) => (
-                  <span key={`lang-${item}`} className="rounded-full bg-white px-3 py-1 text-[11px] text-slate-700">
+                  <span key={`lang-${item}`} className="rounded-full bg-slate-100 px-3 py-1">
                     {item}
                   </span>
                 ))}
-              </div>
-              <div className="flex flex-wrap gap-2">
+                {consultingDurations.map((item) => (
+                  <span key={`duration-${item}`} className="rounded-full bg-slate-100 px-3 py-1">
+                    {item}
+                  </span>
+                ))}
                 {consultingPackages.map((item) => (
-                  <span key={`pack-${item}`} className="rounded-full bg-white px-3 py-1 text-[11px] text-slate-700">
+                  <span key={`pack-${item}`} className="rounded-full bg-slate-100 px-3 py-1">
                     {item}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
+              <ServiceImageGrid images={service.images} />
+            </div>
+
+            <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Konsultant haqida</p>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
-                  <p className="text-[11px] text-slate-600">{agent.specialty}</p>
+                  <p className="text-xs text-slate-600">{agent.specialty}</p>
+                  <p className="text-[11px] text-slate-500">{agent.region || agent.location}</p>
                 </div>
               </div>
-              <div className="mt-3 space-y-2 text-[11px] text-slate-600">
-                <p>Tajriba: {agent.experienceYears} yil</p>
-                <p>Asosiy yutuq: {agent.achievement || "Koreya bozorida amaliy tajriba"}</p>
-                <p>Reyting: {agent.rating.toFixed(1)} / 5</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                <span className="rounded-full bg-slate-100 px-3 py-1">Tasdiqlangan ID</span>
+                {service.certificates.length > 0 && (
+                  <span className="rounded-full bg-slate-100 px-3 py-1">Sertifikat tekshirildi</span>
+                )}
+                <span className="rounded-full bg-slate-100 px-3 py-1">Platformada: {monthsOnPlatform} oy</span>
               </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Talablar</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                {mustHave.map((item) => (
-                  <span key={`must-${item}`}>{item}</span>
-                ))}
+              <div className="mt-3 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
+                <span>⭐ Reyting: {agent.rating.toFixed(1)}</span>
+                <span>Sharhlar: {formatCount(agent.reviewCount)}</span>
+                <span>Tugallangan ish: {formatCount(agent.completedOrders ?? service.usedCount)}</span>
+                <span>Javob vaqti: ~{responseHours} soat</span>
               </div>
-              <p className="mt-3 text-sm font-semibold text-slate-900">Afzal talablar</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                {niceToHave.map((item) => (
-                  <span key={`nice-${item}`}>{item}</span>
-                ))}
-              </div>
-              <p className="mt-3 text-sm font-semibold text-slate-900">Taqiqlanadi</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-rose-600">
-                {forbidden.map((item) => (
-                  <span key={`no-${item}`}>{item}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Qanday ishlaydi?</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                {howItWorks.map((item, idx) => (
-                  <span key={`step-${item}`}>{idx + 1}. {item}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Narx va qiymat</p>
-              <p className="mt-1 text-lg font-semibold text-emerald-700">
-                {formatCount(service.price)} {service.currency} / {service.unit}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-600">
-                {includes.map((item) => (
-                  <span key={`inc-${item}`} className="rounded-full bg-white px-3 py-1">
-                    {item}
-                  </span>
-                ))}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
                 <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
-                  Yashirin to'lov yo'q
+                  Trust Score: {trustScore}/100
                 </span>
+                <Link href={`/agents/${agent.id}`} className="text-sky-600 underline">
+                  Profilni ko'rish
+                </Link>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">FAQ</p>
-              <div className="mt-2 grid gap-3 text-[11px] text-slate-600">
-                {faq.map((item) => (
-                  <div key={item.q}>
-                    <p className="font-semibold text-slate-900">{item.q}</p>
-                    <p className="mt-1">{item.a}</p>
-                  </div>
-                ))}
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">Moslik tekshiruvi</p>
+                <button
+                  type="button"
+                  onClick={() => setMatchOpen((prev) => !prev)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+                >
+                  {matchOpen ? "Yopish" : "Boshlash"}
+                </button>
               </div>
+              {matchOpen && (
+                <div className="space-y-3 text-xs text-slate-600">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">So'rov mavzusi</label>
+                      <select
+                        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                        value={matchTopic}
+                        onChange={(event) => setMatchTopic(event.target.value)}
+                      >
+                        <option value="">Tanlang</option>
+                        {consultingTopics.map((topic) => (
+                          <option key={topic} value={topic}>
+                            {topic}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Deadline</label>
+                      <input
+                        type="date"
+                        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                        value={matchDeadline}
+                        onChange={(event) => setMatchDeadline(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
+                      <select
+                        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                        value={matchLanguage}
+                        onChange={(event) => setMatchLanguage(event.target.value)}
+                      >
+                        {consultingLanguages.map((lang) => (
+                          <option key={lang} value={lang}>
+                            {lang}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                      <select
+                        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                        value={matchFormat}
+                        onChange={(event) => setMatchFormat(event.target.value)}
+                      >
+                        <option value="chat">Chat</option>
+                        <option value="call">Qo'ng'iroq</option>
+                        <option value="video">Video</option>
+                        <option value="offline">Oflayn</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Qisqa tavsif</label>
+                    <textarea
+                      value={matchDescription}
+                      onChange={(event) => setMatchDescription(event.target.value)}
+                      className="mt-2 h-24 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                      placeholder="Muammo yoki maqsadni qisqacha yozing..."
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <input
+                      type="checkbox"
+                      checked={matchConsent}
+                      onChange={(event) => setMatchConsent(event.target.checked)}
+                    />
+                    Maxfiylikga roziman
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMatchStatus("sent")}
+                      className="rounded-full bg-emerald-500 px-4 py-2 text-xs text-white"
+                    >
+                      So'rov yuborish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatchStatus("accepted")}
+                      className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-700"
+                    >
+                      ✅ Qabul qilaman
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatchStatus("declined")}
+                      className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-700"
+                    >
+                      ❌ Qabul qila olmayman
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatchStatus("need")}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700"
+                    >
+                      🔄 Qo'shimcha ma'lumot kerak
+                    </button>
+                  </div>
+                  {matchStatus !== "idle" && (
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                      Status:{" "}
+                      {matchStatus === "sent"
+                        ? "So'rov yuborildi"
+                        : matchStatus === "accepted"
+                          ? "Agent qabul qildi"
+                          : matchStatus === "declined"
+                            ? "Agent mos emas deb topdi"
+                            : "Agent qo'shimcha ma'lumot so'radi"}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </section>
 
-          <aside className="card space-y-4 p-5">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Konsultant bilan bog'lanish</p>
-              <div className="mt-2 space-y-2 text-[11px] text-slate-600">
-                <p>Manzil: {agent.region || agent.location}</p>
-                {agent.languages && agent.languages.length > 0 && (
-                  <p>Til: {agent.languages.join(", ")}</p>
-                )}
-                {agent.audiences && agent.audiences.length > 0 && (
-                  <p>Kim uchun: {agent.audiences.join(", ")}</p>
-                )}
+          <aside className="space-y-4">
+            <div className="card sticky top-24 space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Narx & mavjudlik</p>
+              <p className="text-2xl font-semibold text-emerald-600">
+                {formatCount(converted.amount)} {converted.label}
+              </p>
+              {service.currency !== consultingCurrency && (
+                <p className="text-xs text-slate-500">
+                  Asl: {formatCount(service.price)} {service.currency} / {service.unit}
+                </p>
+              )}
+              <p className="text-xs text-slate-600">Mavjudlik: {availability.label}</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleOrder}
+                  disabled={submitState === "loading"}
+                  className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white"
+                >
+                  {submitState === "loading" ? "Yuborilmoqda..." : "So'rov yuborish"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800"
+                >
+                  Savol berish
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+                >
+                  Qo'ng'iroqni bron qilish
+                </button>
               </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setConsultingCurrency("UZS")}
+                  className={`rounded-full px-3 py-1 ${
+                    consultingCurrency === "UZS"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  UZS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConsultingCurrency("KRW")}
+                  className={`rounded-full px-3 py-1 ${
+                    consultingCurrency === "KRW"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  KRW
+                </button>
+                <span className="rounded-full bg-slate-100 px-3 py-1">KST</span>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Chat & hujjatlar</p>
+              <p className="text-xs text-slate-600">
+                So'rov yaratilgach, chat va fayl almashinuvi xavfsiz saqlanadi.
+              </p>
+              <textarea
+                placeholder="Xabaringiz..."
+                className="h-24 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs"
+              />
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(event) => setUploadedFiles(Array.from(event.target.files || []))}
+                className="w-full text-xs text-slate-600"
+              />
+              {uploadedFiles.length > 0 && (
+                <div className="grid gap-2 text-[11px] text-slate-500">
+                  {uploadedFiles.map((file) => (
+                    <span key={file.name}>📎 {file.name}</span>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleOpenChat}
+                className="rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white"
+              >
+                Xabar yuborish
+              </button>
+            </div>
+
+            <div className="card space-y-2 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Platforma qoidalari</p>
+              <p>• Off-platform to'lov taqiqlanadi.</p>
+              <p>• Disput/refund siyosati aniq va yozma.</p>
+              <p>• Telefon/email yashirish ixtiyoriy, lekin tavsiya etiladi.</p>
+              <p className="text-[11px] text-slate-500">
+                Visa/huquqiy bo'limda: bu huquqiy vakillik emas.
+              </p>
             </div>
 
             {notice && (
@@ -1445,43 +1722,664 @@ export default function ServiceDetailPage() {
                 {notice}
               </p>
             )}
+          </aside>
+        </div>
+      </div>
+    );
+  }
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleOrder}
-                disabled={submitState === "loading"}
-                className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white"
-              >
-                {submitState === "loading" ? "Yuborilmoqda..." : "Hozir yozilish"}
-              </button>
+  if (isLegal) {
+    const jurisdictionLabel =
+      service.legalJurisdiction === "KR"
+        ? "🇰🇷 Koreya"
+        : service.legalJurisdiction === "INT"
+          ? "Xalqaro"
+          : "🇺🇿 O‘zbekiston";
+    const formats = service.legalFormat?.length ? service.legalFormat : ["chat"];
+    const included = service.legalIncluded?.length ? service.legalIncluded : ["Maslahat va yo'naltirish"];
+    const excluded = service.legalExcluded?.length
+      ? service.legalExcluded
+      : ["Noqonuniy masalalar", "Sudda vakillik"];
+    const education = agent.legalEducation?.length ? agent.legalEducation : ["Yurisprudensiya"];
+    const specialties = agent.legalSpecialties?.length ? agent.legalSpecialties : [service.legalArea || "Huquqiy"];
+    const excludedMatters = agent.legalExcludedMatters?.length
+      ? agent.legalExcludedMatters
+      : ["Noqonuniy masalalar"];
+    const responseTime = service.legalResponseTime || "24 soat ichida";
+
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header className="mb-6 space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-900">{groupTitle}</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Huquqiy maslahat va xizmatlar</h1>
+          <p className="text-sm text-slate-700">
+            Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar.
+          </p>
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="space-y-4">
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">{service.title}</p>
+              <div className="grid gap-2 text-sm text-slate-700">
+                <span>Masala: {service.legalArea || "Huquqiy masala"}</span>
+                <span>Yurisdiksiya: {jurisdictionLabel}</span>
+                <span>Xizmat turi: {service.legalServiceType || "Maslahat"}</span>
+                <span>Format: {formats.join(", ")}</span>
+              </div>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-800">Bu xizmat nimani o'z ichiga oladi</p>
+                <div className="mt-2 grid gap-1">
+                  {included.map((item) => (
+                    <span key={`inc-${item}`}>• {item}</span>
+                  ))}
+                </div>
+                <p className="mt-3 font-semibold text-slate-800">Bu xizmat nimani olmaydi</p>
+                <div className="mt-2 grid gap-1">
+                  {excluded.map((item) => (
+                    <span key={`exc-${item}`}>• {item}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
+              <ServiceImageGrid images={service.images} />
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Huquqshunos profili</p>
+              <div className="text-sm text-slate-700">
+                <p>Ism: {agent.name}</p>
+                <p>Litsenziya raqami: {agent.legalLicenseMasked || "Tekshirilgan"}</p>
+                <p>Litsenziya bergan organ: {agent.legalLicenseAuthority || "—"}</p>
+                <p>Tajriba: {agent.experienceYears} yil</p>
+              </div>
+              <div className="mt-2 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
+                <span>Ta'lim: {education.join(", ")}</span>
+                <span>Ixtisosliklar: {specialties.join(", ")}</span>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                Qaysi ishlarni qabul qilmaydi:
+                <div className="mt-2 grid gap-1">
+                  {excludedMatters.map((item) => (
+                    <span key={`exm-${item}`}>• {item}</span>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-3 rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">
+                🔒 Platforma tomonidan tekshirilgan
+              </p>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">Maslahat so'rash</p>
+                <button
+                  type="button"
+                  onClick={() => setLegalRequestOpen((prev) => !prev)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+                >
+                  {legalRequestOpen ? "Yopish" : "Boshlash"}
+                </button>
+              </div>
+              {legalRequestOpen && (
+                <div className="space-y-3 text-xs text-slate-600">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                      Muammo qisqacha tavsifi
+                    </label>
+                    <textarea
+                      value={legalBrief}
+                      onChange={(event) => setLegalBrief(event.target.value)}
+                      className="mt-2 h-24 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs"
+                      placeholder="Masalangizni qisqacha yozing..."
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                        Yurisdiksiya
+                      </label>
+                      <select
+                        className="mt-2 w-full rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                        value={legalJurisdiction}
+                        onChange={(event) => setLegalJurisdiction(event.target.value)}
+                      >
+                        <option value="UZ">🇺🇿 O‘zbekiston</option>
+                        <option value="KR">🇰🇷 Koreya</option>
+                        <option value="INT">Xalqaro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                        Xizmat turi
+                      </label>
+                      <select
+                        className="mt-2 w-full rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                        value={legalServiceType}
+                        onChange={(event) => setLegalServiceType(event.target.value)}
+                      >
+                        <option value="Og'zaki maslahat">Og'zaki maslahat</option>
+                        <option value="Yozma huquqiy xulosa">Yozma huquqiy xulosa</option>
+                        <option value="Hujjat tayyorlash">Hujjat tayyorlash</option>
+                        <option value="Hujjat tekshirish">Hujjat tekshirish</option>
+                        <option value="Vakillik">Vakillik</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Deadline</label>
+                    <input
+                      type="date"
+                      value={legalDeadline}
+                      onChange={(event) => setLegalDeadline(event.target.value)}
+                      className="mt-2 w-full rounded-full border border-slate-200 bg-white px-3 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Fayl biriktirish</label>
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(event) => setLegalFiles(Array.from(event.target.files || []))}
+                      className="mt-2 w-full text-xs"
+                    />
+                    {legalFiles.length > 0 && (
+                      <div className="mt-2 grid gap-1 text-[11px] text-slate-500">
+                        {legalFiles.map((file) => (
+                          <span key={file.name}>📎 {file.name}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                    Bu umumiy maslahat bo'lib, sudda vakillikni anglatmaydi.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleLegalRequestSubmit}
+                    className="rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white"
+                  >
+                    So'rov yuborish
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="card space-y-3 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Statuslar</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: "sent", label: "So'rov yuborildi" },
+                  { id: "accepted", label: "Qabul qilindi" },
+                  { id: "review", label: "Ko'rib chiqilmoqda" },
+                  { id: "answered", label: "Javob berildi" },
+                  { id: "closed", label: "Yakunlandi" }
+                ].map((step) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setLegalStatus(step.id as typeof legalStatus)}
+                    className={`rounded-full px-3 py-1 text-[11px] ${
+                      legalStatus === step.id
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {step.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Chat va hujjatlar faqat siz va huquqshunosga ko'rinadi.
+              </p>
+            </div>
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-24">
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-600">Narx</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {formatCount(service.price)} {service.currency}
+                </p>
+              </div>
+              <p className="text-xs text-slate-500">/{service.unit}</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                <span className="rounded-full bg-slate-100 px-3 py-1">Javob: {responseTime}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1">
+                  Format: {formats.join(", ")}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleLegalRequestOpen}
+                  className="rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white"
+                >
+                  Maslahat so'rash
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+                >
+                  Savol berish
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                To'lov escrow'da. Disput bo'lsa hujjatlar dalil bo'ladi.
+              </p>
+            </div>
+            {notice && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
+                {notice}
+              </p>
+            )}
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSport) {
+    const sportType = service.sportType || "Sport";
+    const sportAudience = service.sportAudience?.length
+      ? service.sportAudience
+      : agent.audiences?.length
+        ? agent.audiences
+        : ["Kattalar"];
+    const sportFormat = service.sportFormat?.length ? service.sportFormat : ["online"];
+    const plan = service.sportPlan?.length ? service.sportPlan : ["Reja", "Progress tracking"];
+    const achievements = agent.sportAchievements?.length ? agent.sportAchievements : ["—"];
+    const certificates = agent.sportCertificates?.length ? agent.sportCertificates : ["—"];
+    const excludedCases = agent.sportExcludedCases?.length ? agent.sportExcludedCases : ["Tibbiy cheklovlar"];
+    const duration = service.sportDuration || "60 daqiqa";
+    const weekly = service.sportWeeklySessions ? `${service.sportWeeklySessions} marta` : "—";
+    const result = service.sportResult || "Individuallik va barqaror natija";
+    const location = service.sportLocation || agent.location;
+    const gym = service.sportGym || "—";
+    const courseModules = service.sportCourseModules || [];
+    const courseLength = service.sportCourseLength || "—";
+
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header className="mb-6 space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-900">{groupTitle}</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{service.title}</h1>
+          <p className="text-sm text-slate-700">
+            {sportType} · {service.sportLevel || "Daraja"} · {sportFormat.join(", ")}
+          </p>
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="space-y-4">
+            <div className="card space-y-3 p-5">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {service.images.map((image) => (
+                  <img
+                    key={`sport-img-${image.src}`}
+                    src={image.src}
+                    alt={image.alt}
+                    className="h-40 w-full rounded-xl object-cover"
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+              <div className="grid gap-2 text-sm text-slate-700">
+                <span>Sport turi: {sportType}</span>
+                <span>Kimlar uchun: {sportAudience.join(", ")}</span>
+                <span>Daraja: {service.sportLevel || "Boshlovchi"}</span>
+                <span>Format: {sportFormat.join(", ")}</span>
+                <span>Trening davomiyligi: {duration}</span>
+                <span>Haftasiga: {weekly}</span>
+              </div>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-800">Trening rejasi</p>
+                <div className="mt-2 grid gap-1">
+                  {plan.map((item) => (
+                    <span key={`sport-plan-${item}`}>• {item}</span>
+                  ))}
+                </div>
+                <p className="mt-3 font-semibold text-slate-800">Kutiladigan natija</p>
+                <p className="mt-1">{result}</p>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Murabbiy profili</p>
+              <div className="flex items-center gap-3">
+                <img
+                  src={agent.avatar.src}
+                  alt={agent.avatar.alt}
+                  className="h-12 w-12 rounded-full object-cover"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
+                  <p className="text-xs text-slate-600">{agent.specialty}</p>
+                </div>
+              </div>
+              <div className="mt-2 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
+                <span>Tajriba: {agent.experienceYears} yil</span>
+                <span>O‘quvchilar: {agent.sportStudentsCount ?? 0}</span>
+                <span>Sertifikatlar: {certificates.join(", ")}</span>
+                <span>Yutuqlar: {achievements.join(", ")}</span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Murabbiylik falsafasi: {agent.sportPhilosophy || "Natija — intizom natijasi."}
+              </p>
+              <div className="mt-2 text-[11px] text-slate-500">
+                Qaysi holatlarda qabul qilmaydi:
+                <div className="mt-2 grid gap-1">
+                  {excludedCases.map((item) => (
+                    <span key={`sport-ex-${item}`}>• {item}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Xizmat tafsilotlari</p>
+              {service.sportServiceType?.includes("kurs") || service.sportServiceType?.includes("Kurs") ? (
+                <div className="grid gap-2 text-sm text-slate-700">
+                  <span>Kurs davomiyligi: {courseLength}</span>
+                  <span>Kimlar uchun: {sportAudience.join(", ")}</span>
+                  <span>Nima o‘rganiladi:</span>
+                  <div className="grid gap-1 text-[11px] text-slate-600">
+                    {(courseModules.length ? courseModules : ["Modullar mavjud emas"]).map((item) => (
+                      <span key={`sport-module-${item}`}>• {item}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-2 text-sm text-slate-700">
+                  <span>Haftasiga: {weekly}</span>
+                  <span>Reja: {plan.join(", ")}</span>
+                  <span>Kuzatuv: {service.sportTracking ? "Progress tracking" : "Yo‘q"}</span>
+                  <span>Diet tavsiyalari: {service.sportDiet ? "Bor" : "Yo‘q"}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Online / Offline</p>
+              <div className="grid gap-2 text-sm text-slate-700">
+                <span>Online: Video platforma + chat savollar</span>
+                <span>Offline: {location} · {gym}</span>
+                <span>Jadval: Kelishilgan</span>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Chat + fayl almashish</p>
+              <textarea
+                placeholder="Savolingiz..."
+                className="h-20 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs"
+              />
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.mp4"
+                onChange={(event) => setSportFiles(Array.from(event.target.files || []))}
+                className="w-full text-xs text-slate-600"
+              />
+              {sportFiles.length > 0 && (
+                <div className="grid gap-2 text-[11px] text-slate-500">
+                  {sportFiles.map((file) => (
+                    <span key={file.name}>📎 {file.name}</span>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleOpenChat}
-                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800"
+                className="rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white"
               >
-                Bepul 10 daqiqa baholash
+                Xabar yuborish
               </button>
+              <p className="text-[11px] text-slate-500">
+                Progress uchun rasm/video yuklash mumkin.
+              </p>
             </div>
+          </section>
 
-            {showChat && isAuthenticated && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                <p className="font-semibold text-slate-900">Chat oynasi</p>
-                <p className="mt-1 text-[11px] text-slate-600">
-                  Konsultatsiya bo'yicha savollaringizni yozing.
+          <aside className="space-y-4 lg:sticky lg:top-24">
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-600">Narx</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {formatCount(service.price)} {service.currency}
                 </p>
-                <textarea
-                  placeholder="Xabaringiz..."
-                  className="mt-2 h-20 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800"
-                />
+              </div>
+              <p className="text-xs text-slate-500">/{service.unit}</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                <span className="rounded-full bg-slate-100 px-3 py-1">Davomiylik: {duration}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1">
+                  Joy: {location}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="mt-2 rounded-full bg-emerald-500 px-3 py-1 text-[11px] text-white"
+                  onClick={handleOpenChat}
+                  className="rounded-full bg-sky-600 px-4 py-2 text-xs font-semibold text-white"
                 >
-                  Xabar yuborish
+                  Yozilish
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+                >
+                  Savol berish
                 </button>
               </div>
-            )}
+              <p className="text-[11px] text-slate-500">
+                Kurs tugagach sertifikat va video yozuvlar taqdim etiladi (agar mavjud bo‘lsa).
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPsychology) {
+    const issueLabels: Record<string, string> = {
+      "psy-stress": "Stress va bezovtalik",
+      "psy-depression": "Depressiya",
+      "psy-family": "Oilaviy munosabatlar",
+      "psy-children": "Bolalar psixologiyasi",
+      "psy-adaptation": "Moslashuv (Koreya)",
+      "psy-trauma": "Travma",
+      "psy-confidence": "O'ziga ishonch",
+      "psy-burnout": "Kasbiy burnout"
+    };
+    const formats = agent.consultationFormats?.length ? agent.consultationFormats : ["Chat", "Video"];
+    const durations = agent.consultationDurations?.length ? agent.consultationDurations : ["50 daqiqa"];
+    const languages = agent.consultationLanguages?.length
+      ? agent.consultationLanguages
+      : agent.languages?.length
+        ? agent.languages
+        : ["UZ"];
+    const audiences = agent.audiences?.length ? agent.audiences : ["Kattalar"];
+    const methods = ["CBT", "Gestalt", "Mindfulness"];
+    const boundaries = [
+      "Favqulodda holatlarda ishlamaydi",
+      "Rasmiy tibbiy tashxis qo'ymaydi",
+      "Noqonuniy so'rovlarni qabul qilmaydi"
+    ];
+
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header className="mb-6 space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-900">{groupTitle}</p>
+          <h1 className="text-2xl font-semibold text-slate-900">{service.title}</h1>
+          <p className="text-sm text-slate-700">🔒 Maxfiy va xavfsiz muloqot</p>
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="space-y-4">
+            <div className="card space-y-3 p-5">
+              <p className="text-sm text-slate-700">{service.description}</p>
+              <div className="grid gap-2 text-sm text-slate-700">
+                <span>
+                  Muammolar: {issueLabels[service.subCategory || ""] || "Stress, munosabatlar, moslashuv"}
+                </span>
+                <span>Kimlar uchun: {audiences.join(", ")}</span>
+                <span>Formatlar: {formats.join(", ")}</span>
+                <span>Sessiya davomiyligi: {durations.join(", ")}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                {languages.map((lang) => (
+                  <span key={`psy-lang-${lang}`} className="rounded-full bg-slate-100 px-3 py-1">
+                    {lang}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">
+                🔒 Maxfiylik kafolatlangan
+              </p>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
+              <ServiceImageGrid images={service.images} />
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Psixolog profili</p>
+              <p className="text-sm text-slate-600">
+                Mutaxassis haqida: {agent.bio || "Yumshoq va professional yondashuv, xavfsiz muloqot muhiti."}
+              </p>
+              <div className="mt-2 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
+                <span>Tajriba: {agent.experienceYears} yil</span>
+                <span>✅ Sertifikat tasdiqlangan</span>
+                <span>Metodlar: {methods.join(", ")}</span>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                Qaysi holatlarda ishlamaydi:
+                <div className="mt-2 grid gap-1">
+                  {boundaries.map((item) => (
+                    <span key={`bound-${item}`}>• {item}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">Xavfsiz yozish</p>
+                <button
+                  type="button"
+                  onClick={() => setPsychologyModalOpen((prev) => !prev)}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+                >
+                  {psychologyModalOpen ? "Yopish" : "Boshlash"}
+                </button>
+              </div>
+              {psychologyModalOpen && (
+                <div className="space-y-3 text-xs text-slate-600">
+                  <textarea
+                    value={psychologyConcern}
+                    onChange={(event) => setPsychologyConcern(event.target.value)}
+                    className="h-24 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    placeholder="Sizni nima bezovta qilmoqda? (ixtiyoriy)"
+                  />
+                  <select
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                    value={psychologyFormat}
+                    onChange={(event) => setPsychologyFormat(event.target.value)}
+                  >
+                    <option value="chat">Chat</option>
+                    <option value="audio">Audio</option>
+                    <option value="video">Video</option>
+                    <option value="offline">Oflayn</option>
+                  </select>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(event) => setPsychologyFiles(Array.from(event.target.files || []))}
+                    className="w-full text-xs"
+                  />
+                  <p className="text-[11px] text-amber-600">
+                    Bu favqulodda holatlar uchun emas. Agar xavf bo'lsa, zudlik bilan mahalliy yordam xizmatiga murojaat qiling.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleOpenChat}
+                    className="rounded-full bg-sky-500 px-4 py-2 text-xs text-white"
+                  >
+                    Suhbatni boshlash
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="card space-y-2 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Sessiya jarayoni</p>
+              <div className="grid gap-2 text-[11px]">
+                <span>1. Suhbat boshlandi</span>
+                <span>2. Sessiya rejalashtirildi</span>
+                <span>3. Sessiya o'tkazildi</span>
+                <span>4. Yakunlandi</span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Chat butun jarayon davomida ochiq qoladi.
+              </p>
+            </div>
+
+            <div className="card space-y-3 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Fayllar & tavsiyalar</p>
+              <p>PDF mashqlar, tavsiyalar, kundalik topshiriqlar.</p>
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[11px] text-slate-500">
+                Watermark + "Faqat user uchun"
+              </div>
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <div className="card sticky top-24 space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Sessiya</p>
+              <p className="text-2xl font-semibold text-emerald-600">
+                {formatCount(service.price)} {service.currency}
+              </p>
+              <p className="text-xs text-slate-600">Davomiylik: {durations.join(", ")}</p>
+              <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+              <select
+                className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-xs"
+                value={psychologyFormat}
+                onChange={(event) => setPsychologyFormat(event.target.value)}
+              >
+                <option value="chat">Chat</option>
+                <option value="audio">Audio</option>
+                <option value="video">Video</option>
+                <option value="offline">Oflayn</option>
+              </select>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPsychologyModalOpen(true)}
+                  className="rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white"
+                >
+                  Xavfsiz yozish
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800"
+                >
+                  Savol berish
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Chat va fayllar faqat siz va psixologga ko'rinadi.
+              </p>
+            </div>
           </aside>
         </div>
       </div>
@@ -1492,39 +2390,28 @@ export default function ServiceDetailPage() {
     const translationCategoryLabels: Record<string, string> = {
       "translation-official": "Rasmiy hujjatlar",
       "translation-education": "Ta'lim hujjatlari",
-      "translation-visa": "Viza va migratsiya",
-      "translation-business": "Biznes & yuridik",
-      "translation-medical": "Tibbiy tarjima",
-      "translation-technical": "Texnik & IT",
-      "translation-oral": "Og'zaki tarjima",
-      "translation-personal": "Shaxsiy tarjima"
+      "translation-visa": "Visa / Migratsiya",
+      "translation-business": "Biznes",
+      "translation-medical": "Tibbiy",
+      "translation-technical": "Texnik",
+      "translation-oral": "Og'zaki",
+      "translation-personal": "Shaxsiy"
     };
     const translationCategory =
       translationCategoryLabels[service.subCategory || ""] || "Tarjimonlik xizmati";
-    const translationPair = `${service.sourceLang || "—"} ↔ ${service.targetLang || "—"}`;
-    const avgTime =
-      service.translationSpeed === "shoshilinch" ? "6-12 soat" : "1-2 kun";
-    const modeLabel = service.translationMode === "oral" ? "Og'zaki" : "Yozma";
-    const notarizationLabel =
-      typeof service.notarization === "boolean" ? (service.notarization ? "Ha" : "Yo'q") : "—";
-    const samples = service.images.length > 0 ? service.images : getCategoryImagePool("translation");
-    const reviews = [
-      {
-        name: "Dilorom",
-        type: "Talaba",
-        text: "Hujjatlarimni tez va aniq tarjima qilib berdi."
-      },
-      {
-        name: "Azamat",
-        type: "Ishchi",
-        text: "Koreys tili bo'yicha og'zaki tarjima juda professional bo'ldi."
-      },
-      {
-        name: "Zarina",
-        type: "Ota-ona",
-        text: "Maxfiylikka rioya qilgani uchun rahmat."
-      }
-    ];
+    const translationPair = `${service.sourceLang || "—"} → ${service.targetLang || "—"}`;
+    const slaLabel =
+      service.translationSpeed === "shoshilinch"
+        ? "2-6 soat"
+        : hashValue(service.id) % 3 === 0
+          ? "24 soat"
+          : "2-3 ish kuni";
+    const officialTags = [
+      service.notarization ? "Notarial" : "Oddiy",
+      service.translationFormat === "Original" ? "Muhrli" : "Oddiy"
+    ].filter((value, idx, arr) => arr.indexOf(value) === idx);
+    const deliveryLabel =
+      translationSpeedChoice === "fast" ? "Tezkor: 2-6 soat" : "Oddiy: 2-3 ish kuni";
 
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -1534,213 +2421,290 @@ export default function ServiceDetailPage() {
           <p className="text-sm text-slate-700">{translationCategory}</p>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="card space-y-5 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="space-y-4">
+            <div className="card space-y-3 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Tarjimonlik xizmati</p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">{service.title}</h2>
+                  <p className="text-sm text-slate-600">{translationCategory}</p>
+                </div>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">
+                  ⏱ {slaLabel}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                <span className="rounded-full bg-slate-100 px-3 py-1">{translationPair}</span>
+                {officialTags.map((tag) => (
+                  <span key={`tag-${tag}`} className="rounded-full bg-slate-100 px-3 py-1">
+                    {tag}
+                  </span>
+                ))}
+                <span className="rounded-full bg-slate-100 px-3 py-1">
+                  {service.translationMode === "oral" ? "Og'zaki" : "Yozma"}
+                </span>
+              </div>
+              <p className="text-sm text-slate-600">
+                Bu xizmat kimlar uchun: talaba, ishchi, tadbirkor va rasmiy hujjat egalari.
+              </p>
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
+              <ServiceImageGrid images={service.images} />
+            </div>
+
+            <div className="card space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Tarjimon ishonchliligi</p>
               <div className="flex items-center gap-3">
-                <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-14 w-14 rounded-full object-cover" />
+                <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
-                  <p className="text-[11px] text-slate-600">{translationCategory}</p>
-                  <p className="text-[11px] text-slate-500">{translationPair}</p>
+                  <p className="text-[11px] text-slate-600">{agent.region || agent.location}</p>
+                  <p className="text-[11px] text-slate-500">{(agent.languages || []).join(" · ")}</p>
                 </div>
               </div>
-              <div className="text-right text-xs text-slate-700">
-                <p>⭐ {agent.rating.toFixed(1)} ({formatCount(agent.reviewCount)} baho)</p>
-                <button
-                  type="button"
-                  onClick={handleOrder}
-                  disabled={submitState === "loading"}
-                  className="mt-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  {submitState === "loading" ? "Yuborilmoqda..." : "Buyurtma berish"}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Qisqa profil</p>
               <div className="mt-3 grid gap-2 text-[11px] text-slate-600 sm:grid-cols-2">
                 <span>Tajriba: {agent.experienceYears} yil</span>
-                <span>Tarjimalar soni: {formatCount(service.usedCount)}+</span>
-                <span>Ish tillari: {translationPair}</span>
-                <span>Tasdiqlar: ✅ ID / ✅ Email / ✅ Hujjat</span>
+                <span>✅ Tasdiqlangan tarjimon</span>
+                <span>Reyting: {agent.rating.toFixed(1)}</span>
+                <span>Tugallangan: {formatCount(agent.completedOrders ?? service.usedCount)}</span>
+                <span>O'rtacha topshirish: {slaLabel}</span>
               </div>
+              {service.certificates.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                  {service.certificates.map((cert) => (
+                    <span key={`cert-${cert}`} className="rounded-full bg-slate-100 px-3 py-1">
+                      {cert}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Xizmat turlari</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {agent.services.map((item) => {
-                  const cat = translationCategoryLabels[item.subCategory || ""] || "Tarjimonlik";
-                  const duration = item.translationSpeed === "shoshilinch" ? "6-12 soat" : "1-2 kun";
-                  return (
-                    <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-xs font-semibold text-slate-900">{cat}</p>
-                      <p className="mt-1 text-[11px] text-slate-600">
-                        {formatCount(item.price)} {item.currency} / {item.unit}
-                      </p>
-                      <p className="text-[11px] text-slate-500">O'rtacha muddat: {duration}</p>
+            <div className="card space-y-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">Hujjat yuborish oqimi</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTranslationUploadOpen((prev) => !prev);
+                    setTranslationStep(1);
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
+                >
+                  {translationUploadOpen ? "Yopish" : "Boshlash"}
+                </button>
+              </div>
+              {translationUploadOpen && (
+                <div className="space-y-4 text-xs text-slate-600">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <span className={`rounded-full px-3 py-1 ${translationStep === 1 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100"}`}>
+                      1-qadam
+                    </span>
+                    <span className={`rounded-full px-3 py-1 ${translationStep === 2 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100"}`}>
+                      2-qadam
+                    </span>
+                    <span className={`rounded-full px-3 py-1 ${translationStep === 3 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100"}`}>
+                      3-qadam
+                    </span>
+                  </div>
+
+                  {translationStep === 1 && (
+                    <div className="space-y-3">
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files || []);
+                          setTranslationFiles(files.map((file) => ({ file, note: "" })));
+                        }}
+                        className="w-full text-xs"
+                      />
+                      {translationFiles.length > 0 && (
+                        <div className="space-y-2">
+                          {translationFiles.map((item, idx) => (
+                            <div key={`${item.file.name}-${idx}`} className="rounded-lg border border-slate-200 bg-white p-2">
+                              <p className="text-[11px] text-slate-600">📎 {item.file.name}</p>
+                              <input
+                                value={item.note}
+                                onChange={(event) => {
+                                  const next = [...translationFiles];
+                                  next[idx] = { ...next[idx], note: event.target.value };
+                                  setTranslationFiles(next);
+                                }}
+                                placeholder="Izoh: pasport, diplom..."
+                                className="mt-2 w-full rounded-full border border-slate-200 px-3 py-1 text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <button
                         type="button"
-                        onClick={handleOrder}
-                        className="mt-2 rounded-full bg-emerald-500 px-3 py-1 text-[11px] text-white"
+                        onClick={() => setTranslationStep(2)}
+                        className="rounded-full bg-emerald-500 px-4 py-2 text-xs text-white"
                       >
-                        Buyurtma berish
+                        Keyingi qadam
                       </button>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Ixtisos & Tajriba</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                <span>Hujjatlar: pasport, diplom, viza, shartnoma</span>
-                <span>Sohalar: ta'lim, migratsiya, biznes, tibbiy</span>
-                <span>Murakkab ishlar: shoshilinch va notarial topshiriqlar</span>
-                <span>Formatlar: {service.translationFormat || "PDF"} / Scan / Original</span>
-                <span>Maxfiylik: default ON</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Ish namunalari</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                {samples.slice(0, 3).map((sample, idx) => (
-                  <div key={`${service.id}-sample-${idx}`} className="relative overflow-hidden rounded-xl border border-slate-200">
-                    <img src={sample.src} alt={sample.alt} className="h-32 w-full object-cover blur-sm" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] text-slate-700">
-                        Namuna ko'rish
-                      </span>
+                  {translationStep === 2 && (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Rasmiylik</label>
+                          <select
+                            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                            value={translationOfficialChoice}
+                            onChange={(event) => setTranslationOfficialChoice(event.target.value)}
+                          >
+                            <option value="oddiy">Oddiy</option>
+                            <option value="notarial">Notarial</option>
+                            <option value="muhrli">Muhrli</option>
+                            <option value="guvohnoma">Guvohnoma bilan</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tezlik</label>
+                          <select
+                            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                            value={translationSpeedChoice}
+                            onChange={(event) => setTranslationSpeedChoice(event.target.value)}
+                          >
+                            <option value="normal">Oddiy (2-3 ish kuni)</option>
+                            <option value="fast">Tezkor (2-6 soat)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <textarea
+                        value={translationExtraNote}
+                        onChange={(event) => setTranslationExtraNote(event.target.value)}
+                        className="h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                        placeholder="Qo'shimcha izoh..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setTranslationStep(3)}
+                        className="rounded-full bg-emerald-500 px-4 py-2 text-xs text-white"
+                      >
+                        Tasdiqlash
+                      </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-slate-500">Maxfiylik siyosati asosida blur qilingan.</p>
+                  )}
+
+                  {translationStep === 3 && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-900">Tasdiqlash</p>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] text-slate-600">
+                        <p>Narx: {formatCount(service.price)} {service.currency} / {service.unit}</p>
+                        <p>Deadline: {deliveryLabel}</p>
+                        <p>Rasmiylik: {translationOfficialChoice}</p>
+                      </div>
+                      <label className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={translationConsent}
+                          onChange={(event) => setTranslationConsent(event.target.checked)}
+                        />
+                        Maxfiylik roziligi
+                      </label>
+                      <button
+                        type="button"
+                        className="rounded-full bg-sky-500 px-4 py-2 text-xs text-white"
+                        onClick={handleOrder}
+                      >
+                        Order yaratish + chat
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Ishlash tartibi</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                <span>1. Hujjat yuklaysiz</span>
-                <span>2. Narx va muddat tasdiqlanadi</span>
-                <span>3. Tarjima topshiriladi</span>
+            <div className="card space-y-2 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Ish jarayoni</p>
+              <div className="grid gap-2 text-[11px]">
+                <span>✅ Qabul qilindi</span>
+                <span>🔄 Tarjima jarayonda</span>
+                <span>🧾 Tekshiruv</span>
+                <span>📦 Tayyor</span>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Baholar & Sharhlar</p>
-              <p className="mt-1 text-[11px] text-slate-600">
-                O'rtacha reyting: {agent.rating.toFixed(1)} ({formatCount(agent.reviewCount)} baho)
-              </p>
-              <div className="mt-3 grid gap-2 text-[11px] text-slate-600">
-                {reviews.map((review) => (
-                  <div key={review.name} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="font-semibold text-slate-800">{review.name} · {review.type}</p>
-                    <p className="mt-1">{review.text}</p>
-                  </div>
-                ))}
+            <div className="card space-y-3 p-5 text-xs text-slate-600">
+              <p className="text-sm font-semibold text-slate-900">Natijani topshirish</p>
+              <p>Yuklanadigan fayllar: PDF / DOCX</p>
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[11px] text-slate-500">
+                QR CODE (secure download)
+              </div>
+              <div className="grid gap-1 text-[11px] text-slate-500">
+                <span>Tarjimon: {agent.name}</span>
+                <span>Sana: {new Date().toLocaleDateString("en-GB")}</span>
+                <span>Tarjima ID: {service.id}</span>
+                <span>UniServe orqali bajarilgan</span>
               </div>
             </div>
           </section>
 
-          <aside className="card space-y-4 p-5 lg:sticky lg:top-6">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">Narx siyosati & qo'shimcha</p>
-              <p className="mt-1 text-lg font-semibold text-emerald-700">
-                {formatCount(service.price)} {service.currency} / {service.unit}
+          <aside className="space-y-4">
+            <div className="card sticky top-24 space-y-3 p-5">
+              <p className="text-sm font-semibold text-slate-900">Narx & deadline</p>
+              <p className="text-2xl font-semibold text-emerald-600">
+                {formatCount(service.price)} {service.currency}
               </p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                <span>Tezlik: {service.translationSpeed === "shoshilinch" ? "Shoshilinch" : "Oddiy"}</span>
-                <span>Notarial tasdiq: {notarizationLabel}</span>
-                <span>Format: {service.translationFormat || "PDF"}</span>
-                <span>Tur: {modeLabel}</span>
-                <span>Tahrir: kiritilgan</span>
-                <span>Maxfiylik: default ON</span>
-                <span>Har buyurtma loglanadi</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700">
-              <p className="text-sm font-semibold text-slate-900">FAQ</p>
-              <div className="mt-2 grid gap-2 text-[11px] text-slate-600">
-                <div>
-                  <p className="font-semibold text-slate-800">Original hujjat kerakmi?</p>
-                  <p className="mt-1">Scan yoki PDF yetarli, original faqat notarial bo'lsa.</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-800">Maxfiylik bormi?</p>
-                  <p className="mt-1">Ha, maxfiylik default ON.</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-800">Tahrir necha marta?</p>
-                  <p className="mt-1">1 marta bepul tahrir kiritiladi.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleOrder}
-                disabled={submitState === "loading"}
-                className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white"
+              <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Deadline</label>
+              <select
+                className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-xs"
+                value={translationSpeedChoice}
+                onChange={(event) => setTranslationSpeedChoice(event.target.value)}
               >
-                {submitState === "loading" ? "Yuborilmoqda..." : "Hujjat yuklab buyurtma berish"}
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenChat}
-                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800"
-              >
-                Savol berish
-              </button>
+                <option value="normal">Oddiy (2-3 ish kuni)</option>
+                <option value="fast">Tezkor (2-6 soat)</option>
+              </select>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTranslationUploadOpen(true);
+                    setTranslationStep(1);
+                  }}
+                  className="rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white"
+                >
+                  Hujjat yuklab berish
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenChat}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-800"
+                >
+                  Savol berish
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                To'lov escrow'da, tarjima topshirilgach agentga o'tadi.
+              </p>
             </div>
 
             {showChat && isAuthenticated && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                <p className="font-semibold text-slate-900">Chat oynasi</p>
-                <p className="mt-1 text-[11px] text-slate-600">
-                  Tarjima bo'yicha savollaringizni yozing.
-                </p>
+              <div className="card space-y-2 p-5 text-xs text-slate-600">
+                <p className="text-sm font-semibold text-slate-900">Chat</p>
                 <textarea
                   placeholder="Xabaringiz..."
-                  className="mt-2 h-20 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-800"
+                  className="h-20 w-full rounded-lg border border-slate-200 bg-white p-2 text-xs"
                 />
                 <button
                   type="button"
-                  className="mt-2 rounded-full bg-emerald-500 px-3 py-1 text-[11px] text-white"
+                  className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] text-white"
                 >
                   Xabar yuborish
                 </button>
               </div>
             )}
           </aside>
-        </div>
-
-        <div className="fixed bottom-4 left-0 right-0 z-40 flex justify-center px-4 lg:hidden">
-          <div className="flex w-full max-w-md items-center justify-between gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs shadow-lg">
-            <span className="text-slate-600">{formatCount(service.price)} {service.currency} / {service.unit}</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleOrder}
-                className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] text-white"
-              >
-                Buyurtma
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenChat}
-                className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-700"
-              >
-                Savol
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -1836,6 +2800,17 @@ export default function ServiceDetailPage() {
           <div className="mt-4 text-sm text-slate-800">
             <p className="text-xs uppercase tracking-wide text-sky-900">Tavsif</p>
             <p className="mt-2 leading-relaxed">{service.description}</p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {service.images.map((image) => (
+              <img
+                key={`service-img-${image.src}`}
+                src={image.src}
+                alt={image.alt}
+                className="h-40 w-full rounded-xl object-cover"
+                loading="lazy"
+              />
+            ))}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-700">

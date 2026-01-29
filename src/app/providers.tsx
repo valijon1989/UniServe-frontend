@@ -5,6 +5,7 @@ import axios from "axios";
 import { Toaster } from "react-hot-toast";
 import { I18nProvider } from "@/context/i18n";
 import { AuthProvider } from "@/context/AuthContext";
+import { GlobalImageLightbox } from "@/components/shared/GlobalImageLightbox";
 
 export default function Providers({ children }: { children: ReactNode }) {
   axios.defaults.baseURL = process.env.NEXT_PUBLIC_API_URL;
@@ -15,6 +16,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <AuthProvider>
         {children}
         <Toaster />
+        <GlobalImageLightbox />
       </AuthProvider>
     </I18nProvider>
   );

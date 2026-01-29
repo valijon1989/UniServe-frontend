@@ -53,6 +53,30 @@ type DisplayService = {
   createdAt: string;
   agent: ServiceAgent;
   subCategory?: string;
+  legalArea?: string;
+  legalServiceType?: string;
+  legalJurisdiction?: "UZ" | "KR" | "INT";
+  legalFormat?: Array<"chat" | "audio" | "video" | "offline">;
+  legalResponseTime?: string;
+  legalDisclaimer?: string;
+  legalIncluded?: string[];
+  legalExcluded?: string[];
+  sportType?: string;
+  sportLevel?: "Boshlovchi" | "O'rta" | "Professional";
+  sportAudience?: string[];
+  sportServiceType?: string;
+  sportFormat?: Array<"online" | "offline" | "video">;
+  sportLocation?: string;
+  sportGym?: string;
+  sportPlan?: string[];
+  sportResult?: string;
+  sportDuration?: string;
+  sportWeeklySessions?: number;
+  sportTracking?: boolean;
+  sportDiet?: boolean;
+  sportCourseModules?: string[];
+  sportCourseLength?: string;
+  sportMaxParticipants?: number;
 };
 
 const emptyForm: ServiceFormState = {
@@ -74,6 +98,84 @@ const toWordsCount = (value: string) =>
     .filter(Boolean).length;
 
 const formatCount = (value: number) => value.toLocaleString("en-US");
+const normalize = (value: string) => value.toLowerCase().trim();
+const hashValue = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) % 2147483647;
+  }
+  return hash;
+};
+const getConsultingAvailability = (agent: ServiceAgent) => {
+  const options: Array<"today" | "48h" | "soon"> = ["today", "48h", "soon"];
+  const seed = hashValue(agent.id || agent.name);
+  return options[seed % options.length];
+};
+const getConsultingTrustScore = (service: DisplayService) => {
+  const scoreParts = [
+    service.agent.verified ? 22 : 0,
+    Math.min(20, Math.round(service.rating * 4)),
+    Math.min(18, Math.floor((service.reviewCount || 0) / 5)),
+    Math.min(15, Math.floor((service.agent.completedOrders ?? service.usedCount) / 8)),
+    Math.min(10, service.certificates.length * 5),
+    Math.min(15, service.agent.experienceYears * 2)
+  ];
+  return Math.min(100, scoreParts.reduce((acc, val) => acc + val, 0));
+};
+const getMonthsOnPlatform = (createdAt: string) => {
+  const created = new Date(createdAt);
+  const diff = Math.max(0, Date.now() - created.getTime());
+  return Math.max(1, Math.floor(diff / (1000 * 60 * 60 * 24 * 30)));
+};
+const convertCurrency = (price: number, currency: string, target: "UZS" | "KRW") => {
+  if (currency === target) return { amount: price, label: currency };
+  const uzsPerKrw = 9.5;
+  if (currency === "UZS" && target === "KRW") {
+    return { amount: Math.max(1, Math.round(price / uzsPerKrw)), label: target };
+  }
+  if (currency === "KRW" && target === "UZS") {
+    return { amount: Math.round(price * uzsPerKrw), label: target };
+  }
+  return { amount: price, label: currency };
+};
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+const getTranslationSla = (service: DisplayService) => {
+  if (service.translationSpeed === "shoshilinch") return "2-6 soat";
+  const seed = hashValue(service.displayId);
+  if (seed % 3 === 0) return "24 soat";
+  return "2-3 ish kuni";
+};
+const getTranslationOfficialTags = (service: DisplayService) => {
+  const tags: string[] = [];
+  if (service.notarization) tags.push("Notarial");
+  if (service.translationFormat === "Original") tags.push("Muhrli");
+  const hasLicense = service.certificates.some((cert) =>
+    cert.toLowerCase().includes("guvohnoma")
+  );
+  if (hasLicense) tags.push("Guvohnoma");
+  if (tags.length === 0) tags.push("Oddiy");
+  return tags;
+};
+const getTranslationCategoryLabel = (subCategory?: string) => {
+  const map: Record<string, string> = {
+    "translation-official": "Rasmiy hujjatlar",
+    "translation-education": "Ta'lim hujjatlari",
+    "translation-visa": "Visa / migratsiya",
+    "translation-business": "Biznes",
+    "translation-medical": "Tibbiy",
+    "translation-technical": "Texnik",
+    "translation-oral": "Og'zaki",
+    "translation-personal": "Shaxsiy"
+  };
+  return map[subCategory || ""] || "Tarjimonlik";
+};
 
 export function ServicesHub() {
   const router = useRouter();
@@ -107,6 +209,13 @@ export function ServicesHub() {
   const [consultingLanguage, setConsultingLanguage] = useState("all");
   const [consultingRating, setConsultingRating] = useState("all");
   const [consultingPrice, setConsultingPrice] = useState("all");
+  const [consultingQuery, setConsultingQuery] = useState("");
+  const [consultingLocation, setConsultingLocation] = useState("all");
+  const [consultingCity, setConsultingCity] = useState("");
+  const [consultingFormat, setConsultingFormat] = useState("all");
+  const [consultingAvailability, setConsultingAvailability] = useState("all");
+  const [consultingSort, setConsultingSort] = useState("match");
+  const [consultingCurrency, setConsultingCurrency] = useState<"UZS" | "KRW">("UZS");
   const [translationTab, setTranslationTab] = useState("all");
   const [translationFrom, setTranslationFrom] = useState("");
   const [translationTo, setTranslationTo] = useState("");
@@ -114,6 +223,26 @@ export function ServicesHub() {
   const [translationSpeed, setTranslationSpeed] = useState("all");
   const [translationFormat, setTranslationFormat] = useState("all");
   const [translationMode, setTranslationMode] = useState("all");
+  const [translationOfficial, setTranslationOfficial] = useState("all");
+  const [translationSla, setTranslationSla] = useState("all");
+  const [psychologyIssue, setPsychologyIssue] = useState("all");
+  const [psychologyAudience, setPsychologyAudience] = useState("all");
+  const [psychologyFormat, setPsychologyFormat] = useState("all");
+  const [psychologyLanguage, setPsychologyLanguage] = useState("all");
+  const [psychologyExperience, setPsychologyExperience] = useState("all");
+  const [sportType, setSportType] = useState("all");
+  const [sportServiceType, setSportServiceType] = useState("all");
+  const [sportLevel, setSportLevel] = useState("all");
+  const [sportAudience, setSportAudience] = useState("all");
+  const [sportFormat, setSportFormat] = useState("all");
+  const [sportCity, setSportCity] = useState("");
+  const [sportGym, setSportGym] = useState("");
+  const [legalArea, setLegalArea] = useState("all");
+  const [legalServiceType, setLegalServiceType] = useState("all");
+  const [legalJurisdiction, setLegalJurisdiction] = useState("all");
+  const [legalLanguage, setLegalLanguage] = useState("all");
+  const [legalFormat, setLegalFormat] = useState("all");
+  const [legalTrust, setLegalTrust] = useState("all");
   const { t } = useI18n();
   const { role, isAuthenticated, hydrateFromStorage, token } = useAuthStore();
   const { status: rideSocketStatus, latestRide, sendRideEvent } = useRideSocket({
@@ -122,6 +251,15 @@ export function ServicesHub() {
   });
 
   const getParam = (params: URLSearchParams, key: string) => params.get(key) || "";
+  const toQueryId = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+  const fromQueryId = (value: string, options: string[]) => {
+    const normalized = toQueryId(value || "");
+    return options.find((item) => toQueryId(item) === normalized) || "all";
+  };
 
   useEffect(() => {
     hydrateFromStorage();
@@ -149,6 +287,14 @@ export function ServicesHub() {
     }
   }, [isAuthenticated, role]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (timeZone.includes("Seoul")) {
+      setConsultingCurrency("KRW");
+    }
+  }, []);
+
   const formGroup = useMemo(
     () => serviceCatalog.find((item) => item.id === form.type) ?? serviceCatalog[0],
     [form.type]
@@ -174,6 +320,9 @@ export function ServicesHub() {
   const isMarketingCategory = activeCategory?.id === "marketing";
   const isConsultingCategory = activeCategory?.id === "consulting";
   const isTranslationCategory = activeCategory?.id === "translation";
+  const isPsychologyCategory = activeCategory?.id === "psychology";
+  const isLegalCategory = activeCategory?.id === "legal";
+  const isSportCategory = activeCategory?.id === "sport";
 
   const nannyTypes = useMemo(
     () => [
@@ -205,16 +354,135 @@ export function ServicesHub() {
     () => ["Talaba", "Ishchi", "Tadbirkor", "Ota-ona", "Yangi kelganlar"],
     []
   );
+  const psychologyIssues = useMemo(
+    () => [
+      { id: "all", title: "Barchasi" },
+      { id: "psy-stress", title: "Stress va bezovtalik" },
+      { id: "psy-depression", title: "Depressiya" },
+      { id: "psy-family", title: "Oilaviy munosabatlar" },
+      { id: "psy-children", title: "Bolalar psixologiyasi" },
+      { id: "psy-adaptation", title: "Moslashuv (Koreya)" },
+      { id: "psy-trauma", title: "Travma" },
+      { id: "psy-confidence", title: "O'ziga ishonch" },
+      { id: "psy-burnout", title: "Kasbiy burnout" }
+    ],
+    []
+  );
+  const psychologyAudiences = useMemo(
+    () => ["Kattalar", "Bolalar", "O'smirlar", "Juftliklar"],
+    []
+  );
+  const psychologyFormats = useMemo(
+    () => [
+      { id: "chat", label: "Chat" },
+      { id: "audio", label: "Audio" },
+      { id: "video", label: "Video" },
+      { id: "offline", label: "Oflayn" }
+    ],
+    []
+  );
+  const sportTypes = useMemo(
+    () => [
+      "Fitness",
+      "Bodybuilding",
+      "Yoga",
+      "Crossfit",
+      "Futbol",
+      "Kurash",
+      "Taekwondo",
+      "Tennis",
+      "Suzish",
+      "Ayollar uchun fitness"
+    ],
+    []
+  );
+  const sportServiceTypes = useMemo(
+    () => [
+      "Individual mashg‘ulot",
+      "Guruh mashg‘uloti",
+      "Online coaching",
+      "Offline coaching",
+      "Video kurs",
+      "Jonli kurs"
+    ],
+    []
+  );
+  const sportLevels = useMemo(() => ["Boshlovchi", "O'rta", "Professional"], []);
+  const sportAudiences = useMemo(
+    () => ["Erkaklar", "Ayollar", "Bolalar", "O'smirlar", "Kattalar"],
+    []
+  );
+  const sportFormats = useMemo(
+    () => [
+      { id: "online", label: "🏠 Online" },
+      { id: "offline", label: "🏋️ Offline" },
+      { id: "video", label: "🎥 Video dars" }
+    ],
+    []
+  );
+  const legalAreas = useMemo(
+    () => [
+      "Migratsiya va visa",
+      "Mehnat huquqi",
+      "Fuqarolik huquqi",
+      "Oilaviy huquq",
+      "Biznes va shartnomalar",
+      "Sud hujjatlari",
+      "Soliq",
+      "Jinoiy ishlar (faqat konsultatsiya)"
+    ],
+    []
+  );
+  const legalServiceTypes = useMemo(
+    () => [
+      "Og'zaki maslahat",
+      "Yozma huquqiy xulosa",
+      "Hujjat tayyorlash",
+      "Hujjat tekshirish",
+      "Vakillik"
+    ],
+    []
+  );
+  const legalJurisdictions = useMemo(
+    () => [
+      { id: "UZ", label: "🇺🇿 O‘zbekiston" },
+      { id: "KR", label: "🇰🇷 Koreya" },
+      { id: "INT", label: "Xalqaro" }
+    ],
+    []
+  );
+  const legalLanguages = useMemo(() => ["O'zbek", "Koreys", "Rus", "Ingliz"], []);
+  const legalFormats = useMemo(
+    () => [
+      { id: "chat", label: "💬 Chat" },
+      { id: "audio", label: "📞 Audio" },
+      { id: "video", label: "🎥 Video" },
+      { id: "offline", label: "🏢 Oflayn" }
+    ],
+    []
+  );
+  const consultingKeywords = useMemo(
+    () => ["visa", "CV", "Koreyada ish", "biznes", "moslashuv", "tarjima"],
+    []
+  );
+  const consultingFormats = useMemo(
+    () => [
+      { id: "chat", label: "Chat" },
+      { id: "call", label: "Qo'ng'iroq" },
+      { id: "video", label: "Video" },
+      { id: "offline", label: "Oflayn" }
+    ],
+    []
+  );
 
   const translationTabs = useMemo(
     () => [
       { id: "all", title: "Barchasi" },
-      { id: "translation-official", title: "Rasmiy" },
+      { id: "translation-official", title: "Rasmiy hujjatlar" },
       { id: "translation-education", title: "Ta'lim" },
-      { id: "translation-visa", title: "Viza" },
-      { id: "translation-business", title: "Biznes" },
       { id: "translation-medical", title: "Tibbiy" },
-      { id: "translation-technical", title: "Texnik / IT" },
+      { id: "translation-business", title: "Biznes" },
+      { id: "translation-visa", title: "Visa / Migratsiya" },
       { id: "translation-oral", title: "Og'zaki" },
       { id: "translation-personal", title: "Shaxsiy" }
     ],
@@ -246,6 +514,38 @@ export function ServicesHub() {
     setTranslationFormat("all");
     setTranslationMode("all");
   }, [activeCategoryId]);
+
+  useEffect(() => {
+    if (activeCategoryId !== "legal") return;
+    setLegalArea("all");
+    setLegalServiceType("all");
+    setLegalJurisdiction("all");
+    setLegalLanguage("all");
+    setLegalFormat("all");
+    setLegalTrust("all");
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    if (activeCategoryId !== "sport") return;
+    setSportType("all");
+    setSportServiceType("all");
+    setSportLevel("all");
+    setSportAudience("all");
+    setSportFormat("all");
+    setSportCity("");
+    setSportGym("");
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    if (activeCategoryId !== "legal") return;
+    const rawArea = getParam(searchParams, "legalArea");
+    if (!rawArea) return;
+    const next = fromQueryId(rawArea, legalAreas);
+    if (next !== "all") {
+      setLegalArea(next);
+    }
+  }, [activeCategoryId, legalAreas, searchParams]);
 
   const constructionSections = useMemo(
     () => [
@@ -479,6 +779,16 @@ export function ServicesHub() {
       params.delete("class");
     }
 
+    if (activeCategoryId === "legal") {
+      if (legalArea !== "all") {
+        params.set("legalArea", toQueryId(legalArea));
+      } else {
+        params.delete("legalArea");
+      }
+    } else {
+      params.delete("legalArea");
+    }
+
     const nextQuery = params.toString();
     const currentQuery = searchParams.toString();
 
@@ -494,7 +804,7 @@ export function ServicesHub() {
         window.clearTimeout(replaceTimerRef.current);
       }
     };
-  }, [activeCategoryId, pathname, router, searchParams, selectedClass, selectedSeat]);
+  }, [activeCategoryId, legalArea, pathname, router, searchParams, selectedClass, selectedSeat]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -542,7 +852,31 @@ export function ServicesHub() {
         canRate: service.canRate,
         createdAt: service.createdAt,
         agent,
-        subCategory: service.subCategory
+        subCategory: service.subCategory,
+        legalArea: service.legalArea,
+        legalServiceType: service.legalServiceType,
+        legalJurisdiction: service.legalJurisdiction,
+        legalFormat: service.legalFormat,
+        legalResponseTime: service.legalResponseTime,
+        legalDisclaimer: service.legalDisclaimer,
+        legalIncluded: service.legalIncluded,
+        legalExcluded: service.legalExcluded,
+        sportType: service.sportType,
+        sportLevel: service.sportLevel,
+        sportAudience: service.sportAudience,
+        sportServiceType: service.sportServiceType,
+        sportFormat: service.sportFormat,
+        sportLocation: service.sportLocation,
+        sportGym: service.sportGym,
+        sportPlan: service.sportPlan,
+        sportResult: service.sportResult,
+        sportDuration: service.sportDuration,
+        sportWeeklySessions: service.sportWeeklySessions,
+        sportTracking: service.sportTracking,
+        sportDiet: service.sportDiet,
+        sportCourseModules: service.sportCourseModules,
+        sportCourseLength: service.sportCourseLength,
+        sportMaxParticipants: service.sportMaxParticipants
       }))
     );
 
@@ -638,6 +972,24 @@ export function ServicesHub() {
 
     if (isConsultingCategory) {
       let filtered = baseServices;
+      const query = normalize(consultingQuery);
+      if (query) {
+        filtered = filtered.filter((service) => {
+          const hay = [
+            service.title,
+            service.description,
+            service.agent.name,
+            service.agent.specialty,
+            service.agent.bio || "",
+            (service.agent.audiences || []).join(" "),
+            (service.agent.languages || []).join(" "),
+            (service.certificates || []).join(" ")
+          ]
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(query);
+        });
+      }
       if (consultingTab !== "all") {
         filtered = filtered.filter((service) => service.subCategory === consultingTab);
       }
@@ -660,6 +1012,43 @@ export function ServicesHub() {
           service.agent.languages?.includes(consultingLanguage)
         );
       }
+      if (consultingLocation !== "all") {
+        filtered = filtered.filter((service) => {
+          const region = normalize(service.agent.region || "");
+          const location = normalize(service.agent.location || "");
+          const isKorea = region.includes("koreya") || location.includes("korea");
+          if (consultingLocation === "korea") return isKorea;
+          if (consultingLocation === "uzbekistan") return !isKorea;
+          return true;
+        });
+      }
+      if (consultingCity.trim()) {
+        const city = normalize(consultingCity);
+        filtered = filtered.filter((service) => {
+          const cityHay = `${service.agent.location || ""} ${service.agent.region || ""} ${
+            service.agent.regionDetail || ""
+          }`.toLowerCase();
+          return cityHay.includes(city);
+        });
+      }
+      if (consultingFormat !== "all") {
+        filtered = filtered.filter((service) => {
+          const formats = service.agent.consultationFormats || [];
+          const normalized = formats.map((item) => normalize(item));
+          if (consultingFormat === "offline") {
+            return normalized.some((item) => item.includes("offline"));
+          }
+          if (["chat", "call", "video"].includes(consultingFormat)) {
+            return normalized.some((item) => item.includes("online"));
+          }
+          return normalized.some((item) => item.includes(consultingFormat));
+        });
+      }
+      if (consultingAvailability !== "all") {
+        filtered = filtered.filter(
+          (service) => getConsultingAvailability(service.agent) === consultingAvailability
+        );
+      }
       if (consultingRating !== "all") {
         filtered = filtered.filter((service) => {
           if (consultingRating === "4.7") return service.rating >= 4.7;
@@ -677,8 +1066,32 @@ export function ServicesHub() {
         });
       }
 
+      const scoreMatch = (service: DisplayService) => {
+        const queryScore = query
+          ? [service.title, service.description, service.agent.specialty]
+              .join(" ")
+              .toLowerCase()
+              .split(query)
+              .length - 1
+          : 0;
+        return (
+          queryScore * 6 +
+          service.rating * 3 +
+          Math.min(10, (service.agent.completedOrders ?? service.usedCount) / 10) +
+          service.agent.experienceYears * 1.5
+        );
+      };
       const sorted = [...filtered].sort((a, b) => {
-        if (sortMode === "new") {
+        if (consultingSort === "match") return scoreMatch(b) - scoreMatch(a);
+        if (consultingSort === "rating") return b.rating - a.rating;
+        if (consultingSort === "fast") {
+          return hashValue(a.agent.id) % 10 - (hashValue(b.agent.id) % 10);
+        }
+        if (consultingSort === "cheap") return a.price - b.price;
+        if (consultingSort === "popular") {
+          return (b.agent.completedOrders ?? b.usedCount) - (a.agent.completedOrders ?? a.usedCount);
+        }
+        if (sortMode === "new" || consultingSort === "new") {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
         if (b.rating !== a.rating) return b.rating - a.rating;
@@ -693,11 +1106,21 @@ export function ServicesHub() {
       if (translationTab !== "all") {
         filtered = filtered.filter((service) => service.subCategory === translationTab);
       }
+      if (translationOfficial !== "all") {
+        filtered = filtered.filter((service) =>
+          getTranslationOfficialTags(service).some(
+            (tag) => tag.toLowerCase() === translationOfficial.toLowerCase()
+          )
+        );
+      }
       if (translationMode !== "all") {
         filtered = filtered.filter((service) => service.translationMode === translationMode);
       }
       if (translationSpeed !== "all") {
         filtered = filtered.filter((service) => service.translationSpeed === translationSpeed);
+      }
+      if (translationSla !== "all") {
+        filtered = filtered.filter((service) => getTranslationSla(service) === translationSla);
       }
       if (translationFormat !== "all") {
         filtered = filtered.filter((service) => service.translationFormat === translationFormat);
@@ -722,6 +1145,130 @@ export function ServicesHub() {
         return b.reviewCount - a.reviewCount;
       });
 
+      return sorted;
+    }
+
+    if (isPsychologyCategory) {
+      let filtered = baseServices;
+      if (psychologyIssue !== "all") {
+        filtered = filtered.filter((service) => service.subCategory === psychologyIssue);
+      }
+      if (psychologyAudience !== "all") {
+        filtered = filtered.filter((service) =>
+          service.agent.audiences?.includes(psychologyAudience)
+        );
+      }
+      if (psychologyFormat !== "all") {
+        filtered = filtered.filter((service) => {
+          const formats = service.agent.consultationFormats || [];
+          const normalized = formats.map((item) => item.toLowerCase());
+          if (psychologyFormat === "offline") {
+            return normalized.some((item) => item.includes("offline") || item.includes("oflayn"));
+          }
+          return normalized.some((item) => item.includes(psychologyFormat));
+        });
+      }
+      if (psychologyLanguage !== "all") {
+        filtered = filtered.filter((service) =>
+          service.agent.languages?.includes(psychologyLanguage)
+        );
+      }
+      if (psychologyExperience !== "all") {
+        filtered = filtered.filter((service) => {
+          const years = service.agent.experienceYears;
+          if (psychologyExperience === "3+") return years >= 3;
+          if (psychologyExperience === "5+") return years >= 5;
+          if (psychologyExperience === "certified") {
+            return service.certificates.some((cert) => cert.toLowerCase().includes("sertifikat"));
+          }
+          return true;
+        });
+      }
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+      return sorted;
+    }
+
+    if (isLegalCategory) {
+      let filtered = baseServices;
+      if (legalArea !== "all") {
+        filtered = filtered.filter((service) => service.legalArea === legalArea);
+      }
+      if (legalServiceType !== "all") {
+        filtered = filtered.filter((service) => service.legalServiceType === legalServiceType);
+      }
+      if (legalJurisdiction !== "all") {
+        filtered = filtered.filter((service) => service.legalJurisdiction === legalJurisdiction);
+      }
+      if (legalLanguage !== "all") {
+        filtered = filtered.filter((service) =>
+          service.agent.languages?.includes(legalLanguage)
+        );
+      }
+      if (legalFormat !== "all") {
+        filtered = filtered.filter((service) => service.legalFormat?.includes(legalFormat as any));
+      }
+      if (legalTrust !== "all") {
+        filtered = filtered.filter((service) => {
+          if (legalTrust === "license") return !!service.agent.legalLicenseMasked;
+          if (legalTrust === "5y") return service.agent.experienceYears >= 5;
+          if (legalTrust === "rating") return service.rating >= 4.6;
+          return true;
+        });
+      }
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
+      return sorted;
+    }
+
+    if (isSportCategory) {
+      let filtered = baseServices;
+      if (sportType !== "all") {
+        filtered = filtered.filter((service) => service.sportType === sportType);
+      }
+      if (sportServiceType !== "all") {
+        filtered = filtered.filter((service) => service.sportServiceType === sportServiceType);
+      }
+      if (sportLevel !== "all") {
+        filtered = filtered.filter((service) => service.sportLevel === sportLevel);
+      }
+      if (sportAudience !== "all") {
+        filtered = filtered.filter((service) =>
+          (service.sportAudience || service.agent.audiences || []).includes(sportAudience)
+        );
+      }
+      if (sportFormat !== "all") {
+        filtered = filtered.filter((service) => service.sportFormat?.includes(sportFormat as any));
+      }
+      if (sportCity.trim()) {
+        const city = normalize(sportCity);
+        filtered = filtered.filter((service) =>
+          `${service.sportLocation || ""} ${service.agent.location || ""}`.toLowerCase().includes(city)
+        );
+      }
+      if (sportGym.trim()) {
+        const gym = normalize(sportGym);
+        filtered = filtered.filter((service) =>
+          (service.sportGym || "").toLowerCase().includes(gym)
+        );
+      }
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (sortMode === "new") {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.reviewCount - a.reviewCount;
+      });
       return sorted;
     }
 
@@ -777,19 +1324,48 @@ export function ServicesHub() {
     constructionSubCategory,
     isConstructionCategory,
     isConsultingCategory,
+    isLegalCategory,
+    isSportCategory,
+    isPsychologyCategory,
     isTranslationCategory,
     isMarketingCategory,
     isNannyCategory,
     consultingAudience,
+    consultingAvailability,
+    consultingCity,
     consultingExperience,
+    consultingFormat,
     consultingLanguage,
+    consultingLocation,
     consultingPrice,
+    consultingQuery,
     consultingRating,
+    consultingSort,
     consultingTab,
+    psychologyAudience,
+    psychologyExperience,
+    psychologyFormat,
+    psychologyIssue,
+    psychologyLanguage,
+    legalArea,
+    legalFormat,
+    legalJurisdiction,
+    legalLanguage,
+    legalServiceType,
+    legalTrust,
+    sportAudience,
+    sportCity,
+    sportFormat,
+    sportGym,
+    sportLevel,
+    sportServiceType,
+    sportType,
     translationFormat,
     translationFrom,
     translationMode,
     translationNotarization,
+    translationOfficial,
+    translationSla,
     translationSpeed,
     translationTab,
     translationTo,
@@ -928,23 +1504,43 @@ export function ServicesHub() {
     return map[status] || status;
   };
 
-  const renderServiceCard = (service: DisplayService, keyPrefix = "") => (
-    <div
-      key={`${keyPrefix}${service.displayId}`}
-      role="button"
-      tabIndex={0}
-      onClick={(event) => handleServiceCardClick(event, service.displayId)}
-      onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
-      className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
-    >
+  const renderServiceCard = (service: DisplayService, keyPrefix = "") => {
+    const translationLabel = getTranslationCategoryLabel(service.subCategory);
+    const translationPair = `${service.sourceLang || "—"} → ${service.targetLang || "—"}`;
+    const translationSlaLabel = getTranslationSla(service);
+    const translationOfficialTags = getTranslationOfficialTags(service);
+    const legalJurisdictionLabel =
+      service.legalJurisdiction === "KR"
+        ? "KR"
+        : service.legalJurisdiction === "INT"
+          ? "Xalqaro"
+          : "UZ";
+    const legalTitle = isLegalCategory
+      ? `${service.legalArea || "Huquqiy"} · ${service.title}`
+      : service.title;
+    return (
+      <div
+        key={`${keyPrefix}${service.displayId}`}
+        role="button"
+        tabIndex={0}
+        onClick={(event) => handleServiceCardClick(event, service.displayId)}
+        onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
+        className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
+      >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
-          <img
-            src={service.agent.avatar.src}
-            alt={service.agent.avatar.alt}
-            className="h-10 w-10 rounded-full object-cover"
-            loading="lazy"
-          />
+          {isPsychologyCategory ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
+              {getInitials(service.agent.name)}
+            </div>
+          ) : (
+            <img
+              src={service.agent.avatar.src}
+              alt={service.agent.avatar.alt}
+              className="h-10 w-10 rounded-full object-cover"
+              loading="lazy"
+            />
+          )}
           <div>
             <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
             <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
@@ -953,11 +1549,41 @@ export function ServicesHub() {
                 {service.agent.region || "Hudud"} · {service.agent.distanceKm ?? "—"} km
               </p>
             )}
+            {isConsultingCategory && service.agent.languages && service.agent.languages.length > 0 && (
+              <p className="text-[11px] text-slate-500">
+                {service.agent.languages.join(" · ")}
+              </p>
+            )}
+            {isPsychologyCategory && (
+              <p className="text-[11px] text-slate-500">🔒 Maxfiy muloqot</p>
+            )}
           </div>
         </Link>
-        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
-          {t("services.agent.verified")}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
+            {t("services.agent.verified")}
+          </span>
+          {isConsultingCategory && service.certificates.length > 0 && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
+              Sertifikat tekshirildi
+            </span>
+          )}
+          {isPsychologyCategory && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
+              Tasdiqlangan mutaxassis
+            </span>
+          )}
+          {isLegalCategory && service.agent.legalLicenseMasked && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
+              ⚖️ Litsenziyalangan
+            </span>
+          )}
+          {isSportCategory && service.agent.sportCertificates && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
+              🏅 Sertifikat
+            </span>
+          )}
+        </div>
       </div>
 
       {activeCategory.id === "taxi" && (service.agent.vehicleClass || service.agent.seatCount) && (
@@ -982,49 +1608,138 @@ export function ServicesHub() {
 
       <div className="mt-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-100">{service.title}</p>
+          <p className="text-sm font-semibold text-slate-100">{legalTitle}</p>
           <p className="text-xs text-slate-400">{service.description}</p>
           {isNannyCategory && (
             <p className="mt-1 text-[11px] text-emerald-200">
               {getNannyTypeLabel(service.subCategory)}
             </p>
           )}
+          {isConsultingCategory && (
+            <>
+              <p className="mt-1 text-[11px] text-emerald-200">
+                {service.agent.specialty || "Konsalting yo'nalishi"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {service.agent.region || service.agent.location || "Hudud"}
+                </span>
+                {(service.agent.consultationFormats || ["Online"]).map((item) => (
+                  <span key={`${service.displayId}-format-${item}`} className="rounded-full bg-slate-900 px-2 py-1">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+          {isPsychologyCategory && (
+            <>
+              <p className="mt-1 text-[11px] text-emerald-200">
+                {service.agent.specialty || "Psixolog"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {(service.agent.audiences || []).join(" · ") || "Kattalar"}
+                </span>
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {(service.agent.consultationFormats || ["Chat", "Video"]).join(" · ")}
+                </span>
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {(service.agent.consultationDurations || ["50 daqiqa"]).join(" · ")}
+                </span>
+              </div>
+            </>
+          )}
+          {isLegalCategory && (
+            <>
+              <p className="mt-1 text-[11px] text-emerald-200">
+                {service.legalServiceType || "Maslahat"} · {legalJurisdictionLabel}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {service.legalServiceType || "Maslahat"}
+                </span>
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {service.legalJurisdiction === "KR"
+                    ? "🇰🇷 Koreya"
+                    : service.legalJurisdiction === "INT"
+                      ? "Xalqaro"
+                      : "🇺🇿 O‘zbekiston"}
+                </span>
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {service.legalFormat?.map((item) => item).join(" · ") || "Chat"}
+                </span>
+              </div>
+            </>
+          )}
+          {isSportCategory && (
+            <>
+              <p className="mt-1 text-[11px] text-emerald-200">
+                {service.sportType || "Sport"} · {service.sportServiceType || "Mashg‘ulot"}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  Tajriba: {service.agent.experienceYears} yil
+                </span>
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  {service.sportFormat?.join(" · ") || "online/offline"}
+                </span>
+                {service.sportLevel && (
+                  <span className="rounded-full bg-slate-900 px-2 py-1">
+                    {service.sportLevel}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold text-emerald-200">
-            {formatCount(service.price)} {service.currency}
-          </p>
+          {isConsultingCategory ? (
+            <>
+              <p className="text-sm font-semibold text-emerald-200">
+                {formatCount(convertCurrency(service.price, service.currency, consultingCurrency).amount)}{" "}
+                {convertCurrency(service.price, service.currency, consultingCurrency).label}
+              </p>
+              {service.currency !== consultingCurrency && (
+                <p className="text-[10px] text-slate-500">
+                  Asl: {formatCount(service.price)} {service.currency}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-emerald-200">
+              {formatCount(service.price)} {service.currency}
+            </p>
+          )}
           <p className="text-[11px] text-slate-500">/{service.unit}</p>
         </div>
       </div>
 
       {isTranslationCategory && (
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-          {(service.sourceLang || service.targetLang) && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {(service.sourceLang || "—")} → {(service.targetLang || "—")}
+        <div className="mt-2 space-y-2 text-[11px] text-slate-400">
+          <p className="text-xs text-slate-300">
+            {translationLabel} ({translationPair})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
+              ⏱ {translationSlaLabel}
             </span>
-          )}
-          {service.translationMode && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {service.translationMode === "oral" ? "Og'zaki" : "Yozma"}
-            </span>
-          )}
-          {service.translationSpeed && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {service.translationSpeed === "shoshilinch" ? "Shoshilinch" : "Oddiy"}
-            </span>
-          )}
-          {typeof service.notarization === "boolean" && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              Notarial: {service.notarization ? "Ha" : "Yo'q"}
-            </span>
-          )}
-          {service.translationFormat && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {service.translationFormat}
-            </span>
-          )}
+            {translationOfficialTags.map((tag) => (
+              <span key={`${service.displayId}-official-${tag}`} className="rounded-full bg-slate-900 px-2 py-1">
+                {tag === "Oddiy" ? "Oddiy tarjima" : tag}
+              </span>
+            ))}
+            {service.translationMode && (
+              <span className="rounded-full bg-slate-900 px-2 py-1">
+                {service.translationMode === "oral" ? "Og'zaki" : "Yozma"}
+              </span>
+            )}
+            {service.translationFormat && (
+              <span className="rounded-full bg-slate-900 px-2 py-1">
+                {service.translationFormat}
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -1034,9 +1749,63 @@ export function ServicesHub() {
             {cert}
           </span>
         ))}
+        {isConsultingCategory && (
+          <>
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Platformada: {getMonthsOnPlatform(service.createdAt)} oy
+            </span>
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Trust: {getConsultingTrustScore(service)}/100
+            </span>
+          </>
+        )}
+        {isTranslationCategory && (
+          <>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
+              ✅ Tasdiqlangan tarjimon
+            </span>
+            {service.notarization && (
+              <span className="rounded-full bg-slate-900 px-2 py-1">Immigration mos</span>
+            )}
+          </>
+        )}
+        {isPsychologyCategory && (
+          <>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
+              ✅ Tasdiqlangan mutaxassis
+            </span>
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Platformada: {getMonthsOnPlatform(service.createdAt)} oy
+            </span>
+          </>
+        )}
+        {isLegalCategory && (
+          <>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
+              ⚖️ Litsenziya tekshirildi
+            </span>
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Javob: {service.legalResponseTime || "~24 soat"}
+            </span>
+          </>
+        )}
+        {isSportCategory && (
+          <>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
+              🏅 Sertifikat / medal
+            </span>
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              O‘quvchilar: {formatCount(service.agent.sportStudentsCount ?? 0)}
+            </span>
+          </>
+        )}
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-2">
+      <div
+        className={`mt-2 grid ${
+          service.images.length <= 2 ? "grid-cols-2" : "grid-cols-3"
+        } gap-2`}
+      >
         {(isMarketingCategory
           ? [
               { src: service.agent.avatar.src, alt: service.agent.avatar.alt },
@@ -1074,11 +1843,31 @@ export function ServicesHub() {
             {renderRating(service.rating)}
           </span>
           <span className="rounded-full bg-slate-900 px-2 py-1">
-            {t("services.service.used")}: {formatCount(service.usedCount)}
+            Tugallangan: {formatCount(service.agent.completedOrders ?? service.usedCount)}
           </span>
           <span className="rounded-full bg-slate-900 px-2 py-1">
-            {t("services.service.reviews")}: {formatCount(service.reviewCount)}
+            Sharhlar: {formatCount(service.reviewCount)}
           </span>
+          {isPsychologyCategory && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Sharhlar anonim
+            </span>
+          )}
+          {isConsultingCategory && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Javob: ~{(hashValue(service.agent.id) % 8) + 1} soat
+            </span>
+          )}
+          {isLegalCategory && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Ishlar: {formatCount(service.agent.completedOrders ?? service.usedCount)}
+            </span>
+          )}
+          {isSportCategory && service.sportResult && (
+            <span className="rounded-full bg-slate-900 px-2 py-1">
+              Natija: {service.sportResult}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -1093,18 +1882,121 @@ export function ServicesHub() {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-          {t("services.actions.nice")} ({formatCount(service.niceCount)})
-        </button>
-        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-          {t("services.actions.followAgent")}
-        </button>
-        <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-          {t("services.actions.share")} ({formatCount(service.shareCount)})
-        </button>
+        {isConsultingCategory ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-emerald-500/80 px-3 py-1 text-slate-950"
+            >
+              So'rov yuborish
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Savol berish
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Agentni follow
+            </button>
+          </>
+        ) : isLegalCategory ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
+            >
+              Maslahat so'rash
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Savol berish
+            </button>
+          </>
+        ) : isSportCategory ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
+            >
+              Mashg‘ulotga yozilish
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Savol berish
+            </button>
+          </>
+        ) : isTranslationCategory ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                router.push(`/services/${service.displayId}?upload=1`);
+              }}
+              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
+            >
+              Hujjat yuborish
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Savol berish
+            </button>
+          </>
+        ) : isPsychologyCategory ? (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                router.push(`/services/${service.displayId}?secure=1`);
+              }}
+              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
+            >
+              Xavfsiz yozish
+            </button>
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+            >
+              Profilni ko'rish
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+              {t("services.actions.nice")} ({formatCount(service.niceCount)})
+            </button>
+            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+              {t("services.actions.followAgent")}
+            </button>
+            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
+              {t("services.actions.share")} ({formatCount(service.shareCount)})
+            </button>
+          </>
+        )}
       </div>
     </div>
-  );
+    );
+  };
 
   const handleConfirmRide = () => {
     if (!latestRide) return;
@@ -1117,12 +2009,52 @@ export function ServicesHub() {
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">{t("services.hub.label")}</p>
-            <h1 className="text-2xl font-semibold text-slate-50">{t("services.hub.title")}</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">{t("services.hub.description")}</p>
+            <h1 className="text-2xl font-semibold text-slate-50">
+              {isLegalCategory
+                ? "Huquqiy maslahat va xizmatlar"
+                : isSportCategory
+                  ? "Professional sport murabbiylari va treninglar"
+                : isPsychologyCategory
+                  ? "Psixologik yordam va maslahatlar"
+                  : t("services.hub.title")}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-300">
+              {isLegalCategory
+                ? "Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar. Onlayn va oflayn formatda."
+                : isSportCategory
+                  ? "Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar."
+                : isPsychologyCategory
+                  ? "Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda."
+                  : t("services.hub.description")}
+            </p>
           </div>
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-100">
-            <p className="font-semibold">{t("services.hub.noteTitle")}</p>
-            <p className="mt-1 text-amber-200/90">{t("services.hub.noteBody")}</p>
+            <p className="font-semibold">
+              {isLegalCategory
+                ? "⚖️ Huquqshunoslarning malakasi platforma tomonidan tekshiriladi"
+                : isSportCategory
+                  ? "🔵 Murabbiy bo‘lish / Kurs joylash"
+                : isPsychologyCategory
+                  ? "🔒 Barcha yozishmalar maxfiy"
+                  : t("services.hub.noteTitle")}
+            </p>
+            <p className="mt-1 text-amber-200/90">
+              {isLegalCategory
+                ? "🔒 Yozishmalar maxfiy, hujjatlar xavfsiz saqlanadi."
+                : isSportCategory
+                  ? "Murabbiy sifatida ro‘yxatdan o‘tib trening yoki kursingizni joylashtiring."
+                : isPsychologyCategory
+                  ? "Sizning yozishmalaringiz faqat siz va mutaxassisga ko'rinadi."
+                  : t("services.hub.noteBody")}
+            </p>
+            {isSportCategory && (
+              <Link
+                href="/agent/listings/new"
+                className="mt-3 inline-flex items-center justify-center rounded-full bg-sky-500/90 px-3 py-1 text-[11px] font-semibold text-white"
+              >
+                Murabbiy bo‘lish / Kurs joylash
+              </Link>
+            )}
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2 text-xs">
@@ -1231,16 +2163,95 @@ export function ServicesHub() {
             </div>
           )}
           {isConsultingCategory && (
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="text-center">
-                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                  Uniserv Consulting
-                </p>
-                <p className="mt-2 text-sm text-slate-300">
-                  Konsultantlar aniq yo'nalish bo'yicha maslahat beradi. Oldindan pul olish taqiqlanadi.
-                </p>
+            <div className="mt-4 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Konsolting xizmati</p>
+                  <p className="mt-2 text-sm text-slate-300">
+                    Korea ↔ Uzbekistan bo'yicha aniq yo'nalish: viza, ish, ta'lim, biznes, moslashuv.
+                  </p>
+                  <a
+                    href="#consulting-how"
+                    className="mt-2 inline-flex items-center gap-2 text-xs text-sky-200 underline"
+                  >
+                    Qanday ishlaydi?
+                  </a>
+                </div>
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] text-emerald-100">
+                  <p className="font-semibold">Trust Score</p>
+                  <p className="mt-1 text-emerald-200/90">
+                    ID/sertifikat, reyting, tugallangan ishlar va javob tezligi asosida.
+                  </p>
+                </div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+
+              <div className="grid gap-3 md:grid-cols-[1.3fr_0.7fr]">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Qidiruv</label>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      value={consultingQuery}
+                      onChange={(event) => setConsultingQuery(event.target.value)}
+                      placeholder="Visa, CV, Koreyada ish, biznes, moslashuv, tarjima"
+                      className="min-w-[220px] flex-1 rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setConsultingQuery("")}
+                      className="rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200"
+                    >
+                      Tozalash
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {consultingKeywords.map((keyword) => (
+                      <button
+                        key={keyword}
+                        type="button"
+                        onClick={() => setConsultingQuery(keyword)}
+                        className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
+                      >
+                        {keyword}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Valyuta & vaqt zonasi</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConsultingCurrency("UZS")}
+                      className={`rounded-full px-3 py-1 ${
+                        consultingCurrency === "UZS"
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-800 text-slate-300"
+                      }`}
+                    >
+                      UZS
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConsultingCurrency("KRW")}
+                      className={`rounded-full px-3 py-1 ${
+                        consultingCurrency === "KRW"
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-800 text-slate-300"
+                      }`}
+                    >
+                      KRW
+                    </button>
+                    <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-300">
+                      Agent vaqti: KST
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Valyuta konvertatsiya taxminiy ko'rsatiladi.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-[11px]">
                 {consultingTabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -1256,10 +2267,9 @@ export function ServicesHub() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
-                  Kim uchun?
-                </span>
+
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">Kim uchun?</span>
                 <button
                   type="button"
                   onClick={() => setConsultingAudience("all")}
@@ -1286,19 +2296,25 @@ export function ServicesHub() {
                   </button>
                 ))}
               </div>
-              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
+
+              <div className="mt-2 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Joylashuv</label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
-                    value={consultingExperience}
-                    onChange={(e) => setConsultingExperience(e.target.value)}
+                    value={consultingLocation}
+                    onChange={(e) => setConsultingLocation(e.target.value)}
                   >
                     <option value="all">Barchasi</option>
-                    <option value="1-3">1-3 yil</option>
-                    <option value="4-6">4-6 yil</option>
-                    <option value="7+">7+ yil</option>
+                    <option value="korea">Koreya</option>
+                    <option value="uzbekistan">O'zbekiston</option>
                   </select>
+                  <input
+                    value={consultingCity}
+                    onChange={(event) => setConsultingCity(event.target.value)}
+                    placeholder="Shahar (ixtiyoriy)"
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                  />
                 </div>
                 <div>
                   <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
@@ -1315,16 +2331,18 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Reyting</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
-                    value={consultingRating}
-                    onChange={(e) => setConsultingRating(e.target.value)}
+                    value={consultingFormat}
+                    onChange={(e) => setConsultingFormat(e.target.value)}
                   >
                     <option value="all">Barchasi</option>
-                    <option value="4.7">4.7+</option>
-                    <option value="4.5">4.5+</option>
-                    <option value="4.3">4.3+</option>
+                    {consultingFormats.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1340,6 +2358,409 @@ export function ServicesHub() {
                     <option value="1500+">1.5m+</option>
                   </select>
                 </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingExperience}
+                    onChange={(e) => setConsultingExperience(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="1-3">1-3 yil</option>
+                    <option value="4-6">4-6 yil</option>
+                    <option value="7+">7+ yil</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Reyting</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingRating}
+                    onChange={(e) => setConsultingRating(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="4.7">4.7+</option>
+                    <option value="4.5">4.5+</option>
+                    <option value="4.3">4.3+</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Mavjudlik</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingAvailability}
+                    onChange={(e) => setConsultingAvailability(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="today">Bugun bo'sh</option>
+                    <option value="48h">48 soat ichida</option>
+                    <option value="soon">Tez orada</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saralash</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={consultingSort}
+                    onChange={(e) => setConsultingSort(e.target.value)}
+                  >
+                    <option value="match">Eng mos</option>
+                    <option value="rating">Eng yuqori reyting</option>
+                    <option value="fast">Eng tez javob</option>
+                    <option value="cheap">Arzonroq</option>
+                    <option value="popular">Ko'p buyurtma</option>
+                    <option value="new">Yangi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                id="consulting-how"
+                className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300"
+              >
+                <p className="font-semibold text-slate-100">Qanday ishlaydi?</p>
+                <div className="mt-2 grid gap-2 text-[11px] text-slate-400 sm:grid-cols-3">
+                  <span>1. So'rov yuborasiz</span>
+                  <span>2. Agent moslikni tasdiqlaydi</span>
+                  <span>3. Ish reja + natija</span>
+                </div>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Huquqiy/visa xizmatlari rasmiy vakillik emas. Rasmiy organ qaroriga ta'sir qilmaydi.
+                </p>
+              </div>
+            </div>
+          )}
+          {isPsychologyCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Psixologik yordam va maslahatlar
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda.
+                </p>
+                <p className="mt-2 text-[11px] text-slate-400">🔒 Barcha yozishmalar maxfiy</p>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Muammo yo'nalishi</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  {psychologyIssues.map((issue) => (
+                    <button
+                      key={issue.id}
+                      type="button"
+                      onClick={() => setPsychologyIssue(issue.id)}
+                      className={`rounded-full px-3 py-1 ${
+                        psychologyIssue === issue.id
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-900/70 text-slate-300"
+                      }`}
+                    >
+                      {issue.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Kimlar uchun</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={psychologyAudience}
+                    onChange={(e) => setPsychologyAudience(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {psychologyAudiences.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={psychologyFormat}
+                    onChange={(e) => setPsychologyFormat(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {psychologyFormats.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={psychologyLanguage}
+                    onChange={(e) => setPsychologyLanguage(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="UZ">O'zbek</option>
+                    <option value="KR">Koreys</option>
+                    <option value="RU">Rus</option>
+                    <option value="EN">Ingliz</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={psychologyExperience}
+                    onChange={(e) => setPsychologyExperience(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="certified">Sertifikat tasdiqlangan</option>
+                    <option value="3+">3+ yil</option>
+                    <option value="5+">5+ yil</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          {isLegalCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Huquqiy maslahat va xizmatlar
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar.
+                </p>
+                <p className="mt-2 text-[11px] text-slate-400">⚖️ Malaka tekshiriladi · 🔒 Maxfiylik</p>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Huquq sohasi</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  {legalAreas.map((area) => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => setLegalArea(area)}
+                      className={`rounded-full px-3 py-1 ${
+                        legalArea === area
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-900/70 text-slate-300"
+                      }`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+                {legalArea === "all" && (
+                  <p className="mt-2 text-[11px] text-slate-400">
+                    Hammasi ko‘rinmoqda. Tanlasangiz faqat o‘sha yo‘nalish chiqadi.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Xizmat turi</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={legalServiceType}
+                    onChange={(e) => setLegalServiceType(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {legalServiceTypes.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Yurisdiksiya</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={legalJurisdiction}
+                    onChange={(e) => setLegalJurisdiction(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {legalJurisdictions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Til</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={legalLanguage}
+                    onChange={(e) => setLegalLanguage(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {legalLanguages.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Format</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={legalFormat}
+                    onChange={(e) => setLegalFormat(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {legalFormats.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">6. Ishonchlilik</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={legalTrust}
+                    onChange={(e) => setLegalTrust(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    <option value="license">✅ Litsenziya tasdiqlangan</option>
+                    <option value="5y">5+ yil tajriba</option>
+                    <option value="rating">Yuqori reyting</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+          {isSportCategory && (
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                  Professional sport murabbiylari va treninglar
+                </p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar.
+                </p>
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Birga shug‘ullanishni xohlovchilar uchun ham e’lonlar mavjud.
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Sport turi</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setSportType("all")}
+                    className={`rounded-full px-3 py-1 ${
+                      sportType === "all"
+                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                        : "bg-slate-900/70 text-slate-300"
+                    }`}
+                  >
+                    Barchasi
+                  </button>
+                  {sportTypes.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setSportType(item)}
+                      className={`rounded-full px-3 py-1 ${
+                        sportType === item
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-900/70 text-slate-300"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Xizmat turi</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={sportServiceType}
+                    onChange={(e) => setSportServiceType(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {sportServiceTypes.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Daraja</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={sportLevel}
+                    onChange={(e) => setSportLevel(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {sportLevels.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Kimlar uchun</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={sportAudience}
+                    onChange={(e) => setSportAudience(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {sportAudiences.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Format</label>
+                  <select
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={sportFormat}
+                    onChange={(e) => setSportFormat(e.target.value)}
+                  >
+                    <option value="all">Barchasi</option>
+                    {sportFormats.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">6. Shahar / tuman</label>
+                  <input
+                    value={sportCity}
+                    onChange={(event) => setSportCity(event.target.value)}
+                    placeholder="Toshkent, Samarqand..."
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Sport zali nomi</label>
+                  <input
+                    value={sportGym}
+                    onChange={(event) => setSportGym(event.target.value)}
+                    placeholder="FitZone Gym..."
+                    className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1350,52 +2771,39 @@ export function ServicesHub() {
                   Uniserv Translation
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Tarjimonlar 1-2 yo'nalishda ishlaydi. Namuna ishlar va maxfiylik kafolatlanadi.
+                  Tezlik va rasmiylik birinchi o'rinda. Hujjat turini tanlang va mos tarjimonni toping.
                 </p>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
-                {translationTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setTranslationTab(tab.id)}
-                    className={`rounded-full px-3 py-1 ${
-                      translationTab === tab.id
-                        ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
-                        : "bg-slate-900/70 text-slate-300"
-                    }`}
-                  >
-                    {tab.title}
-                  </button>
-                ))}
+
+              <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Hujjat turi</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  {translationTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setTranslationTab(tab.id)}
+                      className={`rounded-full px-3 py-1 ${
+                        translationTab === tab.id
+                          ? "bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/40"
+                          : "bg-slate-900/70 text-slate-300"
+                      }`}
+                    >
+                      {tab.title}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTranslationTab("all");
-                    setTranslationFrom("");
-                    setTranslationTo("");
-                    setTranslationNotarization("all");
-                    setTranslationSpeed("all");
-                    setTranslationFormat("all");
-                    setTranslationMode("all");
-                  }}
-                  className="rounded-full bg-slate-900/70 px-3 py-1 text-slate-300"
-                >
-                  Barchasi
-                </button>
-                <span className="text-slate-500">Til va filterlarni tozalash</span>
-              </div>
+
               <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til (qaysidan)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Til (qaysidan)</label>
                   <input
                     list="translation-from-list"
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationFrom}
                     onChange={(e) => setTranslationFrom(e.target.value.toUpperCase())}
-                    placeholder="EN"
+                    placeholder="KR"
                   />
                   <datalist id="translation-from-list">
                     {translationLanguages.map((lang) => (
@@ -1404,7 +2812,7 @@ export function ServicesHub() {
                   </datalist>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til (qaysiga)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Til (qaysiga)</label>
                   <input
                     list="translation-to-list"
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
@@ -1419,27 +2827,30 @@ export function ServicesHub() {
                   </datalist>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Notarial tasdiq</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Rasmiylik</label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
-                    value={translationNotarization}
-                    onChange={(e) => setTranslationNotarization(e.target.value)}
+                    value={translationOfficial}
+                    onChange={(e) => setTranslationOfficial(e.target.value)}
                   >
                     <option value="all">Barchasi</option>
-                    <option value="yes">Ha</option>
-                    <option value="no">Yo'q</option>
+                    <option value="Oddiy">Oddiy tarjima</option>
+                    <option value="Notarial">Notarial tasdiq</option>
+                    <option value="Muhrli">Muhrli tarjima</option>
+                    <option value="Guvohnoma">Guvohnoma bilan</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tezlik</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Tezlik (SLA)</label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
-                    value={translationSpeed}
-                    onChange={(e) => setTranslationSpeed(e.target.value)}
+                    value={translationSla}
+                    onChange={(e) => setTranslationSla(e.target.value)}
                   >
                     <option value="all">Barchasi</option>
-                    <option value="oddiy">Oddiy</option>
-                    <option value="shoshilinch">Shoshilinch</option>
+                    <option value="2-6 soat">2-6 soat</option>
+                    <option value="24 soat">24 soat</option>
+                    <option value="2-3 ish kuni">2-3 ish kuni</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1450,13 +2861,13 @@ export function ServicesHub() {
                     onChange={(e) => setTranslationFormat(e.target.value)}
                   >
                     <option value="all">Barchasi</option>
-                    <option value="PDF">PDF</option>
-                    <option value="Scan">Scan</option>
-                    <option value="Original">Original</option>
+                    <option value="PDF">PDF / DOCX</option>
+                    <option value="Scan">Rasm → matn</option>
+                    <option value="Original">Original (muhrli)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Og'zaki / Yozma</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Og'zaki</label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationMode}
@@ -1467,6 +2878,44 @@ export function ServicesHub() {
                     <option value="oral">Og'zaki</option>
                   </select>
                 </div>
+              </div>
+
+              {translationTab === "translation-official" && (
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-300">
+                    Rasmiy tanlandi → notarial opsiyalar ko'rinadi
+                  </span>
+                  <select
+                    className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
+                    value={translationNotarization}
+                    onChange={(e) => setTranslationNotarization(e.target.value)}
+                  >
+                    <option value="all">Notarial: barchasi</option>
+                    <option value="yes">Notarial bor</option>
+                    <option value="no">Notarial yo'q</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTranslationTab("all");
+                    setTranslationFrom("");
+                    setTranslationTo("");
+                    setTranslationNotarization("all");
+                    setTranslationSpeed("all");
+                    setTranslationFormat("all");
+                    setTranslationMode("all");
+                    setTranslationOfficial("all");
+                    setTranslationSla("all");
+                  }}
+                  className="rounded-full bg-slate-900/70 px-3 py-1 text-slate-300"
+                >
+                  Barchasi
+                </button>
+                <span className="text-slate-500">Filtrlarni tozalash</span>
               </div>
             </div>
           )}

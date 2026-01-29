@@ -6,6 +6,79 @@ import { addProductView, getProductDetail, likeProduct, purchaseProduct, type Pr
 import { Spinner } from "@/components/shared/Spinner";
 import { useAuthStore } from "@/store/auth";
 
+const PRODUCT_IMAGE_POOL_SIZE = 36;
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const makeProductImages = (pool: string, seed: string, count = 8) => {
+  const safeCount = Math.min(20, Math.max(5, count));
+  const base = (hashString(`${pool}-${seed}`) % PRODUCT_IMAGE_POOL_SIZE) + 1;
+  return Array.from({ length: safeCount }, (_, idx) => {
+    const value = ((base + idx * 5) % PRODUCT_IMAGE_POOL_SIZE) + 1;
+    return `/services/${pool}/${String(value).padStart(2, "0")}.jpg`;
+  });
+};
+
+const resolveProductPool = (product: Product) => {
+  const category = (product.category || "").toLowerCase();
+  const id = (product.id || product._id || "").toString().toLowerCase();
+
+  if (category.includes("oziq") || id.startsWith("ready-") || id.startsWith("semi") || id.startsWith("meat-") || id.startsWith("ex-")) {
+    return "delivery";
+  }
+  if (category.includes("gozallik") || id.startsWith("frag-") || id.startsWith("skin-") || id.startsWith("hair-") || id.startsWith("bath-") || id.startsWith("sun-")) {
+    return "marketing";
+  }
+  if (category.includes("elektronika") || id.startsWith("pc-") || id.startsWith("mobile-") || id.startsWith("tv-") || id.startsWith("cam-") || id.startsWith("oth-")) {
+    return "technical";
+  }
+  if (id.startsWith("game-") || id.startsWith("console-")) {
+    return "technical";
+  }
+  if (category.includes("avto") || id.startsWith("car-") || id.startsWith("carpart-") || id.startsWith("tools-") || id.startsWith("techpart-")) {
+    return "taxi";
+  }
+  if (category.includes("maishiy") || id.startsWith("vac-") || id.startsWith("kitchen-") || id.startsWith("air-") || id.startsWith("otherhome-")) {
+    return "cleaning";
+  }
+  if (category.includes("kiyim") || id.startsWith("men-") || id.startsWith("women-") || id.startsWith("kidswear-") || id.startsWith("elder-") || id.startsWith("spec-")) {
+    return "sport";
+  }
+  return "technical";
+};
+
+const resolveProductImageCount = (product: Product) => {
+  const id = (product.id || product._id || "").toString().toLowerCase();
+  if (id.startsWith("mobile-")) return 8;
+  return 3;
+};
+
+const getDeliveryMeta = (data: Product) => {
+  const seed = (data._id || data.id || data.name || data.title || "").toString();
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  const options = [
+    { key: "today", label: "Bugun" },
+    { key: "tomorrow", label: "Ertaga" },
+    { key: "standard", label: "Oddiy" }
+  ];
+  const delivery = options[Math.abs(hash) % options.length];
+  return {
+    delivery,
+    free: (data.price ?? 0) >= 100 || Math.abs(hash) % 2 === 0
+  };
+};
+
 export default function ProductDetailPage() {
   const params = useParams();
   const id = useMemo(() => {
@@ -142,6 +215,7 @@ export default function ProductDetailPage() {
   const oldPrice = oldPriceValue !== null ? oldPriceValue.toLocaleString("en-US", { maximumFractionDigits: 2 }) : null;
   const discount =
     priceValue !== null && oldPriceValue !== null && oldPriceValue > 0 ? Math.round(((oldPriceValue - priceValue) / oldPriceValue) * 100) : null;
+  const deliveryMeta = getDeliveryMeta(data);
 
   return (
     <div className="space-y-6">
@@ -155,7 +229,14 @@ export default function ProductDetailPage() {
               <h1 className="text-3xl font-black text-slate-900">{data.name || data.title}</h1>
               {data.category && <p className="mt-1 text-sm font-semibold text-emerald-600">{data.category}</p>}
             </div>
-            <RatingBadge rating={data.rating?.avg ?? 0} count={data.rating?.count ?? 0} />
+            <RatingBadge
+              rating={data.rating?.avg ?? 0}
+              count={data.rating?.count ?? 0}
+              onClick={() => {
+                const node = document.getElementById("reviews");
+                if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            />
           </div>
 
           <Badges
@@ -215,6 +296,13 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <p className="font-semibold">Yetkazish: {deliveryMeta.delivery.label}</p>
+            <p className="text-[11px] text-emerald-700">
+              {deliveryMeta.free ? "Bepul yetkazish shartlari bajarilgan" : "Bepul yetkazish 100$+ buyurtmada"}
+            </p>
+          </div>
+
           <StatsRow stats={stats} />
 
           <QuickFacts data={data} />
@@ -225,6 +313,32 @@ export default function ProductDetailPage() {
 
       <Specifications data={data.specifications} />
       <Description text={data.description} category={data.category} images={data.images} />
+      <ReviewsPreview rating={data.rating?.avg ?? 0} count={data.rating?.count ?? 0} />
+      <RelatedProducts images={data.images} />
+
+      <div className="fixed bottom-4 left-4 right-4 z-40 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={handleAddToCart}
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700"
+        >
+          Savatga
+        </button>
+        <button
+          type="button"
+          onClick={handlePurchase}
+          className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-xs font-semibold text-white"
+        >
+          Tez sotib olish
+        </button>
+        <button
+          type="button"
+          onClick={handleLike}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs"
+        >
+          ❤️
+        </button>
+      </div>
     </div>
   );
 }
@@ -243,7 +357,7 @@ function ImageSlider({ images, alt }: { images?: string[]; alt?: string }) {
         <img
           src={safeImages[active]}
           alt={alt || "Product image"}
-          className="h-[420px] w-full object-cover"
+          className="h-[420px] w-full cursor-zoom-in object-cover"
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = "/placeholder.png";
@@ -278,11 +392,23 @@ function ImageSlider({ images, alt }: { images?: string[]; alt?: string }) {
   );
 }
 
-function RatingBadge({ rating, count }: { rating: number; count: number }) {
+function RatingBadge({
+  rating,
+  count,
+  onClick
+}: {
+  rating: number;
+  count: number;
+  onClick?: () => void;
+}) {
   return (
-    <div className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 shadow-sm"
+    >
       ⭐ {rating.toFixed(1)} ({count})
-    </div>
+    </button>
   );
 }
 
@@ -357,6 +483,75 @@ function Specifications({ data }: { data?: Record<string, string> }) {
           >
             <span className="font-semibold text-slate-800">{key}</span>
             <span>{value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReviewsPreview({ rating, count }: { rating: number; count: number }) {
+  const breakdown = [
+    { star: 5, value: 62 },
+    { star: 4, value: 22 },
+    { star: 3, value: 9 },
+    { star: 2, value: 5 },
+    { star: 1, value: 2 }
+  ];
+  return (
+    <section id="reviews" className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-slate-900">Sharhlar</h2>
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+          ⭐ {rating.toFixed(1)} · {count} review
+        </span>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_2fr]">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-semibold">Rating breakdown</p>
+          <p className="mt-2 text-xs text-slate-500">Foto reviewlar va eng foydali izohlar</p>
+        </div>
+        <div className="space-y-2">
+          {breakdown.map((row) => (
+            <div key={row.star} className="flex items-center gap-3 text-xs text-slate-600">
+              <span className="w-10">{row.star}⭐</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full bg-amber-400" style={{ width: `${row.value}%` }} />
+              </div>
+              <span className="w-10 text-right">{row.value}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+        <button type="button" className="rounded-full border border-slate-200 px-3 py-1">
+          Photo reviews
+        </button>
+        <button type="button" className="rounded-full border border-slate-200 px-3 py-1">
+          Most helpful
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RelatedProducts({ images }: { images?: string[] }) {
+  const list = normalizeImagesList(images).slice(0, 6);
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg">
+      <h2 className="text-xl font-bold text-slate-900">Related products</h2>
+      <div className="mt-4 flex gap-3 overflow-x-auto">
+        {list.map((src, idx) => (
+          <div key={`${src}-${idx}`} className="min-w-[160px] overflow-hidden rounded-2xl border border-slate-100">
+            <img
+              src={src}
+              alt={`Related ${idx + 1}`}
+              className="h-32 w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/placeholder.png";
+              }}
+            />
           </div>
         ))}
       </div>
@@ -482,6 +677,13 @@ function mergeProductData(base?: Product | null, next?: Product | null): Product
   combined.price = next?.price ?? base?.price;
   combined.oldPrice = next?.oldPrice ?? base?.oldPrice;
   combined.category = next?.category || base?.category;
+  const pool = resolveProductPool(combined);
+  const key = (combined.id || combined._id || combined.name || "").toString();
+  if (key) {
+    const images = makeProductImages(pool, key, resolveProductImageCount(combined));
+    combined.images = images;
+    combined.thumbnail = images[0];
+  }
   return combined;
 }
 
@@ -490,7 +692,7 @@ function normalizeImagesList(images?: string[]) {
   const prepared = base.length ? base.slice(0, 20) : ["/placeholder.png"];
   const result = [...prepared];
 
-  while (result.length < 3) {
+  while (result.length < 5) {
     const next = prepared[result.length % prepared.length] || "/placeholder.png";
     result.push(next);
   }

@@ -1,13 +1,65 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
 import ProductCard from "@/components/ProductCard";
 import { Spinner } from "@/components/shared/Spinner";
 import { useProducts } from "@/hooks/useProducts";
 import CategoriesSidebar from "@/components/CategoriesSidebar";
 import type { Product } from "@/api/products";
+
+const PRODUCT_IMAGE_POOL_SIZE = 36;
+const DELIVERY_OPTIONS = [
+  { key: "fast", label: "Tez" },
+  { key: "tomorrow", label: "Ertaga" },
+  { key: "standard", label: "Oddiy" }
+];
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const makeProductImages = (pool: string, seed: string, count = 3) => {
+  const safeCount = Math.min(20, Math.max(3, count));
+  const base = (hashString(`${pool}-${seed}`) % PRODUCT_IMAGE_POOL_SIZE) + 1;
+  return Array.from({ length: safeCount }, (_, idx) => {
+    const value = ((base + idx * 5) % PRODUCT_IMAGE_POOL_SIZE) + 1;
+    return `/services/${pool}/${String(value).padStart(2, "0")}.jpg`;
+  });
+};
+
+const getDeliveryMeta = (item: Product) => {
+  const seed = (item._id || item.id || item.name || item.title || "").toString();
+  const base = hashString(seed);
+  const delivery = DELIVERY_OPTIONS[base % DELIVERY_OPTIONS.length];
+  const inStock = base % 9 !== 0;
+  return { delivery: delivery.key, deliveryLabel: delivery.label, inStock };
+};
+
+const withProductImages = (
+  record: Record<string, Product[]>,
+  pool: string,
+  overrides: Record<string, number> = {}
+) =>
+  Object.fromEntries(
+    Object.entries(record).map(([key, items]) => [
+      key,
+      items.map((item) => {
+        const count = overrides[item.id || item._id || item.name || ""] ?? 3;
+        const images = makeProductImages(pool, item.id || item._id || item.name || key, count);
+        return {
+          ...item,
+          thumbnail: images[0],
+          images
+        };
+      })
+    ])
+  );
 
 export default function ProductsPage() {
   const {
@@ -21,14 +73,25 @@ export default function ProductsPage() {
     category: "",
     order: "popular"
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<
+    "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest"
+  >("relevance");
+  const [quickFilters, setQuickFilters] = useState({
+    priceMin: "",
+    priceMax: "",
+    brand: "",
+    rating45: false,
+    delivery: "any",
+    inStock: false,
+    condition: "any"
+  });
+  const [fastOnly, setFastOnly] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileSortOpen, setMobileSortOpen] = useState(false);
 
   const handlePageChange = (page: number) => {
     setPagination((prev) => ({ ...prev, page }));
-  };
-
-  const handleFilterChange = (next: typeof filters) => {
-    setFilters(next);
-    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleCategorySelect = (slug: string) => {
@@ -164,15 +227,15 @@ export default function ProductsPage() {
     { key: "special", label: "Maxsus bo'lim" }
   ] as const;
 
-  const foodProductsMock: Record<string, Product[]> = {
+  const foodProductsMock: Record<string, Product[]> = withProductImages({
     tayyor: [
       {
         id: "ready-1",
         name: "Mediterranean mezze set",
         description: "Humus, tabbouleh va pita noni to'plami",
         price: 24.9,
-        thumbnail: "https://images.unsplash.com/photo-1604908177035-0ac1c9bb646c?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1604908177035-0ac1c9bb646c?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0006.jpg",
+        images: ["/images/remote/remote-0007.jpg"],
         rating: { avg: 4.8, count: 120 },
         stats: { views: 1200, likes: 340, purchases: 210 }
       },
@@ -181,8 +244,8 @@ export default function ProductsPage() {
         name: "Sushi mix box",
         description: "12 dona nigiri va maki kombo",
         price: 29.5,
-        thumbnail: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0008.jpg",
+        images: ["/images/remote/remote-0009.jpg"],
         rating: { avg: 4.7, count: 95 },
         stats: { views: 980, likes: 280, purchases: 180 }
       },
@@ -191,8 +254,8 @@ export default function ProductsPage() {
         name: "Vegetarian bowl",
         description: "Quinoa, avokado va qovurilgan sabzavotlar",
         price: 18.0,
-        thumbnail: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0010.jpg",
+        images: ["/images/remote/remote-0011.jpg"],
         rating: { avg: 4.6, count: 88 },
         stats: { views: 720, likes: 190, purchases: 140 }
       }
@@ -203,8 +266,8 @@ export default function ProductsPage() {
         name: "Manti semi-ready",
         description: "Bug'doy xamiri va mol go'shti aralashmasi",
         price: 14.9,
-        thumbnail: "https://images.unsplash.com/photo-1604908177553-0ac1c9bb646d?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1604908177553-0ac1c9bb646d?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0012.jpg",
+        images: ["/images/remote/remote-0013.jpg"],
         rating: { avg: 4.5, count: 64 },
         stats: { views: 540, likes: 130, purchases: 90 }
       },
@@ -213,8 +276,8 @@ export default function ProductsPage() {
         name: "Pelmeni set",
         description: "1 kg muzlatilgan tovuq pelmeni",
         price: 12.5,
-        thumbnail: "https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0014.jpg",
+        images: ["/images/remote/remote-0015.jpg"],
         rating: { avg: 4.4, count: 52 },
         stats: { views: 460, likes: 110, purchases: 80 }
       },
@@ -223,8 +286,8 @@ export default function ProductsPage() {
         name: "Pizza base kit",
         description: "2 ta xamirdan iborat, sous va pishloq bilan",
         price: 16.0,
-        thumbnail: "https://images.unsplash.com/photo-1548365328-8b8c1f1c2a0b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1548365328-8b8c1f1c2a0b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0016.jpg",
+        images: ["/images/remote/remote-0017.jpg"],
         rating: { avg: 4.6, count: 70 },
         stats: { views: 610, likes: 150, purchases: 100 }
       }
@@ -235,8 +298,8 @@ export default function ProductsPage() {
         name: "Organic apple puree",
         description: "Shakar qo'shilmagan, 6+ oy",
         price: 4.5,
-        thumbnail: "https://images.unsplash.com/photo-1604908177791-0ac1c9bb6471?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1604908177791-0ac1c9bb6471?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0018.jpg",
+        images: ["/images/remote/remote-0019.jpg"],
         rating: { avg: 4.9, count: 140 },
         stats: { views: 880, likes: 260, purchases: 210 }
       },
@@ -245,8 +308,8 @@ export default function ProductsPage() {
         name: "Kids cereal mix",
         description: "Vitaminli donalar, kakao ta'mi",
         price: 6.9,
-        thumbnail: "https://images.unsplash.com/photo-1523473827535-6cb2c1c0632c?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1523473827535-6cb2c1c0632c?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0020.jpg",
+        images: ["/images/remote/remote-0021.jpg"],
         rating: { avg: 4.7, count: 90 },
         stats: { views: 720, likes: 190, purchases: 150 }
       },
@@ -255,8 +318,8 @@ export default function ProductsPage() {
         name: "Mini fruit snacks",
         description: "Quruq mevalar, paketli",
         price: 5.2,
-        thumbnail: "https://images.unsplash.com/photo-1505253216365-4f6161e1dcea?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1505253216365-4f6161e1dcea?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0022.jpg",
+        images: ["/images/remote/remote-0023.jpg"],
         rating: { avg: 4.5, count: 60 },
         stats: { views: 500, likes: 120, purchases: 90 }
       }
@@ -267,8 +330,8 @@ export default function ProductsPage() {
         name: "Ribeye steak",
         description: "Alo navli mol go'shti, 350g",
         price: 21.0,
-        thumbnail: "https://images.unsplash.com/photo-1604908177059-0ac1c9bb646f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1604908177059-0ac1c9bb646f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0024.jpg",
+        images: ["/images/remote/remote-0025.jpg"],
         rating: { avg: 4.8, count: 110 },
         stats: { views: 940, likes: 280, purchases: 200 }
       },
@@ -277,8 +340,8 @@ export default function ProductsPage() {
         name: "Chicken fillet pack",
         description: "1 kg terisiz tovuq filesi",
         price: 9.8,
-        thumbnail: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0026.jpg",
+        images: ["/images/remote/remote-0027.jpg"],
         rating: { avg: 4.6, count: 85 },
         stats: { views: 780, likes: 210, purchases: 170 }
       },
@@ -287,8 +350,8 @@ export default function ProductsPage() {
         name: "Lamb kebab mix",
         description: "Tayyorlangan marinadlangan qoy go'shti",
         price: 17.5,
-        thumbnail: "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0028.jpg",
+        images: ["/images/remote/remote-0029.jpg"],
         rating: { avg: 4.7, count: 92 },
         stats: { views: 820, likes: 230, purchases: 160 }
       }
@@ -299,8 +362,8 @@ export default function ProductsPage() {
         name: "Truffle pasta kit",
         description: "Qora truffle sousi va artisan makaron",
         price: 34.0,
-        thumbnail: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0026.jpg",
+        images: ["/images/remote/remote-0027.jpg"],
         rating: { avg: 4.9, count: 60 },
         stats: { views: 620, likes: 190, purchases: 120 }
       },
@@ -309,8 +372,8 @@ export default function ProductsPage() {
         name: "Artisan cheese board",
         description: "5 xil premium pishloq va qoshimchalar",
         price: 42.0,
-        thumbnail: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0030.jpg",
+        images: ["/images/remote/remote-0031.jpg"],
         rating: { avg: 4.8, count: 75 },
         stats: { views: 700, likes: 210, purchases: 130 }
       },
@@ -319,15 +382,15 @@ export default function ProductsPage() {
         name: "Single-origin cocoa set",
         description: "Yuqori sifatli kakao donalari va sharbatlari",
         price: 27.5,
-        thumbnail: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0026.jpg",
+        images: ["/images/remote/remote-0027.jpg"],
         rating: { avg: 4.7, count: 68 },
         stats: { views: 650, likes: 180, purchases: 115 }
       }
     ]
-  };
+  }, "delivery");
 
-  const beautyProductsMock: Record<string, Product[]> = {
+  const beautyProductsMock: Record<string, Product[]> = withProductImages({
     fragrance: [
       {
         id: "frag-1",
@@ -335,8 +398,8 @@ export default function ProductsPage() {
         description: "Yengil bahor atiri, uzun davomiylik",
         price: 89,
         brand: "Fleur",
-        thumbnail: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0032.jpg",
+        images: ["/images/remote/remote-0033.jpg"],
         rating: { avg: 4.7, count: 160 },
         stats: { views: 1100, likes: 340, purchases: 240 },
         audience: "women"
@@ -347,8 +410,8 @@ export default function ProductsPage() {
         description: "Daraxt va achchiq notalar, kechki chiqishlar uchun",
         price: 105,
         brand: "Noir",
-        thumbnail: "https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0034.jpg",
+        images: ["/images/remote/remote-0035.jpg"],
         rating: { avg: 4.8, count: 140 },
         stats: { views: 980, likes: 320, purchases: 210 },
         audience: "men"
@@ -359,8 +422,8 @@ export default function ProductsPage() {
         description: "Sitrus asosida unisex atir",
         price: 79,
         brand: "Lumen",
-        thumbnail: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0036.jpg",
+        images: ["/images/remote/remote-0037.jpg"],
         rating: { avg: 4.6, count: 120 },
         stats: { views: 860, likes: 270, purchases: 180 },
         audience: "unisex"
@@ -373,8 +436,8 @@ export default function ProductsPage() {
         description: "Namlovchi yuz kremi, gialuron kislotasi",
         price: 42,
         brand: "Hydra",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.7, count: 200 },
         stats: { views: 1250, likes: 390, purchases: 260 },
         audience: "women"
@@ -385,8 +448,8 @@ export default function ProductsPage() {
         description: "Yuzni yorqinlashtiruvchi 10% vitamin C",
         price: 38,
         brand: "C-Light",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 150 },
         stats: { views: 980, likes: 310, purchases: 210 },
         audience: "unisex"
@@ -397,8 +460,8 @@ export default function ProductsPage() {
         description: "Keng spektrli quyoshdan himoya",
         price: 29,
         brand: "SunGuard",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 130 },
         stats: { views: 820, likes: 250, purchases: 170 },
         audience: "unisex"
@@ -411,8 +474,8 @@ export default function ProductsPage() {
         description: "Sochni mustahkamlovchi keratinli shampun",
         price: 19,
         brand: "Kerax",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 110 },
         stats: { views: 740, likes: 200, purchases: 150 },
         audience: "women"
@@ -423,8 +486,8 @@ export default function ProductsPage() {
         description: "Hajm beruvchi styling spreyi",
         price: 24,
         brand: "Volumix",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.4, count: 95 },
         stats: { views: 680, likes: 180, purchases: 130 },
         audience: "women"
@@ -435,8 +498,8 @@ export default function ProductsPage() {
         description: "Erkaklar uchun yengil yog'li aralashma",
         price: 21,
         brand: "Gentle",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 80 },
         stats: { views: 560, likes: 170, purchases: 120 },
         audience: "men"
@@ -449,8 +512,8 @@ export default function ProductsPage() {
         description: "Uzoq saqlanuvchi, mat effekt",
         price: 22,
         brand: "Velvet",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.7, count: 140 },
         stats: { views: 880, likes: 260, purchases: 190 },
         audience: "women"
@@ -461,8 +524,8 @@ export default function ProductsPage() {
         description: "Yengil va yuqori yopuvchanlik",
         price: 34,
         brand: "Prime",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 120 },
         stats: { views: 760, likes: 220, purchases: 170 },
         audience: "women"
@@ -473,8 +536,8 @@ export default function ProductsPage() {
         description: "Uzaytiruvchi va qalinlashtiruvchi maskara",
         price: 18,
         brand: "Lift",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 130 },
         stats: { views: 690, likes: 200, purchases: 150 },
         audience: "women"
@@ -487,8 +550,8 @@ export default function ProductsPage() {
         description: "Quruq teri uchun intensiv namlovchi",
         price: 26,
         brand: "SheaLux",
-        thumbnail: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0032.jpg",
+        images: ["/images/remote/remote-0033.jpg"],
         rating: { avg: 4.7, count: 100 },
         stats: { views: 620, likes: 180, purchases: 130 },
         audience: "unisex"
@@ -499,8 +562,8 @@ export default function ProductsPage() {
         description: "Bolalar uchun yumshoq yuvinish geli",
         price: 14,
         brand: "SoftKids",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 90 },
         stats: { views: 540, likes: 150, purchases: 110 },
         audience: "kids"
@@ -511,8 +574,8 @@ export default function ProductsPage() {
         description: "Erkaklar uchun yangilovchi jel",
         price: 17,
         brand: "FreshMen",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 85 },
         stats: { views: 500, likes: 140, purchases: 95 },
         audience: "men"
@@ -525,8 +588,8 @@ export default function ProductsPage() {
         description: "3 ta gel lak va top coat",
         price: 28,
         brand: "Lumi Nails",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 90 },
         stats: { views: 610, likes: 170, purchases: 120 },
         audience: "women"
@@ -537,8 +600,8 @@ export default function ProductsPage() {
         description: "Oziqlantiruvchi bodom yog'i asosida",
         price: 12,
         brand: "SoftNail",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 70 },
         stats: { views: 480, likes: 140, purchases: 90 },
         audience: "unisex"
@@ -549,8 +612,8 @@ export default function ProductsPage() {
         description: "Pilka, buff va metall asboblar to'plami",
         price: 19,
         brand: "CareKit",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.4, count: 60 },
         stats: { views: 430, likes: 120, purchases: 80 },
         audience: "unisex"
@@ -563,8 +626,8 @@ export default function ProductsPage() {
         description: "12 dona professional cho'tkalar",
         price: 39,
         brand: "BrushPro",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.7, count: 130 },
         stats: { views: 720, likes: 210, purchases: 150 },
         audience: "women"
@@ -575,8 +638,8 @@ export default function ProductsPage() {
         description: "Ioniq funksiyali, 3 rejim",
         price: 65,
         brand: "IonicAir",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 100 },
         stats: { views: 650, likes: 180, purchases: 120 },
         audience: "unisex"
@@ -587,8 +650,8 @@ export default function ProductsPage() {
         description: "Elektron yuz tozalash cho'tkasi",
         price: 45,
         brand: "PureFace",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 95 },
         stats: { views: 580, likes: 170, purchases: 110 },
         audience: "women"
@@ -601,8 +664,8 @@ export default function ProductsPage() {
         description: "Lavanda, sitrus va vanil aromatlari",
         price: 22,
         brand: "Calm",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 90 },
         stats: { views: 520, likes: 150, purchases: 100 },
         audience: "unisex"
@@ -613,8 +676,8 @@ export default function ProductsPage() {
         description: "Tiniqlik beruvchi dush jeli",
         price: 16,
         brand: "FreshSpa",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 80 },
         stats: { views: 470, likes: 130, purchases: 90 },
         audience: "unisex"
@@ -625,8 +688,8 @@ export default function ProductsPage() {
         description: "Mineralli skrab, terini yangilaydi",
         price: 27,
         brand: "Ocean",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 85 },
         stats: { views: 510, likes: 140, purchases: 95 },
         audience: "unisex"
@@ -639,8 +702,8 @@ export default function ProductsPage() {
         description: "Yengil purkagich, makiyaj ustiga mos",
         price: 33,
         brand: "SunMist",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 90 },
         stats: { views: 480, likes: 150, purchases: 100 },
         audience: "unisex"
@@ -651,8 +714,8 @@ export default function ProductsPage() {
         description: "Hissiz, keng spektrli, bolalar va kattalar uchun",
         price: 29,
         brand: "Mineral",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 85 },
         stats: { views: 450, likes: 130, purchases: 90 },
         audience: "kids"
@@ -663,16 +726,16 @@ export default function ProductsPage() {
         description: "Aloe vera asosida tinchlantiruvchi",
         price: 18,
         brand: "CoolAloe",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 75 },
         stats: { views: 420, likes: 120, purchases: 80 },
         audience: "unisex"
       }
     ]
-  };
+  }, "marketing");
 
-  const electronicsProductsMock: Record<string, Product[]> = {
+  const electronicsProductsMock: Record<string, Product[]> = withProductImages({
     pc: [
       {
         id: "pc-1",
@@ -680,8 +743,8 @@ export default function ProductsPage() {
         description: "RTX 4060, 16GB RAM, 1TB SSD",
         price: 1299,
         brand: "Aorus",
-        thumbnail: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0040.jpg",
+        images: ["/images/remote/remote-0041.jpg"],
         rating: { avg: 4.8, count: 220 },
         stats: { views: 2200, likes: 640, purchases: 410 }
       },
@@ -691,8 +754,8 @@ export default function ProductsPage() {
         description: "13\" ultrabook, 16GB RAM, 512GB SSD",
         price: 1099,
         brand: "Zen",
-        thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0042.jpg",
+        images: ["/images/remote/remote-0043.jpg"],
         rating: { avg: 4.7, count: 190 },
         stats: { views: 1800, likes: 520, purchases: 360 }
       },
@@ -702,8 +765,8 @@ export default function ProductsPage() {
         description: "Ryzen 7, 32GB RAM, RTX 4070",
         price: 1499,
         brand: "Creator",
-        thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0042.jpg",
+        images: ["/images/remote/remote-0043.jpg"],
         rating: { avg: 4.9, count: 150 },
         stats: { views: 2100, likes: 590, purchases: 320 }
       }
@@ -715,8 +778,8 @@ export default function ProductsPage() {
         description: "AMOLED 120Hz, 256GB, 50MP",
         price: 899,
         brand: "Fenix",
-        thumbnail: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0044.jpg",
+        images: ["/images/remote/remote-0045.jpg"],
         rating: { avg: 4.8, count: 310 },
         stats: { views: 2800, likes: 840, purchases: 470 }
       },
@@ -726,8 +789,8 @@ export default function ProductsPage() {
         description: "5G, 8GB RAM, 128GB",
         price: 599,
         brand: "Nano",
-        thumbnail: "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0046.jpg",
+        images: ["/images/remote/remote-0047.jpg"],
         rating: { avg: 4.5, count: 210 },
         stats: { views: 1900, likes: 520, purchases: 330 }
       },
@@ -737,8 +800,8 @@ export default function ProductsPage() {
         description: "Periscope 10x, 256GB",
         price: 999,
         brand: "Optica",
-        thumbnail: "https://images.unsplash.com/photo-1512499617640-c2f999098c03?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1512499617640-c2f999098c03?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0048.jpg",
+        images: ["/images/remote/remote-0049.jpg"],
         rating: { avg: 4.7, count: 260 },
         stats: { views: 2400, likes: 700, purchases: 380 }
       }
@@ -750,8 +813,8 @@ export default function ProductsPage() {
         description: "4K OLED, Dolby Vision",
         price: 1899,
         brand: "Vista",
-        thumbnail: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0050.jpg",
+        images: ["/images/remote/remote-0051.jpg"],
         rating: { avg: 4.9, count: 140 },
         stats: { views: 1600, likes: 520, purchases: 210 }
       },
@@ -761,8 +824,8 @@ export default function ProductsPage() {
         description: "4K QLED, 120Hz",
         price: 1299,
         brand: "Bright",
-        thumbnail: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0052.jpg",
+        images: ["/images/remote/remote-0053.jpg"],
         rating: { avg: 4.7, count: 160 },
         stats: { views: 1500, likes: 440, purchases: 190 }
       },
@@ -772,8 +835,8 @@ export default function ProductsPage() {
         description: "Full HD, smart TV",
         price: 499,
         brand: "Lite",
-        thumbnail: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0054.jpg",
+        images: ["/images/remote/remote-0055.jpg"],
         rating: { avg: 4.4, count: 190 },
         stats: { views: 1300, likes: 360, purchases: 220 }
       }
@@ -785,8 +848,8 @@ export default function ProductsPage() {
         description: "1TB SSD, 4K gaming",
         price: 599,
         brand: "PlayOne",
-        thumbnail: "https://images.unsplash.com/photo-1587202372775-98927c4a1c86?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1587202372775-98927c4a1c86?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0056.jpg",
+        images: ["/images/remote/remote-0057.jpg"],
         rating: { avg: 4.9, count: 310 },
         stats: { views: 2600, likes: 900, purchases: 520 }
       },
@@ -796,8 +859,8 @@ export default function ProductsPage() {
         description: "6DOF tracking, high-res display",
         price: 399,
         brand: "Immersive",
-        thumbnail: "https://images.unsplash.com/photo-1526498460520-4c246339dccb?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1526498460520-4c246339dccb?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0058.jpg",
+        images: ["/images/remote/remote-0059.jpg"],
         rating: { avg: 4.6, count: 170 },
         stats: { views: 1500, likes: 520, purchases: 260 }
       },
@@ -807,8 +870,8 @@ export default function ProductsPage() {
         description: "Customizable buttons, Hall sensors",
         price: 149,
         brand: "ProX",
-        thumbnail: "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0060.jpg",
+        images: ["/images/remote/remote-0061.jpg"],
         rating: { avg: 4.5, count: 130 },
         stats: { views: 900, likes: 280, purchases: 180 }
       }
@@ -820,8 +883,8 @@ export default function ProductsPage() {
         description: "Full-frame, 24MP, 4K video",
         price: 1799,
         brand: "Lumina",
-        thumbnail: "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0062.jpg",
+        images: ["/images/remote/remote-0063.jpg"],
         rating: { avg: 4.8, count: 210 },
         stats: { views: 1700, likes: 520, purchases: 240 }
       },
@@ -831,8 +894,8 @@ export default function ProductsPage() {
         description: "5K60, stabilization",
         price: 499,
         brand: "GoWave",
-        thumbnail: "https://images.unsplash.com/photo-1495704907664-81f74a7efdff?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1495704907664-81f74a7efdff?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0064.jpg",
+        images: ["/images/remote/remote-0065.jpg"],
         rating: { avg: 4.6, count: 160 },
         stats: { views: 1200, likes: 340, purchases: 190 }
       },
@@ -842,8 +905,8 @@ export default function ProductsPage() {
         description: "Flip screen, fast AF",
         price: 799,
         brand: "VlogX",
-        thumbnail: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0066.jpg",
+        images: ["/images/remote/remote-0067.jpg"],
         rating: { avg: 4.7, count: 140 },
         stats: { views: 1300, likes: 380, purchases: 200 }
       }
@@ -855,8 +918,8 @@ export default function ProductsPage() {
         description: "ANC, 24h battery",
         price: 159,
         brand: "ZenSound",
-        thumbnail: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0068.jpg",
+        images: ["/images/remote/remote-0069.jpg"],
         rating: { avg: 4.6, count: 240 },
         stats: { views: 1400, likes: 420, purchases: 260 }
       },
@@ -866,8 +929,8 @@ export default function ProductsPage() {
         description: "AMOLED, GPS, ECG",
         price: 249,
         brand: "Pulse",
-        thumbnail: "https://images.unsplash.com/photo-1511735643442-503bb3bd3481?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1511735643442-503bb3bd3481?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0070.jpg",
+        images: ["/images/remote/remote-0071.jpg"],
         rating: { avg: 4.5, count: 210 },
         stats: { views: 1300, likes: 380, purchases: 220 }
       },
@@ -877,15 +940,15 @@ export default function ProductsPage() {
         description: "Waterproof, 12h playtime",
         price: 129,
         brand: "Boom",
-        thumbnail: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0068.jpg",
+        images: ["/images/remote/remote-0069.jpg"],
         rating: { avg: 4.6, count: 180 },
         stats: { views: 1100, likes: 320, purchases: 190 }
       }
     ]
-  };
+  }, "technical", { "mobile-1": 8 });
 
-  const autoProductsMock: Record<string, Product[]> = {
+  const autoProductsMock: Record<string, Product[]> = withProductImages({
     cars: [
       {
         id: "car-1",
@@ -894,8 +957,8 @@ export default function ProductsPage() {
         price: 17500,
         brand: "Hyundai",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0072.jpg",
+        images: ["/images/remote/remote-0073.jpg"],
         rating: { avg: 4.7, count: 90 },
         stats: { views: 2200, likes: 520, purchases: 140 },
         condition: "used"
@@ -907,8 +970,8 @@ export default function ProductsPage() {
         price: 24500,
         brand: "Kia",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0074.jpg",
+        images: ["/images/remote/remote-0075.jpg"],
         rating: { avg: 4.8, count: 110 },
         stats: { views: 2500, likes: 610, purchases: 160 },
         condition: "used"
@@ -920,8 +983,8 @@ export default function ProductsPage() {
         price: 19800,
         brand: "Chevrolet",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0076.jpg",
+        images: ["/images/remote/remote-0077.jpg"],
         rating: { avg: 4.6, count: 95 },
         stats: { views: 2100, likes: 480, purchases: 130 },
         condition: "used"
@@ -935,8 +998,8 @@ export default function ProductsPage() {
         price: 120,
         brand: "Hankook Parts",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1597773150797-3be2363b88fc?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1597773150797-3be2363b88fc?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0078.jpg",
+        images: ["/images/remote/remote-0079.jpg"],
         rating: { avg: 4.7, count: 75 },
         stats: { views: 740, likes: 210, purchases: 150 },
         condition: "new"
@@ -948,8 +1011,8 @@ export default function ProductsPage() {
         price: 320,
         brand: "Vision",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1583267746897-dde3619a4c8c?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1583267746897-dde3619a4c8c?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0080.jpg",
+        images: ["/images/remote/remote-0081.jpg"],
         rating: { avg: 4.6, count: 68 },
         stats: { views: 660, likes: 190, purchases: 120 },
         condition: "new"
@@ -961,8 +1024,8 @@ export default function ProductsPage() {
         price: 420,
         brand: "Nexen",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0082.jpg",
+        images: ["/images/remote/remote-0083.jpg"],
         rating: { avg: 4.7, count: 82 },
         stats: { views: 780, likes: 210, purchases: 130 },
         condition: "new"
@@ -976,8 +1039,8 @@ export default function ProductsPage() {
         price: 980,
         brand: "GenX",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.5, count: 70 },
         stats: { views: 620, likes: 180, purchases: 110 },
         condition: "new"
@@ -989,8 +1052,8 @@ export default function ProductsPage() {
         price: 650,
         brand: "Pressa",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.6, count: 64 },
         stats: { views: 570, likes: 170, purchases: 100 },
         condition: "new"
@@ -1002,8 +1065,8 @@ export default function ProductsPage() {
         price: 15500,
         brand: "Bobcat",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.4, count: 40 },
         stats: { views: 820, likes: 200, purchases: 70 },
         condition: "used"
@@ -1017,8 +1080,8 @@ export default function ProductsPage() {
         price: 240,
         brand: "AirPro",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.5, count: 55 },
         stats: { views: 480, likes: 140, purchases: 95 },
         condition: "new"
@@ -1030,8 +1093,8 @@ export default function ProductsPage() {
         price: 120,
         brand: "WashKit",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.4, count: 48 },
         stats: { views: 430, likes: 120, purchases: 80 },
         condition: "new"
@@ -1043,16 +1106,16 @@ export default function ProductsPage() {
         price: 85,
         brand: "GenKit",
         category: "avto-texnika",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.5, count: 44 },
         stats: { views: 400, likes: 110, purchases: 70 },
         condition: "new"
       }
     ]
-  };
+  }, "taxi");
 
-  const homeProductsMock: Record<string, Product[]> = {
+  const homeProductsMock: Record<string, Product[]> = withProductImages({
     vacuum: [
       {
         id: "vac-1",
@@ -1060,8 +1123,8 @@ export default function ProductsPage() {
         description: "Simssiz, kuchli siklon tizimi",
         price: 650,
         brand: "Dyson",
-        thumbnail: "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0086.jpg",
+        images: ["/images/remote/remote-0087.jpg"],
         rating: { avg: 4.8, count: 210 },
         stats: { views: 1300, likes: 380, purchases: 220 },
         condition: "new"
@@ -1072,8 +1135,8 @@ export default function ProductsPage() {
         description: "Ko'p-bosqichli filtr va kuchli tortish",
         price: 520,
         brand: "Samsung",
-        thumbnail: "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0086.jpg",
+        images: ["/images/remote/remote-0087.jpg"],
         rating: { avg: 4.6, count: 170 },
         stats: { views: 980, likes: 290, purchases: 180 },
         condition: "new"
@@ -1084,8 +1147,8 @@ export default function ProductsPage() {
         description: "Lidar navigatsiya, mop funksiyasi",
         price: 480,
         brand: "Roborock",
-        thumbnail: "https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0086.jpg",
+        images: ["/images/remote/remote-0087.jpg"],
         rating: { avg: 4.7, count: 150 },
         stats: { views: 920, likes: 270, purchases: 170 },
         condition: "new"
@@ -1098,8 +1161,8 @@ export default function ProductsPage() {
         description: "Yig'ma kir yuvish va quritish, AI DD",
         price: 1200,
         brand: "LG",
-        thumbnail: "https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0088.jpg",
+        images: ["/images/remote/remote-0089.jpg"],
         rating: { avg: 4.8, count: 130 },
         stats: { views: 880, likes: 250, purchases: 140 },
         condition: "new"
@@ -1110,8 +1173,8 @@ export default function ProductsPage() {
         description: "Pufakchali yuvish, energiya tejamkor",
         price: 780,
         brand: "Samsung",
-        thumbnail: "https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0088.jpg",
+        images: ["/images/remote/remote-0089.jpg"],
         rating: { avg: 4.7, count: 120 },
         stats: { views: 760, likes: 220, purchases: 130 },
         condition: "new"
@@ -1122,8 +1185,8 @@ export default function ProductsPage() {
         description: "5 yil ishlatilgan, toza holatda",
         price: 420,
         brand: "Bosch",
-        thumbnail: "https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1582719478181-2f2df1a7de7b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0088.jpg",
+        images: ["/images/remote/remote-0089.jpg"],
         rating: { avg: 4.5, count: 90 },
         stats: { views: 640, likes: 180, purchases: 110 },
         condition: "used"
@@ -1136,8 +1199,8 @@ export default function ProductsPage() {
         description: "5 qt, ko'p nasadkali, premium",
         price: 480,
         brand: "KitchenAid",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.8, count: 140 },
         stats: { views: 900, likes: 260, purchases: 150 },
         condition: "new"
@@ -1148,8 +1211,8 @@ export default function ProductsPage() {
         description: "Sog'lom pishirish, 1.4 kg sig'im",
         price: 260,
         brand: "Philips",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.7, count: 110 },
         stats: { views: 780, likes: 230, purchases: 130 },
         condition: "new"
@@ -1160,8 +1223,8 @@ export default function ProductsPage() {
         description: "Espresso va cappuccino, 15 bar",
         price: 320,
         brand: "Delonghi",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.6, count: 100 },
         stats: { views: 720, likes: 200, purchases: 120 },
         condition: "used"
@@ -1174,8 +1237,8 @@ export default function ProductsPage() {
         description: "No frost, shisha panel, yangi",
         price: 1400,
         brand: "LG",
-        thumbnail: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0090.jpg",
+        images: ["/images/remote/remote-0091.jpg"],
         rating: { avg: 4.8, count: 120 },
         stats: { views: 860, likes: 250, purchases: 140 },
         condition: "new"
@@ -1186,8 +1249,8 @@ export default function ProductsPage() {
         description: "Inverter, musaffo sovutish",
         price: 1250,
         brand: "Samsung",
-        thumbnail: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0090.jpg",
+        images: ["/images/remote/remote-0091.jpg"],
         rating: { avg: 4.7, count: 110 },
         stats: { views: 810, likes: 230, purchases: 130 },
         condition: "new"
@@ -1198,8 +1261,8 @@ export default function ProductsPage() {
         description: "3 yil ishlatilgan, toza holatda",
         price: 420,
         brand: "Beko",
-        thumbnail: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0090.jpg",
+        images: ["/images/remote/remote-0091.jpg"],
         rating: { avg: 4.4, count: 80 },
         stats: { views: 620, likes: 170, purchases: 100 },
         condition: "used"
@@ -1212,8 +1275,8 @@ export default function ProductsPage() {
         description: "Sovutish/isitish, A++",
         price: 850,
         brand: "Daikin",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.7, count: 90 },
         stats: { views: 730, likes: 210, purchases: 120 },
         condition: "new"
@@ -1224,8 +1287,8 @@ export default function ProductsPage() {
         description: "Inverter, Wi-Fi, 2021",
         price: 980,
         brand: "Gree",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.6, count: 80 },
         stats: { views: 680, likes: 190, purchases: 110 },
         condition: "used"
@@ -1236,8 +1299,8 @@ export default function ProductsPage() {
         description: "Ofis va kichik xonalar uchun",
         price: 350,
         brand: "Cooler",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.3, count: 70 },
         stats: { views: 520, likes: 140, purchases: 90 },
         condition: "used"
@@ -1250,8 +1313,8 @@ export default function ProductsPage() {
         description: "HEPA H13 filtr, 60 m² gacha",
         price: 280,
         brand: "Xiaomi",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.6, count: 100 },
         stats: { views: 610, likes: 180, purchases: 120 },
         condition: "new"
@@ -1262,8 +1325,8 @@ export default function ProductsPage() {
         description: "True HEPA, smart sensor",
         price: 360,
         brand: "Philips",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.7, count: 95 },
         stats: { views: 580, likes: 170, purchases: 110 },
         condition: "new"
@@ -1274,8 +1337,8 @@ export default function ProductsPage() {
         description: "Uch bosqichli filtr, 50 m²",
         price: 240,
         brand: "Coway",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.5, count: 85 },
         stats: { views: 520, likes: 150, purchases: 100 },
         condition: "used"
@@ -1288,8 +1351,8 @@ export default function ProductsPage() {
         description: "Kerakli bug' darajasi, keramika tovon",
         price: 65,
         brand: "Tefal",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.4, count: 70 },
         stats: { views: 430, likes: 120, purchases: 85 },
         condition: "new"
@@ -1300,8 +1363,8 @@ export default function ProductsPage() {
         description: "Tungi chiroq, avtomatik o'chish",
         price: 55,
         brand: "Airly",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.5, count: 60 },
         stats: { views: 400, likes: 110, purchases: 80 },
         condition: "new"
@@ -1312,16 +1375,16 @@ export default function ProductsPage() {
         description: "Wi-Fi, ovozli boshqaruv",
         price: 130,
         brand: "SmartHome",
-        thumbnail: "https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1509475826633-fed577a2c71b?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0084.jpg",
+        images: ["/images/remote/remote-0085.jpg"],
         rating: { avg: 4.4, count: 55 },
         stats: { views: 360, likes: 100, purchases: 70 },
         condition: "new"
       }
     ]
-  };
+  }, "cleaning");
 
-  const clothingProductsMock: Record<string, Product[]> = {
+  const clothingProductsMock: Record<string, Product[]> = withProductImages({
     men: [
       {
         id: "men-1",
@@ -1329,8 +1392,8 @@ export default function ProductsPage() {
         description: "Slim fit, 100% jun, ko'k rang",
         price: 220,
         brand: "Tailor",
-        thumbnail: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0092.jpg",
+        images: ["/images/remote/remote-0093.jpg"],
         rating: { avg: 4.7, count: 90 },
         stats: { views: 620, likes: 180, purchases: 120 },
         size: "l",
@@ -1342,8 +1405,8 @@ export default function ProductsPage() {
         description: "Yengil va nafas oluvchi, yugurish uchun",
         price: 140,
         brand: "Runner",
-        thumbnail: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0094.jpg",
+        images: ["/images/remote/remote-0095.jpg"],
         rating: { avg: 4.6, count: 110 },
         stats: { views: 540, likes: 150, purchases: 100 },
         size: "m",
@@ -1355,8 +1418,8 @@ export default function ProductsPage() {
         description: "Suv o'tkazmaydigan, kapyushonli",
         price: 180,
         brand: "Nord",
-        thumbnail: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1475180098004-ca77a66827be?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0096.jpg",
+        images: ["/images/remote/remote-0097.jpg"],
         rating: { avg: 4.7, count: 85 },
         stats: { views: 580, likes: 170, purchases: 110 },
         size: "l",
@@ -1370,8 +1433,8 @@ export default function ProductsPage() {
         description: "Yozgi, paxta mato, gul naqsh",
         price: 95,
         brand: "Flora",
-        thumbnail: "https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0098.jpg",
+        images: ["/images/remote/remote-0099.jpg"],
         rating: { avg: 4.8, count: 140 },
         stats: { views: 720, likes: 210, purchases: 150 },
         size: "m",
@@ -1383,8 +1446,8 @@ export default function ProductsPage() {
         description: "Blazer + shim, neytral kulrang",
         price: 210,
         brand: "Linea",
-        thumbnail: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0100.jpg",
+        images: ["/images/remote/remote-0101.jpg"],
         rating: { avg: 4.7, count: 100 },
         stats: { views: 640, likes: 180, purchases: 120 },
         size: "m",
@@ -1396,8 +1459,8 @@ export default function ProductsPage() {
         description: "Yengil, bahor-kuz uchun",
         price: 160,
         brand: "Urban",
-        thumbnail: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0100.jpg",
+        images: ["/images/remote/remote-0101.jpg"],
         rating: { avg: 4.6, count: 95 },
         stats: { views: 610, likes: 170, purchases: 115 },
         size: "l",
@@ -1411,8 +1474,8 @@ export default function ProductsPage() {
         description: "Paxta to'plam, 6-8 yosh",
         price: 45,
         brand: "KidSport",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.5, count: 80 },
         stats: { views: 420, likes: 130, purchases: 90 },
         size: "s",
@@ -1424,8 +1487,8 @@ export default function ProductsPage() {
         description: "Suv o'tkazmas, issiq astar, 3-5 yosh",
         price: 70,
         brand: "SnowKids",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.6, count: 65 },
         stats: { views: 380, likes: 110, purchases: 75 },
         size: "s",
@@ -1437,8 +1500,8 @@ export default function ProductsPage() {
         description: "3 dona, 100% paxta",
         price: 35,
         brand: "Sunny",
-        thumbnail: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0038.jpg",
+        images: ["/images/remote/remote-0039.jpg"],
         rating: { avg: 4.4, count: 70 },
         stats: { views: 360, likes: 100, purchases: 70 },
         size: "s",
@@ -1452,8 +1515,8 @@ export default function ProductsPage() {
         description: "Yumshoq tagcharm, qo‘shimcha tayanch",
         price: 85,
         brand: "Orto",
-        thumbnail: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0094.jpg",
+        images: ["/images/remote/remote-0095.jpg"],
         rating: { avg: 4.5, count: 60 },
         stats: { views: 320, likes: 90, purchases: 65 },
         size: "m",
@@ -1465,8 +1528,8 @@ export default function ProductsPage() {
         description: "Jun aralash, pastelli rang",
         price: 95,
         brand: "Warm",
-        thumbnail: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0102.jpg",
+        images: ["/images/remote/remote-0103.jpg"],
         rating: { avg: 4.6, count: 55 },
         stats: { views: 300, likes: 85, purchases: 60 },
         size: "l",
@@ -1478,8 +1541,8 @@ export default function ProductsPage() {
         description: "Kompression, 2 juft",
         price: 28,
         brand: "Support",
-        thumbnail: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0102.jpg",
+        images: ["/images/remote/remote-0103.jpg"],
         rating: { avg: 4.4, count: 50 },
         stats: { views: 260, likes: 70, purchases: 55 },
         size: "m",
@@ -1493,8 +1556,8 @@ export default function ProductsPage() {
         description: "Yupqa, nafas oluvchi mato",
         price: 75,
         brand: "Makkah",
-        thumbnail: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0102.jpg",
+        images: ["/images/remote/remote-0103.jpg"],
         rating: { avg: 4.6, count: 58 },
         stats: { views: 310, likes: 90, purchases: 65 },
         size: "l",
@@ -1506,8 +1569,8 @@ export default function ProductsPage() {
         description: "UV himoya, tez quriydigan material",
         price: 110,
         brand: "Active",
-        thumbnail: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0102.jpg",
+        images: ["/images/remote/remote-0103.jpg"],
         rating: { avg: 4.7, count: 70 },
         stats: { views: 340, likes: 100, purchases: 70 },
         size: "m",
@@ -1519,15 +1582,15 @@ export default function ProductsPage() {
         description: "Antibakterial mato, ko‘k rang",
         price: 95,
         brand: "MedPro",
-        thumbnail: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=600&q=80",
-        images: ["https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80"],
+        thumbnail: "/images/remote/remote-0102.jpg",
+        images: ["/images/remote/remote-0103.jpg"],
         rating: { avg: 4.6, count: 62 },
         stats: { views: 320, likes: 95, purchases: 68 },
         size: "l",
         season: "allseason"
       }
     ]
-  };
+  }, "sport");
 
   const showFoodStub = isFoodCategory && !!foodSubcategory;
   const showElectronicsStub = isElectronicsCategory;
@@ -1752,6 +1815,66 @@ export default function ProductsPage() {
     });
   }, [displayItems]);
 
+  const filteredDisplayItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const minPrice = quickFilters.priceMin ? Number(quickFilters.priceMin) : undefined;
+    const maxPrice = quickFilters.priceMax ? Number(quickFilters.priceMax) : undefined;
+    return uniqueDisplayItems.filter((item) => {
+      const name = (item.name || item.title || "").toLowerCase();
+      const brand = (item.brand || "").toLowerCase();
+      const desc = (item.description || "").toLowerCase();
+      const matchesQuery = query ? name.includes(query) || brand.includes(query) || desc.includes(query) : true;
+      const price = item.price ?? 0;
+      const priceMatch =
+        (minPrice === undefined || price >= minPrice) && (maxPrice === undefined || price <= maxPrice);
+      const brandMatch = quickFilters.brand
+        ? brand.includes(quickFilters.brand.toLowerCase())
+        : true;
+      const ratingMatch = quickFilters.rating45 ? (item.rating?.avg ?? 0) >= 4.5 : true;
+      const deliveryMeta = getDeliveryMeta(item);
+      const deliveryMatch =
+        quickFilters.delivery === "any"
+          ? true
+          : deliveryMeta.delivery === quickFilters.delivery;
+      const stockMatch = quickFilters.inStock ? deliveryMeta.inStock : true;
+      const condition = (item as any).condition || "new";
+      const conditionMatch =
+        quickFilters.condition === "any" ? true : condition === quickFilters.condition;
+      const fastMatch = fastOnly ? deliveryMeta.delivery === "fast" : true;
+      return matchesQuery && priceMatch && brandMatch && ratingMatch && deliveryMatch && stockMatch && conditionMatch && fastMatch;
+    });
+  }, [fastOnly, quickFilters, searchQuery, uniqueDisplayItems]);
+
+  const sortedDisplayItems = useMemo(() => {
+    const base = [...filteredDisplayItems];
+    const score = (item: Product) => ({
+      purchases: item.stats?.purchases ?? item.orders ?? 0,
+      rating: item.rating?.avg ?? 0,
+      price: item.price ?? 0,
+      views: item.stats?.views ?? item.views ?? 0
+    });
+    return base.sort((a, b) => {
+      const sa = score(a);
+      const sb = score(b);
+      switch (sortBy) {
+        case "bestseller":
+          return sb.purchases - sa.purchases;
+        case "toprated":
+          return sb.rating - sa.rating;
+        case "priceLow":
+          return sa.price - sb.price;
+        case "priceHigh":
+          return sb.price - sa.price;
+        case "newest":
+          return (new Date(b.createdAt ?? 0).getTime() || 0) - (new Date(a.createdAt ?? 0).getTime() || 0);
+        default:
+          if (sb.purchases !== sa.purchases) return sb.purchases - sa.purchases;
+          if (sb.views !== sa.views) return sb.views - sa.views;
+          return sb.rating - sa.rating;
+      }
+    });
+  }, [filteredDisplayItems, sortBy]);
+
   const resolveProductKey = (product: Product, idx: number) => {
     const keyBase = (product._id ?? product.id ?? (product as any).slug ?? product.name ?? idx).toString().trim();
     return `${keyBase}-${idx}`;
@@ -1792,9 +1915,71 @@ export default function ProductsPage() {
         return "linear-gradient(180deg, #f9fafb 0%, #ffffff 100%)";
     }
   }, [filters.category]);
+  const topSearchTags = ["CarPlay", "SSD", "HDMI", "Powerbank", "iPhone case", "Adapter"];
+  const categoryQuick = [
+    { key: "elektronika", label: "IT/Elektronika", icon: "💻" },
+    { key: "avto-texnika", label: "Avto aksessuar", icon: "🚗" },
+    { key: "elektronika", label: "Telefon aksessuar", icon: "📱" },
+    { key: "elektronika", label: "Kompyuter", icon: "🖥️" },
+    { key: "elektronika", label: "Audio", icon: "🎧" },
+    { key: "maishiy-uskunalar", label: "Home tech", icon: "🏠" }
+  ];
 
   return (
     <div className="space-y-5" style={{ backgroundImage: surfaceBg, borderRadius: "24px", padding: "12px" }}>
+      <div className="sticky top-0 z-40 rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex-1">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Mahsulot qidiring (adapter, SSD, iPhone case...)"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+            />
+          </div>
+          <div className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Xavfsiz to‘lov</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1">Qaytarish oson</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1">Tez yetkazish</span>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span className="text-slate-400">Top search:</span>
+          {topSearchTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setSearchQuery(tag)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1"
+            >
+              {tag}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setFastOnly((prev) => !prev)}
+            className={`rounded-full px-3 py-1 ${fastOnly ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
+          >
+            Tez yetkazish
+          </button>
+        </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {categoryQuick.map((cat) => (
+            <button
+              key={cat.label}
+              type="button"
+              onClick={() => handleCategorySelect(cat.key)}
+              className={`flex min-w-[140px] items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
+                filters.category === cat.key ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"
+              }`}
+            >
+              <span className="text-lg">{cat.icon}</span>
+              <span className="font-semibold">{cat.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <header
         className="rounded-3xl px-6 py-8 text-white shadow-lg"
         style={{
@@ -1806,12 +1991,99 @@ export default function ProductsPage() {
         <p className="text-sm uppercase tracking-[0.15em]">UniServe · Marketplace</p>
         <h1 className="mt-2 text-3xl font-extrabold">Mahsulotlar</h1>
         <p className="mt-1 max-w-2xl text-sm text-emerald-50">
-          Sellzy uslubidagi toza grid: ommabop tovarlar, kuchli filtrlar va tezkor xarid statistikasi.
+          Narx + reyting + yetkazish signalini bir qarashda ko‘rsatadigan Coupang uslubidagi katalog.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-emerald-50/90">
+          <span className="rounded-full bg-white/20 px-3 py-1">Xavfsiz to‘lov</span>
+          <span className="rounded-full bg-white/20 px-3 py-1">Qaytarish oson</span>
+          <span className="rounded-full bg-white/20 px-3 py-1">Tez yetkazish</span>
+        </div>
       </header>
 
       <div className="products-layout">
         <div className="sidebar-stack">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+            <p className="text-sm font-semibold text-slate-900">Tezkor filtrlar</p>
+            <div className="mt-3 grid gap-3 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Min narx"
+                  value={quickFilters.priceMin}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                />
+                <input
+                  type="number"
+                  placeholder="Max narx"
+                  value={quickFilters.priceMax}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Brend"
+                value={quickFilters.brand}
+                onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
+                className="rounded-lg border border-slate-200 px-3 py-2"
+              />
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={quickFilters.rating45}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
+                />
+                4.5+ reyting
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={quickFilters.inStock}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
+                />
+                Omborda
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  value={quickFilters.delivery}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, delivery: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                >
+                  <option value="any">Yetkazish</option>
+                  <option value="fast">Tez</option>
+                  <option value="tomorrow">Ertaga</option>
+                  <option value="standard">Oddiy</option>
+                </select>
+                <select
+                  value={quickFilters.condition}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, condition: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                >
+                  <option value="any">Condition</option>
+                  <option value="new">Yangi</option>
+                  <option value="used">Used</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setQuickFilters({
+                    priceMin: "",
+                    priceMax: "",
+                    brand: "",
+                    rating45: false,
+                    delivery: "any",
+                    inStock: false,
+                    condition: "any"
+                  })
+                }
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-600"
+              >
+                Filtrlarni tiklash
+              </button>
+            </div>
+          </div>
           <CategoriesSidebar
             selected={filters.category}
             onSelect={(slug) => {
@@ -2446,24 +2718,63 @@ export default function ProductsPage() {
         </div>
 
         <div className="products-main">
-          <FilterBar filters={filters} onFilterChange={handleFilterChange} />
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-slate-100 px-3 py-1">Sort</span>
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(
+                    e.target.value as "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest"
+                  )
+                }
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+              >
+                <option value="relevance">Eng mos</option>
+                <option value="bestseller">Eng ko‘p sotilgan</option>
+                <option value="toprated">Eng yuqori baholangan</option>
+                <option value="priceLow">Arzon → qimmat</option>
+                <option value="priceHigh">Qimmat → arzon</option>
+                <option value="newest">Yangi kelgan</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
+                {sortedDisplayItems.length} ta mahsulot
+              </span>
+            </div>
+          </div>
 
           {displayLoading ? (
             <Spinner label="Mahsulotlar yuklanmoqda" />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {uniqueDisplayItems.map((p, idx) => (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+              {sortedDisplayItems.map((p, idx) => (
                 <ProductCard
                   key={resolveProductKey(p, idx)}
                   data={p}
                   disableNavigation={isAutoCategory || p.category === "avto-texnika"}
                 />
               ))}
-              {displayItems.length === 0 && (
+              {sortedDisplayItems.length === 0 && (
                 <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-slate-500">
                   Hozircha mahsulot topilmadi.
                 </div>
               )}
+            </div>
+          )}
+
+          {!displayLoading && sortedDisplayItems.length > 0 && (
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900">Recently viewed</p>
+                <span className="text-xs text-slate-500">Oxirgi ko‘rilganlar</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                {sortedDisplayItems.slice(0, 4).map((item, idx) => (
+                  <ProductCard key={`recent-${resolveProductKey(item, idx)}`} data={item} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -2475,6 +2786,141 @@ export default function ProductsPage() {
           />
         </div>
       </div>
+
+      <div className="fixed bottom-4 left-4 right-4 z-40 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-lg backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen(true)}
+          className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+        >
+          Filter
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSortOpen(true)}
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+        >
+          Sort
+        </button>
+      </div>
+
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/30 lg:hidden">
+          <div className="w-full rounded-t-3xl bg-white p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">Filtrlar</p>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+              >
+                Yopish
+              </button>
+            </div>
+            <div className="mt-4 grid gap-3 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Min narx"
+                  value={quickFilters.priceMin}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                />
+                <input
+                  type="number"
+                  placeholder="Max narx"
+                  value={quickFilters.priceMax}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
+                  className="rounded-lg border border-slate-200 px-3 py-2"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Brend"
+                value={quickFilters.brand}
+                onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
+                className="rounded-lg border border-slate-200 px-3 py-2"
+              />
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={quickFilters.rating45}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
+                />
+                4.5+ reyting
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={quickFilters.inStock}
+                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
+                />
+                Omborda
+              </label>
+              <select
+                value={quickFilters.delivery}
+                onChange={(e) => setQuickFilters((prev) => ({ ...prev, delivery: e.target.value }))}
+                className="rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <option value="any">Yetkazish</option>
+                <option value="fast">Tez</option>
+                <option value="tomorrow">Ertaga</option>
+                <option value="standard">Oddiy</option>
+              </select>
+              <select
+                value={quickFilters.condition}
+                onChange={(e) => setQuickFilters((prev) => ({ ...prev, condition: e.target.value }))}
+                className="rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <option value="any">Condition</option>
+                <option value="new">Yangi</option>
+                <option value="used">Used</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mobileSortOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/30 lg:hidden">
+          <div className="w-full rounded-t-3xl bg-white p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">Sort</p>
+              <button
+                type="button"
+                onClick={() => setMobileSortOpen(false)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+              >
+                Yopish
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 text-xs">
+              {[
+                { id: "relevance", label: "Eng mos" },
+                { id: "bestseller", label: "Eng ko‘p sotilgan" },
+                { id: "toprated", label: "Eng yuqori baholangan" },
+                { id: "priceLow", label: "Arzon → qimmat" },
+                { id: "priceHigh", label: "Qimmat → arzon" },
+                { id: "newest", label: "Yangi kelgan" }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSortBy(item.id as typeof sortBy);
+                    setMobileSortOpen(false);
+                  }}
+                  className={`rounded-xl border px-3 py-2 text-left ${
+                    sortBy === item.id ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

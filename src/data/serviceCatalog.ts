@@ -20,6 +20,30 @@ export type ServiceItem = {
   reviewCount: number;
   canRate: boolean;
   subCategory?: string;
+  legalArea?: string;
+  legalServiceType?: string;
+  legalJurisdiction?: "UZ" | "KR" | "INT";
+  legalFormat?: Array<"chat" | "audio" | "video" | "offline">;
+  legalResponseTime?: string;
+  legalDisclaimer?: string;
+  legalIncluded?: string[];
+  legalExcluded?: string[];
+  sportType?: string;
+  sportLevel?: "Boshlovchi" | "O'rta" | "Professional";
+  sportAudience?: string[];
+  sportServiceType?: string;
+  sportFormat?: Array<"online" | "offline" | "video">;
+  sportLocation?: string;
+  sportGym?: string;
+  sportPlan?: string[];
+  sportResult?: string;
+  sportDuration?: string;
+  sportWeeklySessions?: number;
+  sportTracking?: boolean;
+  sportDiet?: boolean;
+  sportCourseModules?: string[];
+  sportCourseLength?: string;
+  sportMaxParticipants?: number;
   translationMode?: "written" | "oral";
   translationSpeed?: "oddiy" | "shoshilinch";
   translationFormat?: "PDF" | "Scan" | "Original";
@@ -74,6 +98,17 @@ export type ServiceAgent = {
   niceCount: number;
   shareCount: number;
   canRate: boolean;
+  legalLicenseMasked?: string;
+  legalLicenseAuthority?: string;
+  legalEducation?: string[];
+  legalSpecialties?: string[];
+  legalExcludedMatters?: string[];
+  legalVerifiedAt?: string;
+  sportCertificates?: string[];
+  sportAchievements?: string[];
+  sportPhilosophy?: string;
+  sportExcludedCases?: string[];
+  sportStudentsCount?: number;
   services: ServiceItem[];
 };
 
@@ -127,13 +162,52 @@ const getCategoryImages = (categoryId: string): ServiceImage[] => {
   return [pool[start % pool.length], pool[(start + 1) % pool.length], pool[(start + 2) % pool.length]];
 };
 
+const makeConsultingImages = (index: number): ServiceImage[] =>
+  Array.from({ length: 3 }, (_, idx) => ({
+    src: `/services/consulting/${String(index).padStart(2, "0")}-${idx + 1}.jpg`,
+    alt: `Konsalting ${index} (${idx + 1})`
+  }));
+
+const makeTranslationImages = (index: number): ServiceImage[] =>
+  Array.from({ length: 3 }, (_, idx) => ({
+    src: `/services/translation/${String(index).padStart(2, "0")}-${idx + 1}.jpg`,
+    alt: `Tarjimonlik ${index} (${idx + 1})`
+  }));
+
+const makePsychologyImages = (index: number): ServiceImage[] => [
+  {
+    src: `/services/psychology/psy-${String(index).padStart(2, "0")}-1.jpg`,
+    alt: `Psixologiya ${index} (1)`
+  },
+  {
+    src: `/services/psychology/psy-${String(index).padStart(2, "0")}-2.jpg`,
+    alt: `Psixologiya ${index} (2)`
+  },
+  {
+    src: `/services/psychology/psy-${String(index).padStart(2, "0")}-3.jpg`,
+    alt: `Psixologiya ${index} (3)`
+  }
+];
+
+const makeLegalImages = (serviceId: string, label: string, count = 3): ServiceImage[] =>
+  Array.from({ length: count }, (_, idx) => ({
+    src: `/services/legal/${serviceId}-${idx + 1}.jpg`,
+    alt: `${label} ${idx + 1}`
+  }));
+
+const makeSportImages = (serviceId: string, label: string, count = 3): ServiceImage[] =>
+  Array.from({ length: count }, (_, idx) => ({
+    src: `/services/sport/${serviceId}-${idx + 1}.jpg`,
+    alt: `${label} ${idx + 1}`
+  }));
+
 const makeAvatar = (index: number, name: string): ServiceImage => ({
   src: `/avatars/agent-${String(index).padStart(2, "0")}.jpg`,
   alt: `${name} avatar`
 });
 
 const makePortrait = (seed: number, name: string): ServiceImage => ({
-  src: `https://source.unsplash.com/600x800/?portrait,face&sig=${seed}`,
+  src: `/images/remote/remote-${String(seed).padStart(4, "0")}.jpg`,
   alt: `${name} shaxsni tasdiqlovchi rasm`
 });
 
@@ -156,7 +230,13 @@ const makeService = (
   unit,
   description,
   certificates,
-  images: extras.images ?? getCategoryImages(categoryId),
+  images:
+    extras.images ??
+    (categoryId === "legal"
+      ? makeLegalImages(id, title)
+      : categoryId === "sport"
+        ? makeSportImages(id, title)
+        : getCategoryImages(categoryId)),
   createdAt: new Date(2024, 0, 1 + seed).toISOString(),
   usedCount: 120 + seed * 7,
   niceCount: 40 + seed * 3,
@@ -238,151 +318,151 @@ let constructionImageCursor = 0;
 const constructionImageMap: Record<string, ServiceImage[]> = {
   "construction-general": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?construction,site&sig=11",
+      src: "/images/remote/remote-0106.jpg",
       alt: "Qurilish umumiy 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?builder,team&sig=12",
+      src: "/images/remote/remote-0107.jpg",
       alt: "Qurilish umumiy 2"
     }
   ],
   "exterior-facade": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?facade,building&sig=21",
+      src: "/images/remote/remote-0108.jpg",
       alt: "Fasad ishlari 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?plaster,facade&sig=22",
+      src: "/images/remote/remote-0109.jpg",
       alt: "Fasad ishlari 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?painting,exterior&sig=23",
+      src: "/images/remote/remote-0110.jpg",
       alt: "Fasad ishlari 3"
     }
   ],
   "exterior-concrete": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?concrete,pouring&sig=31",
+      src: "/images/remote/remote-0111.jpg",
       alt: "Beton ishlari 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?foundation,concrete&sig=32",
+      src: "/images/remote/remote-0112.jpg",
       alt: "Beton ishlari 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?construction,concrete&sig=33",
+      src: "/images/remote/remote-0113.jpg",
       alt: "Beton ishlari 3"
     }
   ],
   "exterior-brick": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?brick,wall&sig=41",
+      src: "/images/remote/remote-0114.jpg",
       alt: "G'isht terish 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?bricklaying,construction&sig=42",
+      src: "/images/remote/remote-0115.jpg",
       alt: "G'isht terish 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?masonry,brick&sig=43",
+      src: "/images/remote/remote-0116.jpg",
       alt: "G'isht terish 3"
     }
   ],
   "exterior-roofing": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?roof,construction&sig=51",
+      src: "/images/remote/remote-0117.jpg",
       alt: "Tom yopish 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?roofing,tiles&sig=52",
+      src: "/images/remote/remote-0118.jpg",
       alt: "Tom yopish 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?metal,roof&sig=53",
+      src: "/images/remote/remote-0119.jpg",
       alt: "Tom yopish 3"
     }
   ],
   "exterior-roof-repair": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?roof,repair&sig=61",
+      src: "/images/remote/remote-0120.jpg",
       alt: "Tom ta'mirlash 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?repair,roofing&sig=62",
+      src: "/images/remote/remote-0121.jpg",
       alt: "Tom ta'mirlash 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?leak,roof&sig=63",
+      src: "/images/remote/remote-0122.jpg",
       alt: "Tom ta'mirlash 3"
     }
   ],
   "interior-paint": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?interior,painting&sig=71",
+      src: "/images/remote/remote-0123.jpg",
       alt: "Bo'yoqchilik 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?wall,paint&sig=72",
+      src: "/images/remote/remote-0124.jpg",
       alt: "Bo'yoqchilik 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?roller,paint&sig=73",
+      src: "/images/remote/remote-0125.jpg",
       alt: "Bo'yoqchilik 3"
     }
   ],
   "interior-wallpaper": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?wallpaper,interior&sig=81",
+      src: "/images/remote/remote-0126.jpg",
       alt: "Gul qog'oz 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?wallpaper,design&sig=82",
+      src: "/images/remote/remote-0127.jpg",
       alt: "Gul qog'oz 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?pattern,wallpaper&sig=83",
+      src: "/images/remote/remote-0128.jpg",
       alt: "Gul qog'oz 3"
     }
   ],
   "interior-design": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?interior,design&sig=91",
+      src: "/images/remote/remote-0129.jpg",
       alt: "Dizayner xizmati 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?interior,planning&sig=92",
+      src: "/images/remote/remote-0130.jpg",
       alt: "Dizayner xizmati 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?architect,interior&sig=93",
+      src: "/images/remote/remote-0131.jpg",
       alt: "Dizayner xizmati 3"
     }
   ],
   "interior-doors-windows": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?door,installation&sig=101",
+      src: "/images/remote/remote-0132.jpg",
       alt: "Eshik va deraza romlari 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?window,installation&sig=102",
+      src: "/images/remote/remote-0133.jpg",
       alt: "Eshik va deraza romlari 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?carpentry,door&sig=103",
+      src: "/images/remote/remote-0134.jpg",
       alt: "Eshik va deraza romlari 3"
     }
   ],
   "interior-ceiling": [
     {
-      src: "https://source.unsplash.com/featured/1200x800?ceiling,interior&sig=111",
+      src: "/images/remote/remote-0135.jpg",
       alt: "Shift ta'mirlash 1"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?ceiling,lights&sig=112",
+      src: "/images/remote/remote-0136.jpg",
       alt: "Shift ta'mirlash 2"
     },
     {
-      src: "https://source.unsplash.com/featured/1200x800?drywall,ceiling&sig=113",
+      src: "/images/remote/remote-0137.jpg",
       alt: "Shift ta'mirlash 3"
     }
   ]
@@ -3714,7 +3794,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 41,
                 true,
-                { subCategory: "consult-business" }
+                { subCategory: "consult-business", images: makeConsultingImages(1) }
               ),
               makeService(
                 "cons-1-2",
@@ -3726,7 +3806,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 42,
                 false,
-                { subCategory: "consult-business" }
+                { subCategory: "consult-business", images: makeConsultingImages(2) }
               )
             ],
             true,
@@ -3764,7 +3844,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 43,
                 false,
-                { subCategory: "consult-education" }
+                { subCategory: "consult-education", images: makeConsultingImages(3) }
               ),
               makeService(
                 "cons-2-2",
@@ -3776,7 +3856,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 44,
                 false,
-                { subCategory: "consult-career" }
+                { subCategory: "consult-career", images: makeConsultingImages(4) }
               )
             ],
             false,
@@ -3814,7 +3894,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 45,
                 false,
-                { subCategory: "consult-education" }
+                { subCategory: "consult-education", images: makeConsultingImages(5) }
               ),
               makeService(
                 "cons-3-2",
@@ -3826,7 +3906,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 46,
                 false,
-                { subCategory: "consult-visa" }
+                { subCategory: "consult-visa", images: makeConsultingImages(6) }
               ),
               makeService(
                 "cons-3-3",
@@ -3838,7 +3918,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 47,
                 false,
-                { subCategory: "consult-language" }
+                { subCategory: "consult-language", images: makeConsultingImages(7) }
               ),
               makeService(
                 "cons-3-4",
@@ -3850,7 +3930,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 48,
                 false,
-                { subCategory: "consult-legal" }
+                { subCategory: "consult-legal", images: makeConsultingImages(8) }
               ),
               makeService(
                 "cons-3-5",
@@ -3862,7 +3942,7 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 49,
                 false,
-                { subCategory: "consult-health" }
+                { subCategory: "consult-health", images: makeConsultingImages(9) }
               ),
               makeService(
                 "cons-3-6",
@@ -3874,7 +3954,55 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "consulting",
                 50,
                 false,
-                { subCategory: "consult-career" }
+                { subCategory: "consult-career", images: makeConsultingImages(10) }
+              ),
+              makeService(
+                "cons-3-7",
+                "Viza intervyu tayyorgarlik",
+                640000,
+                "sessiya",
+                "Intervyu savollari va hujjatlarni to'g'ri taqdim etish.",
+                ["Koreya viza amaliyoti"],
+                "consulting",
+                51,
+                false,
+                { subCategory: "consult-visa", images: makeConsultingImages(11) }
+              ),
+              makeService(
+                "cons-3-8",
+                "Til darajasi rejalashtirish",
+                420000,
+                "sessiya",
+                "TOPIK maqsadiga mos 8 haftalik reja.",
+                ["TOPIK 5"],
+                "consulting",
+                52,
+                false,
+                { subCategory: "consult-language", images: makeConsultingImages(12) }
+              ),
+              makeService(
+                "cons-3-9",
+                "Ijaraga shartnoma ko'rigi",
+                610000,
+                "sessiya",
+                "Ijara shartnomasidagi risk va majburiyatlar.",
+                ["Maishiy huquq tajribasi"],
+                "consulting",
+                53,
+                false,
+                { subCategory: "consult-legal", images: makeConsultingImages(13) }
+              ),
+              makeService(
+                "cons-3-10",
+                "Sug'urta va klinika yo'nalishi",
+                480000,
+                "sessiya",
+                "Sug'urta turlari va klinika tanlash bo'yicha yo'l xarita.",
+                ["Koreya sog'liq tizimi"],
+                "consulting",
+                54,
+                false,
+                { subCategory: "consult-health", images: makeConsultingImages(14) }
               )
             ],
             true,
@@ -3926,7 +4054,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "PDF",
                   notarization: true,
                   sourceLang: "UZ",
-                  targetLang: "KR"
+                  targetLang: "KR",
+                  images: makeTranslationImages(1)
                 }
               ),
               makeService(
@@ -3946,7 +4075,71 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "Original",
                   notarization: false,
                   sourceLang: "KR",
-                  targetLang: "UZ"
+                  targetLang: "UZ",
+                  images: makeTranslationImages(2)
+                }
+              ),
+              makeService(
+                "trans-1-3",
+                "Nikoh va tug'ilganlik tarjimasi",
+                280000,
+                "sahifa",
+                "Nikoh guvohnomasi va tug'ilganlik hujjatlari.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                54,
+                false,
+                {
+                  subCategory: "translation-official",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: true,
+                  sourceLang: "UZ",
+                  targetLang: "KR",
+                  images: makeTranslationImages(10)
+                }
+              ),
+              makeService(
+                "trans-1-4",
+                "Viza paket tarjimasi",
+                360000,
+                "sahifa",
+                "Visa checklist va migratsiya formalar to'plami.",
+                ["Koreya migratsiya tajribasi"],
+                "translation",
+                55,
+                false,
+                {
+                  subCategory: "translation-visa",
+                  translationMode: "written",
+                  translationSpeed: "shoshilinch",
+                  translationFormat: "Scan",
+                  notarization: true,
+                  sourceLang: "UZ",
+                  targetLang: "KR",
+                  images: makeTranslationImages(11)
+                }
+              ),
+              makeService(
+                "trans-1-5",
+                "Diplom ilovasi tarjimasi",
+                220000,
+                "sahifa",
+                "Transcript va diploma supplement tarjimasi.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                56,
+                false,
+                {
+                  subCategory: "translation-education",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "UZ",
+                  targetLang: "EN",
+                  images: makeTranslationImages(12)
                 }
               )
             ],
@@ -3988,7 +4181,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "PDF",
                   notarization: false,
                   sourceLang: "KR",
-                  targetLang: "RU"
+                  targetLang: "RU",
+                  images: makeTranslationImages(3)
                 }
               ),
               makeService(
@@ -4008,7 +4202,50 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "Scan",
                   notarization: false,
                   sourceLang: "EN",
-                  targetLang: "KR"
+                  targetLang: "KR",
+                  images: makeTranslationImages(4)
+                }
+              ),
+              makeService(
+                "trans-2-3",
+                "Ta'lim attestat tarjimasi",
+                210000,
+                "sahifa",
+                "Attestat va baholar jadvali tarjimasi.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                57,
+                false,
+                {
+                  subCategory: "translation-education",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "RU",
+                  targetLang: "KR",
+                  images: makeTranslationImages(13)
+                }
+              ),
+              makeService(
+                "trans-2-4",
+                "Og'zaki tarjima (Zoom)",
+                1400000,
+                "soat",
+                "Zoom orqali intervyu va meeting tarjimasi.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                58,
+                false,
+                {
+                  subCategory: "translation-oral",
+                  translationMode: "oral",
+                  translationSpeed: "oddiy",
+                  translationFormat: "Original",
+                  notarization: false,
+                  sourceLang: "EN",
+                  targetLang: "UZ",
+                  images: makeTranslationImages(14)
                 }
               )
             ],
@@ -4050,7 +4287,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "PDF",
                   notarization: true,
                   sourceLang: "EN",
-                  targetLang: "KR"
+                  targetLang: "KR",
+                  images: makeTranslationImages(5)
                 }
               ),
               makeService(
@@ -4070,7 +4308,92 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "Scan",
                   notarization: true,
                   sourceLang: "KR",
-                  targetLang: "UZ"
+                  targetLang: "UZ",
+                  images: makeTranslationImages(6)
+                }
+              ),
+              makeService(
+                "trans-3-3",
+                "Biznes reja tarjimasi",
+                420000,
+                "sahifa",
+                "Pitch deck va biznes reja tarjimasi.",
+                ["Legal tajriba"],
+                "translation",
+                59,
+                false,
+                {
+                  subCategory: "translation-business",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "UZ",
+                  targetLang: "EN",
+                  images: makeTranslationImages(15)
+                }
+              ),
+              makeService(
+                "trans-3-4",
+                "Shartnoma tezkor tarjima",
+                620000,
+                "sahifa",
+                "Shoshilinch biznes shartnoma tarjimasi.",
+                ["Legal tajriba"],
+                "translation",
+                60,
+                false,
+                {
+                  subCategory: "translation-business",
+                  translationMode: "written",
+                  translationSpeed: "shoshilinch",
+                  translationFormat: "Scan",
+                  notarization: true,
+                  sourceLang: "KR",
+                  targetLang: "EN",
+                  images: makeTranslationImages(16)
+                }
+              ),
+              makeService(
+                "trans-3-5",
+                "Visa ko'chirish hujjatlari",
+                300000,
+                "sahifa",
+                "Immigration uchun ariza va forms tarjimasi.",
+                ["Koreya migratsiya tajribasi"],
+                "translation",
+                61,
+                false,
+                {
+                  subCategory: "translation-visa",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: true,
+                  sourceLang: "EN",
+                  targetLang: "KR",
+                  images: makeTranslationImages(17)
+                }
+              ),
+              makeService(
+                "trans-3-6",
+                "Notarial biznes paket",
+                540000,
+                "sahifa",
+                "Kompaniya hujjatlarini notarial tayyorlash.",
+                ["Legal tajriba"],
+                "translation",
+                62,
+                false,
+                {
+                  subCategory: "translation-official",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "Original",
+                  notarization: true,
+                  sourceLang: "KR",
+                  targetLang: "RU",
+                  images: makeTranslationImages(18)
                 }
               )
             ],
@@ -4112,7 +4435,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "PDF",
                   notarization: false,
                   sourceLang: "RU",
-                  targetLang: "UZ"
+                  targetLang: "UZ",
+                  images: makeTranslationImages(7)
                 }
               ),
               makeService(
@@ -4132,7 +4456,50 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "Original",
                   notarization: false,
                   sourceLang: "KR",
-                  targetLang: "UZ"
+                  targetLang: "UZ",
+                  images: makeTranslationImages(8)
+                }
+              ),
+              makeService(
+                "trans-4-3",
+                "Retsept va tahlil tarjimasi",
+                230000,
+                "sahifa",
+                "Tibbiy analiz va laboratoriya hujjatlari.",
+                ["Tibbiy terminologiya"],
+                "translation",
+                63,
+                false,
+                {
+                  subCategory: "translation-medical",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "KR",
+                  targetLang: "UZ",
+                  images: makeTranslationImages(19)
+                }
+              ),
+              makeService(
+                "trans-4-4",
+                "Sug'urta formalar tarjimasi",
+                290000,
+                "sahifa",
+                "Sug'urta claim va klinika formalar.",
+                ["Tibbiy terminologiya"],
+                "translation",
+                64,
+                false,
+                {
+                  subCategory: "translation-medical",
+                  translationMode: "written",
+                  translationSpeed: "shoshilinch",
+                  translationFormat: "Scan",
+                  notarization: false,
+                  sourceLang: "EN",
+                  targetLang: "KR",
+                  images: makeTranslationImages(20)
                 }
               )
             ],
@@ -4174,7 +4541,50 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                   translationFormat: "PDF",
                   notarization: false,
                   sourceLang: "EN",
-                  targetLang: "UZ"
+                  targetLang: "UZ",
+                  images: makeTranslationImages(9)
+                }
+              ),
+              makeService(
+                "trans-5-2",
+                "Shaxsiy ariza tarjimasi",
+                170000,
+                "sahifa",
+                "Ariza va shaxsiy ma'lumot formalar.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                65,
+                false,
+                {
+                  subCategory: "translation-personal",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "RU",
+                  targetLang: "UZ",
+                  images: makeTranslationImages(21)
+                }
+              ),
+              makeService(
+                "trans-5-3",
+                "CV va cover letter tarjimasi",
+                210000,
+                "sahifa",
+                "CV va cover letter shaxsiy tarjimasi.",
+                ["Tarjimon guvohnomasi"],
+                "translation",
+                66,
+                false,
+                {
+                  subCategory: "translation-personal",
+                  translationMode: "written",
+                  translationSpeed: "oddiy",
+                  translationFormat: "PDF",
+                  notarization: false,
+                  sourceLang: "UZ",
+                  targetLang: "EN",
+                  images: makeTranslationImages(22)
                 }
               )
             ],
@@ -4215,7 +4625,8 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 ["Psixolog diplomi", "Amaliyot guvohnomasi"],
                 "psychology",
                 49,
-                true
+                true,
+                { subCategory: "psy-family", images: makePsychologyImages(1) }
               ),
               makeService(
                 "psy-1-2",
@@ -4225,10 +4636,58 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Individual suhbat va amaliy mashqlar.",
                 ["Psixolog diplomi"],
                 "psychology",
-                50
+                50,
+                false,
+                { subCategory: "psy-stress", images: makePsychologyImages(2) }
+              ),
+              makeService(
+                "psy-1-3",
+                "O'ziga ishonchni tiklash",
+                300000,
+                "seans",
+                "O'z-o'zini qadrlash va ishonchni oshirish.",
+                ["Psixolog diplomi"],
+                "psychology",
+                51,
+                false,
+                { subCategory: "psy-confidence", images: makePsychologyImages(3) }
+              ),
+              makeService(
+                "psy-1-4",
+                "Juftliklar muloqoti",
+                380000,
+                "seans",
+                "Ishonch va muloqot muammolarini hal qilish.",
+                ["Amaliyot guvohnomasi"],
+                "psychology",
+                52,
+                false,
+                { subCategory: "psy-family", images: makePsychologyImages(4) }
+              ),
+              makeService(
+                "psy-1-5",
+                "Bolalar uchun stressni yengish",
+                260000,
+                "seans",
+                "Bolalar va ota-ona uchun yumshoq yondashuv.",
+                ["Bolalar psixologiyasi sertifikati"],
+                "psychology",
+                53,
+                false,
+                { subCategory: "psy-children", images: makePsychologyImages(5) }
               )
             ],
-            true
+            true,
+            {
+              region: "Toshkent sh.",
+              languages: ["UZ", "RU"],
+              audiences: ["Kattalar", "Juftliklar", "Bolalar"],
+              consultationFormats: ["Chat", "Video", "Oflayn"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU"],
+              achievement: "Oilaviy terapiyada 300+ seans.",
+              bio: "Nodira oilaviy munosabatlar va stress bilan ishlaydi. Yumshoq va xavfsiz muloqot muhitini yaratadi."
+            }
           ),
           makeAgent(
             "psy-2",
@@ -4242,25 +4701,478 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
             [
               makeService(
                 "psy-2-1",
-                "Motivatsion seans",
+                "Burnoutni yengish",
                 250000,
                 "seans",
-                "Maqsad qo'yish va reja tuzish.",
+                "Kasbiy charchoq va tiklanish rejasi.",
                 ["Coach sertifikati"],
                 "psychology",
-                51
+                54,
+                false,
+                { subCategory: "psy-burnout", images: makePsychologyImages(6) }
               ),
               makeService(
                 "psy-2-2",
-                "Karyera diagnostikasi",
+                "Kasbiy stress bilan ishlash",
                 300000,
                 "seans",
-                "Kasbiy yo'nalishni aniqlash.",
+                "Ishdagi bosim va bezovtalikni kamaytirish.",
                 ["Coach sertifikati"],
                 "psychology",
-                52
+                55,
+                false,
+                { subCategory: "psy-stress", images: makePsychologyImages(7) }
+              ),
+              makeService(
+                "psy-2-3",
+                "O'ziga ishonch va motivatsiya",
+                280000,
+                "seans",
+                "Maqsad qo'yish va ichki motivatsiya.",
+                ["Coach sertifikati"],
+                "psychology",
+                56,
+                false,
+                { subCategory: "psy-confidence", images: makePsychologyImages(8) }
+              ),
+              makeService(
+                "psy-2-4",
+                "Moslashuv va ish muhitiga kirish",
+                320000,
+                "seans",
+                "Yangi muhitga moslashish va yo'nalish topish.",
+                ["Coach sertifikati"],
+                "psychology",
+                57,
+                false,
+                { subCategory: "psy-adaptation", images: makePsychologyImages(9) }
               )
-            ]
+            ],
+            true,
+            {
+              region: "Sirdaryo",
+              languages: ["UZ", "RU", "EN"],
+              audiences: ["Kattalar", "O'smirlar"],
+              consultationFormats: ["Chat", "Audio", "Video"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU", "EN"],
+              achievement: "Karyera va burnout bo'yicha 200+ seans.",
+              bio: "Shohrux ish va karyera bilan bog'liq stress, burnout va motivatsiya muammolari bilan ishlaydi."
+            }
+          ),
+          makeAgent(
+            "psy-3",
+            "Dilshoda Karimova",
+            "DilshodaKids",
+            "Bolalar psixologi",
+            "Namangan",
+            7,
+            27,
+            27,
+            [
+              makeService(
+                "psy-3-1",
+                "Bolalar psixologiyasi",
+                260000,
+                "seans",
+                "Bolalar xulqi va emotsiyalarini tartibga solish.",
+                ["Bolalar psixologiyasi sertifikati"],
+                "psychology",
+                58,
+                false,
+                { subCategory: "psy-children", images: makePsychologyImages(10) }
+              ),
+              makeService(
+                "psy-3-2",
+                "O'smirlar bezovtaligi",
+                270000,
+                "seans",
+                "O'smirlar stressi va o'zini anglash.",
+                ["Amaliyot guvohnomasi"],
+                "psychology",
+                59,
+                false,
+                { subCategory: "psy-stress", images: makePsychologyImages(11) }
+              ),
+              makeService(
+                "psy-3-3",
+                "Ota-ona va bola munosabati",
+                300000,
+                "seans",
+                "Oilaviy tushunmovchiliklarni yumshatish.",
+                ["Psixolog diplomi"],
+                "psychology",
+                60,
+                false,
+                { subCategory: "psy-family", images: makePsychologyImages(12) }
+              ),
+              makeService(
+                "psy-3-4",
+                "Travma bilan ishlash",
+                320000,
+                "seans",
+                "Bolalar va o'smirlar uchun yumshoq terapiya.",
+                ["Travma bo'yicha sertifikat"],
+                "psychology",
+                61,
+                false,
+                { subCategory: "psy-trauma", images: makePsychologyImages(13) }
+              )
+            ],
+            true,
+            {
+              region: "Namangan",
+              languages: ["UZ", "RU"],
+              audiences: ["Bolalar", "O'smirlar", "Kattalar"],
+              consultationFormats: ["Chat", "Video", "Oflayn"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU"],
+              achievement: "Bolalar bilan 500+ seans.",
+              bio: "Dilshoda bolalar va o'smirlar psixologiyasi bo'yicha ishlaydi. Maxfiylik va xavfsizlik birinchi o'rinda."
+            }
+          ),
+          makeAgent(
+            "psy-4",
+            "Minji Han",
+            "MinjiTherapy",
+            "Klinik psixolog",
+            "Seul",
+            9,
+            28,
+            28,
+            [
+              makeService(
+                "psy-4-1",
+                "Depressiya bilan ishlash",
+                420000,
+                "seans",
+                "Yengil va o'rta darajadagi depressiya qo'llab-quvvatlashi.",
+                ["Klinik psixologiya sertifikati"],
+                "psychology",
+                62,
+                false,
+                { subCategory: "psy-depression", images: makePsychologyImages(14) }
+              ),
+              makeService(
+                "psy-4-2",
+                "Travma terapiyasi",
+                450000,
+                "seans",
+                "Travma oqibatlarini yumshatish.",
+                ["Travma bo'yicha sertifikat"],
+                "psychology",
+                63,
+                false,
+                { subCategory: "psy-trauma", images: makePsychologyImages(15) }
+              ),
+              makeService(
+                "psy-4-3",
+                "Kayfiyat va tushkunlik",
+                400000,
+                "seans",
+                "Kayfiyat tebranishlarini boshqarish.",
+                ["Klinik psixologiya sertifikati"],
+                "psychology",
+                64,
+                false,
+                { subCategory: "psy-depression", images: makePsychologyImages(16) }
+              ),
+              makeService(
+                "psy-4-4",
+                "Koreyada moslashuv",
+                380000,
+                "seans",
+                "Yangi muhitga moslashish va qo'llab-quvvatlash.",
+                ["Migratsiya tajribasi"],
+                "psychology",
+                65,
+                false,
+                { subCategory: "psy-adaptation", images: makePsychologyImages(17) }
+              )
+            ],
+            true,
+            {
+              region: "Seul",
+              languages: ["KR", "EN", "UZ"],
+              audiences: ["Kattalar", "Juftliklar"],
+              consultationFormats: ["Chat", "Audio", "Video"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["KR", "EN", "UZ"],
+              achievement: "Klinik amaliyotda 7+ yil tajriba.",
+              bio: "Minji depressiya, travma va moslashuv bo'yicha ishlaydi. CBT va mindfulness metodlariga tayangan holda ishlaydi."
+            }
+          ),
+          makeAgent(
+            "psy-5",
+            "Rustam Sadikov",
+            "RustamAdapt",
+            "Moslashuv va stress bo'yicha psixolog",
+            "Buxoro",
+            6,
+            29,
+            29,
+            [
+              makeService(
+                "psy-5-1",
+                "Moslashuv (Koreyada yashash)",
+                330000,
+                "seans",
+                "Migratsiya va madaniy moslashuv muammolari.",
+                ["Moslashuv bo'yicha sertifikat"],
+                "psychology",
+                66,
+                false,
+                { subCategory: "psy-adaptation", images: makePsychologyImages(18) }
+              ),
+              makeService(
+                "psy-5-2",
+                "Bezovtalik va stress",
+                300000,
+                "seans",
+                "Bezovtalik darajasini kamaytirish.",
+                ["Psixolog diplomi"],
+                "psychology",
+                67,
+                false,
+                { subCategory: "psy-stress", images: makePsychologyImages(19) }
+              ),
+              makeService(
+                "psy-5-3",
+                "Burnoutdan tiklanish",
+                320000,
+                "seans",
+                "Ishdagi charchoq va resurslarni tiklash.",
+                ["Psixolog diplomi"],
+                "psychology",
+                68,
+                false,
+                { subCategory: "psy-burnout", images: makePsychologyImages(20) }
+              ),
+              makeService(
+                "psy-5-4",
+                "Travma va qo'llab-quvvatlash",
+                360000,
+                "seans",
+                "Travmadan keyingi qo'llab-quvvatlash.",
+                ["Travma bo'yicha sertifikat"],
+                "psychology",
+                69,
+                false,
+                { subCategory: "psy-trauma", images: makePsychologyImages(21) }
+              )
+            ],
+            true,
+            {
+              region: "Buxoro",
+              languages: ["UZ", "RU", "KR"],
+              audiences: ["Kattalar"],
+              consultationFormats: ["Chat", "Video", "Oflayn"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU", "KR"],
+              achievement: "Moslashuv bo'yicha 150+ seans.",
+              bio: "Rustam moslashuv, stress va burnout bilan ishlaydi. Maxfiylikni qat'iy saqlaydi."
+            }
+          ),
+          makeAgent(
+            "psy-6",
+            "Kamola Yusupova",
+            "KamolaCare",
+            "Juftliklar va oilaviy psixolog",
+            "Samarqand",
+            10,
+            30,
+            30,
+            [
+              makeService(
+                "psy-6-1",
+                "Juftliklar terapiyasi",
+                420000,
+                "seans",
+                "Muloqot va ishonchni tiklash.",
+                ["Oilaviy terapiya sertifikati"],
+                "psychology",
+                70,
+                false,
+                { subCategory: "psy-family", images: makePsychologyImages(22) }
+              ),
+              makeService(
+                "psy-6-2",
+                "Depressiya va yo'qotish",
+                380000,
+                "seans",
+                "Yaqinini yo'qotish va tushkunlik bilan ishlash.",
+                ["Psixolog diplomi"],
+                "psychology",
+                71,
+                false,
+                { subCategory: "psy-depression", images: makePsychologyImages(23) }
+              ),
+              makeService(
+                "psy-6-3",
+                "Oilaviy burnout",
+                360000,
+                "seans",
+                "G'amxo'rlik charchog'i va tiklanish.",
+                ["Psixolog diplomi"],
+                "psychology",
+                72,
+                false,
+                { subCategory: "psy-burnout", images: makePsychologyImages(24) }
+              ),
+              makeService(
+                "psy-6-4",
+                "Bola-ota-ona bog'lanishi",
+                300000,
+                "seans",
+                "Emotsional yaqinlikni tiklash.",
+                ["Bolalar psixologiyasi sertifikati"],
+                "psychology",
+                73,
+                false,
+                { subCategory: "psy-children", images: makePsychologyImages(25) }
+              ),
+              makeService(
+                "psy-6-5",
+                "O'ziga ishonchni mustahkamlash",
+                310000,
+                "seans",
+                "O'z-o'zini qadrlash va ichki barqarorlik.",
+                ["Psixolog diplomi"],
+                "psychology",
+                74,
+                false,
+                { subCategory: "psy-confidence", images: makePsychologyImages(26) }
+              )
+            ],
+            true,
+            {
+              region: "Samarqand",
+              languages: ["UZ", "RU"],
+              audiences: ["Kattalar", "Juftliklar", "Bolalar"],
+              consultationFormats: ["Chat", "Audio", "Video", "Oflayn"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU"],
+              achievement: "Oilaviy terapiyada 400+ seans.",
+              bio: "Kamola juftliklar va oilaviy munosabatlar bilan ishlaydi. Mijozlar maxfiyligi birinchi o'rinda."
+            }
+          ),
+          makeAgent(
+            "psy-7",
+            "Aziza Mamatova",
+            "AzizaMind",
+            "Mindfulness terapevt",
+            "Toshkent",
+            6,
+            31,
+            31,
+            [
+              makeService(
+                "psy-7-1",
+                "Bezovtalikni boshqarish",
+                320000,
+                "seans",
+                "Nafas va mindfulness amaliyotlari.",
+                ["Mindfulness sertifikati"],
+                "psychology",
+                75,
+                false,
+                { subCategory: "psy-stress", images: makePsychologyImages(27) }
+              ),
+              makeService(
+                "psy-7-2",
+                "Kayfiyat barqarorligi",
+                340000,
+                "seans",
+                "Kayfiyat tebranishlarini yumshatish.",
+                ["CBT sertifikati"],
+                "psychology",
+                76,
+                false,
+                { subCategory: "psy-depression", images: makePsychologyImages(28) }
+              ),
+              makeService(
+                "psy-7-3",
+                "O'ziga ishonch terapiyasi",
+                300000,
+                "seans",
+                "Ichki resurs va ishonchni mustahkamlash.",
+                ["Psixolog diplomi"],
+                "psychology",
+                77,
+                false,
+                { subCategory: "psy-confidence", images: makePsychologyImages(29) }
+              )
+            ],
+            true,
+            {
+              region: "Toshkent sh.",
+              languages: ["UZ", "RU", "EN"],
+              audiences: ["Kattalar", "O'smirlar"],
+              consultationFormats: ["Chat", "Video"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["UZ", "RU", "EN"],
+              achievement: "Mindfulness bo'yicha 150+ seans.",
+              bio: "Aziza bezovtalik, kayfiyat va ishonch bilan ishlaydi. Tinch va xavfsiz muhit yaratadi."
+            }
+          ),
+          makeAgent(
+            "psy-8",
+            "Eunji Park",
+            "EunjiCare",
+            "Moslashuv va travma bo'yicha psixolog",
+            "Seul",
+            9,
+            32,
+            32,
+            [
+              makeService(
+                "psy-8-1",
+                "Moslashuv seansi",
+                360000,
+                "seans",
+                "Yangi muhitga moslashish bo'yicha qo'llab-quvvatlash.",
+                ["Migratsiya tajribasi"],
+                "psychology",
+                78,
+                false,
+                { subCategory: "psy-adaptation", images: makePsychologyImages(30) }
+              ),
+              makeService(
+                "psy-8-2",
+                "Travma bilan ishlash",
+                420000,
+                "seans",
+                "Travmatik tajribalarni yumshatish.",
+                ["Travma bo'yicha sertifikat"],
+                "psychology",
+                79,
+                false,
+                { subCategory: "psy-trauma", images: makePsychologyImages(31) }
+              ),
+              makeService(
+                "psy-8-3",
+                "Kasbiy burnout profilaktikasi",
+                350000,
+                "seans",
+                "Ishdagi charchoqni erta bosqichda aniqlash.",
+                ["Psixolog diplomi"],
+                "psychology",
+                80,
+                false,
+                { subCategory: "psy-burnout", images: makePsychologyImages(32) }
+              )
+            ],
+            true,
+            {
+              region: "Seul",
+              languages: ["KR", "EN", "UZ"],
+              audiences: ["Kattalar"],
+              consultationFormats: ["Chat", "Audio", "Video"],
+              consultationDurations: ["50 daqiqa"],
+              consultationLanguages: ["KR", "EN", "UZ"],
+              achievement: "Moslashuv va travma bo'yicha 200+ seans.",
+              bio: "Eunji moslashuv va travma bilan ishlaydi, yumshoq va ilmiy yondashuvni qo'llaydi."
+            }
           )
         ]
       },
@@ -4288,7 +5200,22 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 ["Yuridik litsenziya"],
                 "legal",
                 53,
-                true
+                true,
+                {
+                  legalArea: "Biznes va shartnomalar",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video", "offline"],
+                  legalResponseTime: "8-24 soat",
+                  legalIncluded: [
+                    "Shartnoma tuzilmasi",
+                    "Risklarni aniqlash",
+                    "Tahrir va yakuniy variant"
+                  ],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
               ),
               makeService(
                 "law-1-2",
@@ -4298,10 +5225,31 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Huquqiy tahlil va hujjatlar.",
                 ["Yuridik litsenziya"],
                 "legal",
-                54
+                54,
+                false,
+                {
+                  legalArea: "Sud hujjatlari",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video", "offline"],
+                  legalResponseTime: "24-72 soat",
+                  legalIncluded: ["Hujjatlar ro‘yxati", "Tahlil", "Tayyorlash"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
               )
             ],
-            true
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-2147",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus", "Ingliz"],
+              legalEducation: ["TDYU — Yurisprudensiya"],
+              legalSpecialties: ["Shartnomalar", "Korporativ huquq", "Sud hujjatlari"],
+              legalExcludedMatters: ["Jinoiy ishlar bo‘yicha vakillik", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-10-12"
+            }
           ),
           makeAgent(
             "law-2",
@@ -4321,7 +5269,19 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Ish beruvchi va xodimlar uchun.",
                 ["Yuridik litsenziya"],
                 "legal",
-                55
+                55,
+                false,
+                {
+                  legalArea: "Mehnat huquqi",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "6-24 soat",
+                  legalIncluded: ["Shartnoma tahlili", "Tuzatish tavsiyasi", "Risklar ro‘yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
               ),
               makeService(
                 "law-2-2",
@@ -4331,9 +5291,669 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Kompaniya hujjatlarini tekshirish.",
                 ["Yuridik litsenziya"],
                 "legal",
-                56
+                56,
+                false,
+                {
+                  legalArea: "Biznes va shartnomalar",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video", "offline"],
+                  legalResponseTime: "3-5 ish kuni",
+                  legalIncluded: ["Audit xulosasi (PDF)", "Tavsiyalar ro‘yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-2-3",
+                "Mehnat nizosi bo‘yicha yozma xulosa",
+                620000,
+                "xulosa",
+                "Ish beruvchi va xodim nizolari bo‘yicha yozma tavsiya.",
+                ["Yuridik litsenziya"],
+                "legal",
+                57,
+                false,
+                {
+                  legalArea: "Mehnat huquqi",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "2-3 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Keyingi qadamlar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
               )
-            ]
+            ],
+            false,
+            {
+              legalLicenseMasked: "UZ-LAW-****-3981",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["ADLIYA INSTITUTI — Mehnat huquqi"],
+              legalSpecialties: ["Mehnat shartnomalari", "Ichki reglamentlar"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-08-03"
+            }
+          ),
+          makeAgent(
+            "law-3",
+            "Akmal Tursunov",
+            "AkmalVisa",
+            "Migratsiya va viza bo'yicha yurist",
+            "Toshkent",
+            11,
+            31,
+            31,
+            [
+              makeService(
+                "law-3-1",
+                "Visa va migratsiya konsultatsiyasi (KR)",
+                420000,
+                "seans",
+                "Koreya visa talablari va hujjatlar bo'yicha yo'l-yo'riq.",
+                ["Yuridik litsenziya"],
+                "legal",
+                57,
+                false,
+                {
+                  legalArea: "Migratsiya va visa",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "KR",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "6-12 soat",
+                  legalIncluded: ["Talablar ro'yxati", "Risklar tahlili", "Tayyorlov reja"],
+                  legalExcluded: ["Visa kafolati", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, rasmiy organ qaroriga ta’sir qilmaydi."
+                }
+              ),
+              makeService(
+                "law-3-2",
+                "Migratsiya hujjatlarini tekshirish",
+                380000,
+                "hujjat",
+                "Ariza va hujjatlarni tekshirish, xatolarni ko'rsatish.",
+                ["Yuridik litsenziya"],
+                "legal",
+                58,
+                false,
+                {
+                  legalArea: "Migratsiya va visa",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "KR",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "12-24 soat",
+                  legalIncluded: ["Tekshiruv", "Xatolar ro'yxati", "Tuzatish tavsiyasi"],
+                  legalExcluded: ["Hujjat topshirish", "Sudda vakillik"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, rasmiy organ qaroriga ta’sir qilmaydi."
+                }
+              ),
+              makeService(
+                "law-3-3",
+                "Visa uchun yozma xulosa",
+                650000,
+                "xulosa",
+                "Rasmiy yozma xulosa va tavsiyalar (PDF).",
+                ["Yuridik litsenziya"],
+                "legal",
+                59,
+                false,
+                {
+                  legalArea: "Migratsiya va visa",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "KR",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "2-3 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Tavsiyalar ro'yxati"],
+                  legalExcluded: ["Visa kafolati", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, rasmiy organ qaroriga ta’sir qilmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-5512",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus", "Koreys"],
+              legalEducation: ["TDYU — Xalqaro huquq"],
+              legalSpecialties: ["Migratsiya", "Visa", "Rasmiy hujjatlar"],
+              legalExcludedMatters: ["Noqonuniy masalalar", "Sudda vakillik"],
+              legalVerifiedAt: "2025-09-05"
+            }
+          ),
+          makeAgent(
+            "law-4",
+            "Shahnoza Abdullayeva",
+            "ShahnozaCivil",
+            "Fuqarolik huquqi bo'yicha yurist",
+            "Samarqand",
+            10,
+            32,
+            32,
+            [
+              makeService(
+                "law-4-1",
+                "Fuqarolik nizolari bo‘yicha maslahat",
+                360000,
+                "seans",
+                "Qarz, zarar, mulk nizolari bo‘yicha yo‘l-yo‘riq.",
+                ["Yuridik litsenziya"],
+                "legal",
+                60,
+                false,
+                {
+                  legalArea: "Fuqarolik huquqi",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video", "offline"],
+                  legalResponseTime: "6-24 soat",
+                  legalIncluded: ["Maslahat", "Strategiya", "Hujjatlar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-4-2",
+                "Da'vo arizasi loyihasi",
+                520000,
+                "hujjat",
+                "Fuqarolik da'vosi uchun hujjat tayyorlash.",
+                ["Yuridik litsenziya"],
+                "legal",
+                61,
+                false,
+                {
+                  legalArea: "Fuqarolik huquqi",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "offline"],
+                  legalResponseTime: "2-3 ish kuni",
+                  legalIncluded: ["Da'vo loyihasi", "Tekshiruv", "Tavsiyalar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-4-3",
+                "Shartnoma nizosi tahlili",
+                410000,
+                "xizmat",
+                "Shartnoma bo‘yicha nizoli bandlarni tahlil qilish.",
+                ["Yuridik litsenziya"],
+                "legal",
+                62,
+                false,
+                {
+                  legalArea: "Fuqarolik huquqi",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "12-24 soat",
+                  legalIncluded: ["Bandlar tahlili", "Xatarlar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-9044",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["SamDU — Yurisprudensiya"],
+              legalSpecialties: ["Fuqarolik nizolari", "Shartnomalar"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-07-19"
+            }
+          ),
+          makeAgent(
+            "law-5",
+            "Dilnoza Karimova",
+            "DilnozaFamily",
+            "Oilaviy huquq bo'yicha yurist",
+            "Andijon",
+            8,
+            33,
+            33,
+            [
+              makeService(
+                "law-5-1",
+                "Nikoh va ajrim bo‘yicha maslahat",
+                320000,
+                "seans",
+                "Ajrim jarayonlari va kelishuv bo‘yicha maslahat.",
+                ["Yuridik litsenziya"],
+                "legal",
+                63,
+                false,
+                {
+                  legalArea: "Oilaviy huquq",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "6-12 soat",
+                  legalIncluded: ["Maslahat", "Hujjatlar ro'yxati", "Kelishuv tavsiyasi"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-5-2",
+                "Aliment hujjatlari tayyorlash",
+                470000,
+                "hujjat",
+                "Aliment bo‘yicha kelishuv va hujjatlar tayyorlash.",
+                ["Yuridik litsenziya"],
+                "legal",
+                64,
+                false,
+                {
+                  legalArea: "Oilaviy huquq",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "offline"],
+                  legalResponseTime: "2 ish kuni",
+                  legalIncluded: ["Hujjat loyihasi", "Tekshiruv", "Tavsiyalar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-5-3",
+                "Vasiylik bo‘yicha yozma xulosa",
+                520000,
+                "xulosa",
+                "Bolalar vasiyligi bo‘yicha yozma huquqiy xulosa.",
+                ["Yuridik litsenziya"],
+                "legal",
+                65,
+                false,
+                {
+                  legalArea: "Oilaviy huquq",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "2-3 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Tavsiyalar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-6673",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["AndDU — Yurisprudensiya"],
+              legalSpecialties: ["Oilaviy nizolar", "Vasiylik", "Aliment"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-06-02"
+            }
+          ),
+          makeAgent(
+            "law-6",
+            "Jasur Mamatov",
+            "JasurBusiness",
+            "Biznes va shartnomalar yuristi",
+            "Toshkent",
+            13,
+            34,
+            34,
+            [
+              makeService(
+                "law-6-1",
+                "Biznes shartnomasi tayyorlash",
+                780000,
+                "hujjat",
+                "Hamkorlik va yetkazib berish shartnomalari.",
+                ["Yuridik litsenziya"],
+                "legal",
+                66,
+                false,
+                {
+                  legalArea: "Biznes va shartnomalar",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video", "offline"],
+                  legalResponseTime: "2-4 ish kuni",
+                  legalIncluded: ["Loyiha", "Risklar tahlili", "Yakuniy variant"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-6-2",
+                "Investor shartnomasi tekshiruvi",
+                640000,
+                "hujjat",
+                "Investitsiya shartnomalari bo‘yicha tekshiruv.",
+                ["Yuridik litsenziya"],
+                "legal",
+                67,
+                false,
+                {
+                  legalArea: "Biznes va shartnomalar",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "24-48 soat",
+                  legalIncluded: ["Tekshiruv", "Xatarlar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-6-3",
+                "Biznes huquqiy xulosa (PDF)",
+                920000,
+                "xulosa",
+                "Rasmiy yozma xulosa va tavsiyalar.",
+                ["Yuridik litsenziya"],
+                "legal",
+                68,
+                false,
+                {
+                  legalArea: "Biznes va shartnomalar",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "3-5 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Tavsiyalar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-8302",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus", "Ingliz"],
+              legalEducation: ["TDYU — Biznes huquqi"],
+              legalSpecialties: ["Korporativ huquq", "Shartnomalar", "Investitsiya"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-09-28"
+            }
+          ),
+          makeAgent(
+            "law-7",
+            "Murod Qudratov",
+            "MurodCourt",
+            "Sud hujjatlari bo'yicha yurist",
+            "Buxoro",
+            9,
+            35,
+            35,
+            [
+              makeService(
+                "law-7-1",
+                "Sud hujjatlari bo‘yicha maslahat",
+                350000,
+                "seans",
+                "Ariza va hujjat turlari bo‘yicha yo‘l-yo‘riq.",
+                ["Yuridik litsenziya"],
+                "legal",
+                69,
+                false,
+                {
+                  legalArea: "Sud hujjatlari",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "6-24 soat",
+                  legalIncluded: ["Maslahat", "Hujjatlar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-7-2",
+                "Sudga hujjat tayyorlash",
+                720000,
+                "hujjat",
+                "Ariza va ilovalarni tayyorlash.",
+                ["Yuridik litsenziya"],
+                "legal",
+                70,
+                false,
+                {
+                  legalArea: "Sud hujjatlari",
+                  legalServiceType: "Hujjat tayyorlash",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "offline"],
+                  legalResponseTime: "2-4 ish kuni",
+                  legalIncluded: ["Hujjat loyihasi", "Tekshiruv", "Tavsiyalar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-7-3",
+                "Sud hujjatlari tekshiruvi",
+                480000,
+                "hujjat",
+                "Tayyor hujjatlarni tekshirish va xatolarni ko'rsatish.",
+                ["Yuridik litsenziya"],
+                "legal",
+                71,
+                false,
+                {
+                  legalArea: "Sud hujjatlari",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "12-24 soat",
+                  legalIncluded: ["Tekshiruv", "Xatolar ro'yxati", "Tuzatish tavsiyasi"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-4421",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["BuxDU — Yurisprudensiya"],
+              legalSpecialties: ["Sud hujjatlari", "Da'vo arizalari"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-04-11"
+            }
+          ),
+          makeAgent(
+            "law-8",
+            "Nodir Bekmurodov",
+            "NodirTax",
+            "Soliq bo'yicha yurist",
+            "Farg'ona",
+            10,
+            36,
+            36,
+            [
+              makeService(
+                "law-8-1",
+                "Soliq maslahati",
+                390000,
+                "seans",
+                "Soliq majburiyatlari bo‘yicha maslahat.",
+                ["Yuridik litsenziya"],
+                "legal",
+                72,
+                false,
+                {
+                  legalArea: "Soliq",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "6-12 soat",
+                  legalIncluded: ["Maslahat", "Reja", "Risklar tahlili"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-8-2",
+                "Soliq hujjatlari tekshiruvi",
+                540000,
+                "hujjat",
+                "Soliq hujjatlarini tekshirish va tavsiyalar.",
+                ["Yuridik litsenziya"],
+                "legal",
+                73,
+                false,
+                {
+                  legalArea: "Soliq",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "24-48 soat",
+                  legalIncluded: ["Tekshiruv", "Xatolar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-8-3",
+                "Soliq bo‘yicha yozma xulosa",
+                760000,
+                "xulosa",
+                "Soliq masalalari bo‘yicha rasmiy yozma xulosa.",
+                ["Yuridik litsenziya"],
+                "legal",
+                74,
+                false,
+                {
+                  legalArea: "Soliq",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "3-5 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Tavsiyalar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu umumiy huquqiy maslahat bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-7776",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["Farg'ona DU — Soliq huquqi"],
+              legalSpecialties: ["Soliq", "Hisobotlar", "Audit"],
+              legalExcludedMatters: ["Jinoiy ishlar", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-05-22"
+            }
+          ),
+          makeAgent(
+            "law-9",
+            "Rustam Qobilov",
+            "RustamCrim",
+            "Jinoiy ishlar bo‘yicha konsultant",
+            "Toshkent",
+            14,
+            30,
+            30,
+            [
+              makeService(
+                "law-9-1",
+                "Jinoiy ish bo‘yicha dastlabki maslahat",
+                520000,
+                "seans",
+                "Faqat konsultatsiya va yo‘l-yo‘riq.",
+                ["Yuridik litsenziya"],
+                "legal",
+                75,
+                false,
+                {
+                  legalArea: "Jinoiy ishlar (faqat konsultatsiya)",
+                  legalServiceType: "Og'zaki maslahat",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "audio", "video"],
+                  legalResponseTime: "2-6 soat",
+                  legalIncluded: ["Maslahat", "Keyingi qadamlar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu faqat konsultatsiya bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-9-2",
+                "Jinoiy ish hujjatlarini ko‘rib chiqish",
+                680000,
+                "hujjat",
+                "Hujjatlarni tekshirish va tavsiyalar.",
+                ["Yuridik litsenziya"],
+                "legal",
+                76,
+                false,
+                {
+                  legalArea: "Jinoiy ishlar (faqat konsultatsiya)",
+                  legalServiceType: "Hujjat tekshirish",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat", "video"],
+                  legalResponseTime: "24-48 soat",
+                  legalIncluded: ["Tekshiruv", "Tavsiyalar"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu faqat konsultatsiya bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              ),
+              makeService(
+                "law-9-3",
+                "Jinoiy ish bo‘yicha yozma xulosa",
+                980000,
+                "xulosa",
+                "Rasmiy yozma xulosa (PDF).",
+                ["Yuridik litsenziya"],
+                "legal",
+                77,
+                false,
+                {
+                  legalArea: "Jinoiy ishlar (faqat konsultatsiya)",
+                  legalServiceType: "Yozma huquqiy xulosa",
+                  legalJurisdiction: "UZ",
+                  legalFormat: ["chat"],
+                  legalResponseTime: "3-5 ish kuni",
+                  legalIncluded: ["Yozma xulosa", "Tavsiyalar ro'yxati"],
+                  legalExcluded: ["Sudda vakillik", "Noqonuniy masalalar"],
+                  legalDisclaimer:
+                    "Bu faqat konsultatsiya bo‘lib, sudda vakillikni anglatmaydi."
+                }
+              )
+            ],
+            true,
+            {
+              legalLicenseMasked: "UZ-LAW-****-1999",
+              legalLicenseAuthority: "O‘zbekiston Adliya vazirligi",
+              languages: ["O'zbek", "Rus"],
+              legalEducation: ["Toshkent davlat yuridik universiteti"],
+              legalSpecialties: ["Jinoiy ishlar bo‘yicha konsultatsiya"],
+              legalExcludedMatters: ["Sudda vakillik", "Noqonuniy masalalar"],
+              legalVerifiedAt: "2025-03-14"
+            }
           )
         ]
       },
@@ -4354,14 +5974,29 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
             [
               makeService(
                 "sport-1-1",
-                "Individual trening",
+                "Individual fitness treningi",
                 200000,
                 "seans",
                 "Shaxsiy dastur va ovqatlanish rejasi.",
                 ["Trener sertifikati", "Sog'liq hujjati"],
                 "sport",
                 57,
-                true
+                true,
+                {
+                  sportType: "Fitness",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Kattalar", "Ayollar", "Erkaklar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline", "online"],
+                  sportLocation: "Toshkent, Chilonzor",
+                  sportGym: "FitZone Gym",
+                  sportPlan: ["Diagnostika", "Kuch + kardio", "Stretching"],
+                  sportResult: "8 haftada -4 kg",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 3,
+                  sportTracking: true,
+                  sportDiet: true
+                }
               ),
               makeService(
                 "sport-1-2",
@@ -4371,10 +6006,57 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "6-8 kishilik guruhlar uchun.",
                 ["Trener sertifikati"],
                 "sport",
-                58
+                58,
+                false,
+                {
+                  sportType: "Fitness",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Chilonzor",
+                  sportGym: "FitZone Gym",
+                  sportPlan: ["Isinish", "Circuit", "Cooldown"],
+                  sportResult: "4 haftada chidamlilik +20%",
+                  sportDuration: "55 daqiqa",
+                  sportWeeklySessions: 2
+                }
+              ),
+              makeService(
+                "sport-1-3",
+                "Online fitness coaching",
+                650000,
+                "oy",
+                "Online reja + haftalik tekshiruv.",
+                ["Trener sertifikati"],
+                "sport",
+                59,
+                false,
+                {
+                  sportType: "Fitness",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar", "Kattalar"],
+                  sportServiceType: "Online coaching",
+                  sportFormat: ["online", "video"],
+                  sportPlan: ["Haftalik reja", "Video yo'riqnoma", "Progress tracking"],
+                  sportResult: "1 oyda energiya +30%",
+                  sportDuration: "4 hafta",
+                  sportWeeklySessions: 4,
+                  sportTracking: true,
+                  sportDiet: true,
+                  sportCourseModules: ["Isinish", "Kardio", "Kuch", "Stretching"],
+                  sportCourseLength: "4 hafta"
+                }
               )
             ],
-            true
+            true,
+            {
+              sportCertificates: ["IFBB Fitness Coach", "First Aid"],
+              sportAchievements: ["500+ shogird", "3 yil FitZone bosh murabbiy"],
+              sportPhilosophy: "Natija muntazamlikdan boshlanadi.",
+              sportExcludedCases: ["Tibbiy cheklovlarsiz ruxsat"],
+              sportStudentsCount: 520
+            }
           ),
           makeAgent(
             "sport-2",
@@ -4394,7 +6076,22 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "Stressni kamaytirish va moslashuv.",
                 ["Yoga sertifikati"],
                 "sport",
-                59
+                60,
+                false,
+                {
+                  sportType: "Yoga",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar", "Kattalar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["online", "offline"],
+                  sportLocation: "Toshkent, Yunusobod",
+                  sportGym: "Calm Studio",
+                  sportPlan: ["Nafas", "Asanalar", "Meditatsiya"],
+                  sportResult: "4 haftada stress -30%",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 2,
+                  sportTracking: true
+                }
               ),
               makeService(
                 "sport-2-2",
@@ -4404,9 +6101,738 @@ export const serviceCatalog: ServiceCatalogGroup[] = [
                 "10 ta mashg'ulot paketi.",
                 ["Pilates sertifikati"],
                 "sport",
-                60
+                61,
+                false,
+                {
+                  sportType: "Yoga",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Jonli kurs",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Yunusobod",
+                  sportGym: "Calm Studio",
+                  sportPlan: ["Core", "Mobility", "Balance"],
+                  sportResult: "6 haftada postura yaxshilanishi",
+                  sportDuration: "6 hafta",
+                  sportWeeklySessions: 2,
+                  sportCourseModules: ["Core", "Stretching", "Balance"],
+                  sportCourseLength: "6 hafta",
+                  sportMaxParticipants: 12
+                }
+              ),
+              makeService(
+                "sport-2-3",
+                "Ayollar uchun yoga video kurs",
+                420000,
+                "kurs",
+                "Uyda bajarish uchun video darslar.",
+                ["Yoga sertifikati"],
+                "sport",
+                62,
+                false,
+                {
+                  sportType: "Ayollar uchun fitness",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Video kurs",
+                  sportFormat: ["video", "online"],
+                  sportPlan: ["7 modul", "Video dars", "Chat"],
+                  sportResult: "6 haftada moslashuv + balans",
+                  sportCourseModules: ["Nafas", "Asanalar", "Stretching", "Relax"],
+                  sportCourseLength: "6 hafta"
+                }
               )
-            ]
+            ],
+            true,
+            {
+              sportCertificates: ["Yoga Alliance RYT200"],
+              sportAchievements: ["200+ shogird", "3 yil studio asoschisi"],
+              sportPhilosophy: "Sokin ong — kuchli tana.",
+              sportExcludedCases: ["Og'ir tibbiy cheklovlar"],
+              sportStudentsCount: 240
+            }
+          ),
+          makeAgent(
+            "sport-3",
+            "Jamshid Qodirov",
+            "JamshidBody",
+            "Bodybuilding murabbiyi",
+            "Toshkent",
+            9,
+            31,
+            31,
+            [
+              makeService(
+                "sport-3-1",
+                "Bodybuilding individual trening",
+                260000,
+                "seans",
+                "Mass gain va kuch rejalari.",
+                ["IFBB sertifikati"],
+                "sport",
+                63,
+                false,
+                {
+                  sportType: "Bodybuilding",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Erkaklar", "Kattalar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Mirzo Ulug'bek",
+                  sportGym: "Power House",
+                  sportPlan: ["Split trening", "Progress tracking", "Diet plan"],
+                  sportResult: "12 haftada +3-5 kg mushak",
+                  sportDuration: "75 daqiqa",
+                  sportWeeklySessions: 4,
+                  sportTracking: true,
+                  sportDiet: true
+                }
+              ),
+              makeService(
+                "sport-3-2",
+                "Bodybuilding partner trening (erkaklar)",
+                140000,
+                "seans",
+                "Birgalikda shug‘ullanishni xohlovchilar uchun.",
+                ["IFBB sertifikati"],
+                "sport",
+                64,
+                false,
+                {
+                  sportType: "Bodybuilding",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Erkaklar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Mirzo Ulug'bek",
+                  sportGym: "Power House",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 3,
+                  sportResult: "4 haftada kuch +10%"
+                }
+              ),
+              makeService(
+                "sport-3-3",
+                "Bodybuilding partner trening (ayollar)",
+                140000,
+                "seans",
+                "Birgalikda shug‘ullanishni xohlovchi ayollar uchun.",
+                ["IFBB sertifikati"],
+                "sport",
+                65,
+                false,
+                {
+                  sportType: "Bodybuilding",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Mirzo Ulug'bek",
+                  sportGym: "Power House",
+                  sportPlan: ["Isinish", "Kuch", "Stretching"],
+                  sportResult: "6 haftada forma + energiya",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 3
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["IFBB Pro Coach"],
+              sportAchievements: ["3x Respublika chempioni"],
+              sportPhilosophy: "Kuch — intizom natijasi.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 180
+            }
+          ),
+          makeAgent(
+            "sport-4",
+            "Diyor Usmonov",
+            "DiyorCross",
+            "Crossfit murabbiyi",
+            "Toshkent",
+            8,
+            32,
+            32,
+            [
+              makeService(
+                "sport-4-1",
+                "Crossfit WOD individual",
+                230000,
+                "seans",
+                "Kuch + chidamlilik dasturi.",
+                ["Crossfit L1"],
+                "sport",
+                66,
+                false,
+                {
+                  sportType: "Crossfit",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Erkaklar", "Ayollar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Sergeli",
+                  sportGym: "CrossBox",
+                  sportPlan: ["WOD", "Technique", "Cooldown"],
+                  sportResult: "6 haftada VO2 +15%",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 3
+                }
+              ),
+              makeService(
+                "sport-4-2",
+                "Crossfit guruh mashg'uloti",
+                140000,
+                "seans",
+                "6-10 kishilik guruh.",
+                ["Crossfit L1"],
+                "sport",
+                67,
+                false,
+                {
+                  sportType: "Crossfit",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Sergeli",
+                  sportGym: "CrossBox",
+                  sportDuration: "55 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-4-3",
+                "Crossfit video kurs",
+                520000,
+                "kurs",
+                "Uyda bajariladigan video modul.",
+                ["Crossfit L1"],
+                "sport",
+                68,
+                false,
+                {
+                  sportType: "Crossfit",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Video kurs",
+                  sportFormat: ["video", "online"],
+                  sportCourseModules: ["Warm-up", "WOD", "Core"],
+                  sportCourseLength: "5 hafta",
+                  sportResult: "5 haftada stamina +20%"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["Crossfit Level 1"],
+              sportAchievements: ["Top 3 regional WOD"],
+              sportPhilosophy: "Har mashg'ulot — yangi rekord.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 210
+            }
+          ),
+          makeAgent(
+            "sport-5",
+            "Azim Shodiyev",
+            "AzimFootball",
+            "Futbol murabbiyi",
+            "Toshkent",
+            12,
+            33,
+            33,
+            [
+              makeService(
+                "sport-5-1",
+                "Futbol individual trening",
+                180000,
+                "seans",
+                "Texnika va tezlik.",
+                ["AFC sertifikati"],
+                "sport",
+                69,
+                false,
+                {
+                  sportType: "Futbol",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar", "O'smirlar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Olmazor",
+                  sportGym: "Youth Arena",
+                  sportPlan: ["Dribbling", "Pas", "Tezlik"],
+                  sportResult: "6 haftada texnika +30%",
+                  sportDuration: "70 daqiqa",
+                  sportWeeklySessions: 2
+                }
+              ),
+              makeService(
+                "sport-5-2",
+                "Futbol guruh mashg'uloti",
+                90000,
+                "seans",
+                "12-16 yoshlar uchun.",
+                ["AFC sertifikati"],
+                "sport",
+                70,
+                false,
+                {
+                  sportType: "Futbol",
+                  sportLevel: "O'rta",
+                  sportAudience: ["O'smirlar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Olmazor",
+                  sportGym: "Youth Arena",
+                  sportDuration: "90 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-5-3",
+                "Futbol online analiz",
+                450000,
+                "oy",
+                "Video analiz va mashg'ulot reja.",
+                ["AFC sertifikati"],
+                "sport",
+                71,
+                false,
+                {
+                  sportType: "Futbol",
+                  sportLevel: "Professional",
+                  sportAudience: ["O'smirlar", "Kattalar"],
+                  sportServiceType: "Online coaching",
+                  sportFormat: ["online", "video"],
+                  sportPlan: ["Video tahlil", "Reja", "Feedback"],
+                  sportDuration: "4 hafta",
+                  sportWeeklySessions: 3,
+                  sportTracking: true
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["AFC C License"],
+              sportAchievements: ["U-16 liga chempioni"],
+              sportPhilosophy: "Texnika — o'yinning kaliti.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 300
+            }
+          ),
+          makeAgent(
+            "sport-6",
+            "Dilshod Asqarov",
+            "DilshodKurash",
+            "Kurash murabbiyi",
+            "Buxoro",
+            10,
+            34,
+            34,
+            [
+              makeService(
+                "sport-6-1",
+                "Kurash individual",
+                170000,
+                "seans",
+                "Texnika va kuch tayyorligi.",
+                ["Kurash federatsiya sertifikati"],
+                "sport",
+                72,
+                false,
+                {
+                  sportType: "Kurash",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Erkaklar", "O'smirlar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Buxoro",
+                  sportGym: "Kurash Arena",
+                  sportDuration: "75 daqiqa",
+                  sportWeeklySessions: 3
+                }
+              ),
+              makeService(
+                "sport-6-2",
+                "Kurash guruh trening",
+                80000,
+                "seans",
+                "Guruh bilan tayyorgarlik.",
+                ["Kurash federatsiya sertifikati"],
+                "sport",
+                73,
+                false,
+                {
+                  sportType: "Kurash",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar", "O'smirlar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Buxoro",
+                  sportGym: "Kurash Arena",
+                  sportDuration: "60 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-6-3",
+                "Kurash online nazorat",
+                380000,
+                "oy",
+                "Reja + video feedback.",
+                ["Kurash federatsiya sertifikati"],
+                "sport",
+                74,
+                false,
+                {
+                  sportType: "Kurash",
+                  sportLevel: "O'rta",
+                  sportAudience: ["O'smirlar", "Kattalar"],
+                  sportServiceType: "Online coaching",
+                  sportFormat: ["online", "video"],
+                  sportTracking: true,
+                  sportDuration: "4 hafta"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["Kurash federatsiyasi murabbiyi"],
+              sportAchievements: ["2x Respublika sovrindori"],
+              sportPhilosophy: "Tartib va hurmat birinchi.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 160
+            }
+          ),
+          makeAgent(
+            "sport-7",
+            "Sevara Kim",
+            "SevaraTKD",
+            "Taekwondo murabbiyi",
+            "Toshkent",
+            8,
+            35,
+            35,
+            [
+              makeService(
+                "sport-7-1",
+                "Taekwondo individual",
+                190000,
+                "seans",
+                "Texnika va sparring.",
+                ["WT sertifikati"],
+                "sport",
+                75,
+                false,
+                {
+                  sportType: "Taekwondo",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar", "O'smirlar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Yakkasaroy",
+                  sportGym: "TKD Hall",
+                  sportDuration: "60 daqiqa",
+                  sportWeeklySessions: 2
+                }
+              ),
+              makeService(
+                "sport-7-2",
+                "Taekwondo guruh kursi",
+                520000,
+                "oy",
+                "Belt tayyorgarlik kursi.",
+                ["WT sertifikati"],
+                "sport",
+                76,
+                false,
+                {
+                  sportType: "Taekwondo",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Bolalar", "O'smirlar"],
+                  sportServiceType: "Jonli kurs",
+                  sportFormat: ["offline"],
+                  sportCourseModules: ["Poomsae", "Sparring", "Technique"],
+                  sportCourseLength: "8 hafta",
+                  sportMaxParticipants: 18
+                }
+              ),
+              makeService(
+                "sport-7-3",
+                "Taekwondo video dars",
+                300000,
+                "kurs",
+                "Uyda asosiy texnikalar.",
+                ["WT sertifikati"],
+                "sport",
+                77,
+                false,
+                {
+                  sportType: "Taekwondo",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar"],
+                  sportServiceType: "Video kurs",
+                  sportFormat: ["video", "online"],
+                  sportCourseModules: ["Basic kicks", "Flexibility", "Balance"],
+                  sportCourseLength: "4 hafta"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["World Taekwondo Coach"],
+              sportAchievements: ["Milliy chempion"],
+              sportPhilosophy: "Intizom — yutuq kaliti.",
+              sportExcludedCases: ["Og'ir tibbiy cheklovlar"],
+              sportStudentsCount: 190
+            }
+          ),
+          makeAgent(
+            "sport-8",
+            "Timur Sultonov",
+            "TimurTennis",
+            "Tennis murabbiyi",
+            "Toshkent",
+            7,
+            36,
+            36,
+            [
+              makeService(
+                "sport-8-1",
+                "Tennis individual trening",
+                250000,
+                "seans",
+                "Serve va texnika.",
+                ["ITF sertifikati"],
+                "sport",
+                78,
+                false,
+                {
+                  sportType: "Tennis",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar", "Kattalar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Shayxontohur",
+                  sportGym: "Tennis Pro",
+                  sportDuration: "60 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-8-2",
+                "Tennis guruh mashg'uloti",
+                160000,
+                "seans",
+                "2-4 kishilik guruh.",
+                ["ITF sertifikati"],
+                "sport",
+                79,
+                false,
+                {
+                  sportType: "Tennis",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Shayxontohur",
+                  sportGym: "Tennis Pro",
+                  sportDuration: "70 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-8-3",
+                "Tennis online analiz",
+                420000,
+                "oy",
+                "Video tahlil va tavsiyalar.",
+                ["ITF sertifikati"],
+                "sport",
+                80,
+                false,
+                {
+                  sportType: "Tennis",
+                  sportLevel: "Professional",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Online coaching",
+                  sportFormat: ["online", "video"],
+                  sportTracking: true,
+                  sportDuration: "4 hafta"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["ITF Level 1"],
+              sportAchievements: ["Toshkent Open sovrindori"],
+              sportPhilosophy: "Texnika va taktika muvozanati.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 140
+            }
+          ),
+          makeAgent(
+            "sport-9",
+            "Mohira Islomova",
+            "MohiraSwim",
+            "Suzish murabbiyi",
+            "Samarqand",
+            8,
+            37,
+            37,
+            [
+              makeService(
+                "sport-9-1",
+                "Suzish individual",
+                220000,
+                "seans",
+                "Boshlang'ich va o'rta daraja.",
+                ["FINA sertifikati"],
+                "sport",
+                81,
+                false,
+                {
+                  sportType: "Suzish",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Bolalar", "Kattalar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["offline"],
+                  sportLocation: "Samarqand",
+                  sportGym: "AquaLife",
+                  sportDuration: "45 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-9-2",
+                "Suzish guruh kursi",
+                650000,
+                "oy",
+                "8 darslik kurs.",
+                ["FINA sertifikati"],
+                "sport",
+                82,
+                false,
+                {
+                  sportType: "Suzish",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Bolalar"],
+                  sportServiceType: "Jonli kurs",
+                  sportFormat: ["offline"],
+                  sportCourseModules: ["Breathing", "Freestyle", "Backstroke"],
+                  sportCourseLength: "4 hafta",
+                  sportMaxParticipants: 10
+                }
+              ),
+              makeService(
+                "sport-9-3",
+                "Suzish online nazorat",
+                380000,
+                "oy",
+                "Video feedback va reja.",
+                ["FINA sertifikati"],
+                "sport",
+                83,
+                false,
+                {
+                  sportType: "Suzish",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Kattalar"],
+                  sportServiceType: "Online coaching",
+                  sportFormat: ["online", "video"],
+                  sportTracking: true,
+                  sportDuration: "4 hafta"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["FINA Coach"],
+              sportAchievements: ["Regional musobaqa g'olibi"],
+              sportPhilosophy: "Texnika — xavfsizlik va tezlik.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 130
+            }
+          ),
+          makeAgent(
+            "sport-10",
+            "Gulnoza Rahimova",
+            "GulnozaWomen",
+            "Ayollar uchun fitness murabbiyi",
+            "Toshkent",
+            6,
+            38,
+            38,
+            [
+              makeService(
+                "sport-10-1",
+                "Ayollar fitness individual",
+                180000,
+                "seans",
+                "Tana shakllantirish va kardio.",
+                ["Women Fitness Coach"],
+                "sport",
+                84,
+                false,
+                {
+                  sportType: "Ayollar uchun fitness",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Individual mashg‘ulot",
+                  sportFormat: ["online", "offline"],
+                  sportLocation: "Toshkent, Uchtepa",
+                  sportGym: "HerFit Studio",
+                  sportPlan: ["Kardio", "Kuch", "Stretching"],
+                  sportResult: "6 haftada -3 kg",
+                  sportDuration: "55 daqiqa",
+                  sportWeeklySessions: 3
+                }
+              ),
+              makeService(
+                "sport-10-2",
+                "Ayollar fitness guruh",
+                90000,
+                "seans",
+                "Guruh bilan mashg'ulot.",
+                ["Women Fitness Coach"],
+                "sport",
+                85,
+                false,
+                {
+                  sportType: "Ayollar uchun fitness",
+                  sportLevel: "O'rta",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Guruh mashg‘uloti",
+                  sportFormat: ["offline"],
+                  sportLocation: "Toshkent, Uchtepa",
+                  sportGym: "HerFit Studio",
+                  sportDuration: "50 daqiqa"
+                }
+              ),
+              makeService(
+                "sport-10-3",
+                "Ayollar online kurs",
+                520000,
+                "kurs",
+                "Uyda bajariladigan kurs.",
+                ["Women Fitness Coach"],
+                "sport",
+                86,
+                false,
+                {
+                  sportType: "Ayollar uchun fitness",
+                  sportLevel: "Boshlovchi",
+                  sportAudience: ["Ayollar"],
+                  sportServiceType: "Video kurs",
+                  sportFormat: ["video", "online"],
+                  sportCourseModules: ["Warm-up", "Kardio", "Core"],
+                  sportCourseLength: "5 hafta",
+                  sportResult: "5 haftada forma + energiya"
+                }
+              )
+            ],
+            true,
+            {
+              sportCertificates: ["Women Fitness Coach"],
+              sportAchievements: ["300+ shogird"],
+              sportPhilosophy: "Sog'lom tana — ishonchli ruh.",
+              sportExcludedCases: ["Tibbiy cheklovlar"],
+              sportStudentsCount: 310
+            }
           )
         ]
       }
