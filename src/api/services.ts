@@ -59,3 +59,13 @@ export async function getLatestServices(): Promise<TrendService[]> {
       return db - da;
     });
 }
+
+export async function getServiceById(serviceId: string): Promise<TrendService | null> {
+  const res = await api.get(`/services/${serviceId}`);
+  const service = res.data?.service || res.data || null;
+  if (!service) return null;
+  return {
+    ...service,
+    id: service.id || service._id || serviceId
+  };
+}

@@ -11,18 +11,22 @@ import {
   type EducationCourse
 } from "@/data/educationCourses";
 import { getDefaultSubCategory, listCourses } from "@/data/coursesStore";
+import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 
-const modeLabels: Record<CourseMode | "all", string> = {
-  all: "Barchasi",
-  online: "Online",
-  offline: "Offline"
+type TranslatedText = { en: string; uz: string; ru: string; ko: string };
+
+const modeLabels: Record<CourseMode | "all", TranslatedText> = {
+  all: { en: "All", uz: "Barchasi", ru: "Все", ko: "전체" },
+  online: { en: "Online", uz: "Online", ru: "Онлайн", ko: "온라인" },
+  offline: { en: "Offline", uz: "Offline", ru: "Оффлайн", ko: "오프라인" }
 };
 
 const formatRating = (value: number) => `${value.toFixed(1)}/5`;
 
 export function EducationServiceSection() {
   const { isAuthenticated } = useAuthStore();
+  const { t } = useI18n();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState<EducationCategory | "all">("all");
@@ -83,11 +87,19 @@ export function EducationServiceSection() {
   return (
     <section className="space-y-6">
       <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Ta'lim (o'quv kurslari)</p>
-        <h2 className="mt-2 text-2xl font-semibold text-white">Til, kasb va maxsus bilimlar</h2>
+        <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+          {t({ en: "Education (courses)", uz: "Ta'lim (o'quv kurslari)", ru: "Обучение (курсы)", ko: "교육 (과정)" })}
+        </p>
+        <h2 className="mt-2 text-2xl font-semibold text-white">
+          {t({ en: "Languages, skills, and expertise", uz: "Til, kasb va maxsus bilimlar", ru: "Языки, профессии и навыки", ko: "언어, 직업, 전문 지식" })}
+        </h2>
         <p className="mt-2 text-sm text-slate-300">
-          Har bir agent o'z yo'nalishi bo'yicha to'liq ma'lumot beradi: darslar online/offline
-          rejimi, jadval, davomiylik, natijalar va sertifikatlar.
+          {t({
+            en: "Each agent provides full details: online/offline mode, schedule, duration, outcomes, and certificates.",
+            uz: "Har bir agent o'z yo'nalishi bo'yicha to'liq ma'lumot beradi: darslar online/offline rejimi, jadval, davomiylik, natijalar va sertifikatlar.",
+            ru: "Каждый агент дает полную информацию: онлайн/оффлайн режим, расписание, длительность, результаты и сертификаты.",
+            ko: "각 에이전트는 온라인/오프라인, 일정, 기간, 결과, 인증서 등 상세 정보를 제공합니다."
+          })}
         </p>
       </div>
 
@@ -101,7 +113,7 @@ export function EducationServiceSection() {
               : "bg-slate-900/70 text-slate-300"
           }`}
         >
-          Barcha kurslar
+          {t({ en: "All courses", uz: "Barcha kurslar", ru: "Все курсы", ko: "전체 과정" })}
         </button>
         {(Object.keys(educationCategories) as EducationCategory[]).map((key) => (
           <button
@@ -121,7 +133,9 @@ export function EducationServiceSection() {
 
       {activeCategory !== "all" && (
         <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Kategoriya ichida</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            {t({ en: "Within category", uz: "Kategoriya ichida", ru: "Внутри категории", ko: "카테고리 내" })}
+          </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {educationSubCategories[activeCategory].map((item) => (
               <button
@@ -144,7 +158,9 @@ export function EducationServiceSection() {
       {activeCategory !== "all" && (
         <div className="grid gap-4 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4 md:grid-cols-[1fr_1fr_1fr_auto]">
           <div>
-            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Dars formati</label>
+            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              {t({ en: "Lesson format", uz: "Dars formati", ru: "Формат урока", ko: "수업 형식" })}
+            </label>
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
               {(Object.keys(modeLabels) as (CourseMode | "all")[]).map((item) => (
                 <button
@@ -157,19 +173,21 @@ export function EducationServiceSection() {
                       : "bg-slate-900/60 text-slate-300"
                   }`}
                 >
-                  {modeLabels[item]}
+                  {t(modeLabels[item])}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Dars tili</label>
+            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              {t({ en: "Teaching language", uz: "Dars tili", ru: "Язык обучения", ko: "수업 언어" })}
+            </label>
             <select
               className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
               value={teachingLanguage}
               onChange={(event) => setTeachingLanguage(event.target.value)}
             >
-              <option value="">Barchasi</option>
+              <option value="">{t({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
               {teachingLanguages.map((lang) => (
                 <option key={lang} value={lang}>
                   {lang}
@@ -178,13 +196,15 @@ export function EducationServiceSection() {
             </select>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Vaqt</label>
+            <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+              {t({ en: "Time", uz: "Vaqt", ru: "Время", ko: "시간" })}
+            </label>
             <select
               className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
               value={scheduleTime}
               onChange={(event) => setScheduleTime(event.target.value)}
             >
-              <option value="">Barchasi</option>
+              <option value="">{t({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
               {scheduleTimes.map((time) => (
                 <option key={time} value={time}>
                   {time}
@@ -202,7 +222,7 @@ export function EducationServiceSection() {
               }}
               className="rounded-full bg-slate-800 px-4 py-2 text-xs text-slate-200"
             >
-              Filtrni tozalash
+              {t({ en: "Clear filters", uz: "Filtrni tozalash", ru: "Очистить фильтры", ko: "필터 초기화" })}
             </button>
           </div>
         </div>
@@ -210,7 +230,7 @@ export function EducationServiceSection() {
 
       {courses.length === 0 ? (
         <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-5 text-sm text-slate-300">
-          Bu filtr bo'yicha kurslar topilmadi.
+          {t({ en: "No courses found for this filter.", uz: "Bu filtr bo'yicha kurslar topilmadi.", ru: "По этому фильтру курсы не найдены.", ko: "이 필터에 해당하는 курс가 없습니다." })}
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -221,7 +241,12 @@ export function EducationServiceSection() {
             >
               <Link
                 href={`/courses/${course.id}?from=${encodeURIComponent(returnTo)}`}
-                aria-label={`${course.title} tafsilotlari`}
+                aria-label={`${course.title} ${t({
+                  en: "details",
+                  uz: "tafsilotlari",
+                  ru: "подробности",
+                  ko: "상세 정보"
+                })}`}
                 className="absolute inset-0 z-10"
               />
               <div className="relative h-40 w-full overflow-hidden bg-slate-900">
@@ -239,30 +264,51 @@ export function EducationServiceSection() {
                   </div>
                   <div className="text-right text-xs text-amber-200">
                     ⭐ {formatRating(course.rating)}
-                    <span className="block text-[10px] text-slate-500">{course.studentsCount} o'quvchi</span>
+                    <span className="block text-[10px] text-slate-500">
+                      {course.studentsCount} {t({ en: "students", uz: "o'quvchi", ru: "студентов", ko: "수강생" })}
+                    </span>
                   </div>
                 </div>
 
                 <div className="grid gap-2 text-[11px] text-slate-300">
                   <p>
-                    <span className="text-slate-400">Yo'nalish:</span> {course.subCategory}
+                    <span className="text-slate-400">
+                      {t({ en: "Track:", uz: "Yo'nalish:", ru: "Направление:", ko: "분야:" })}
+                    </span>{" "}
+                    {course.subCategory}
                   </p>
                   {activeCategory === "all" && (
                     <p>
-                      <span className="text-slate-400">Bo'lim:</span> {educationCategories[course.category]}
+                      <span className="text-slate-400">
+                        {t({ en: "Category:", uz: "Bo'lim:", ru: "Раздел:", ko: "카테고리:" })}
+                      </span>{" "}
+                      {educationCategories[course.category]}
                     </p>
                   )}
                   <p>
-                    <span className="text-slate-400">Jadval:</span> {course.scheduleDays} • {course.scheduleTime}
+                    <span className="text-slate-400">
+                      {t({ en: "Schedule:", uz: "Jadval:", ru: "Расписание:", ko: "일정:" })}
+                    </span>{" "}
+                    {course.scheduleDays} • {course.scheduleTime}
                   </p>
                   <p>
-                    <span className="text-slate-400">Haftalik:</span> {course.weeklyDays} kun • {course.weeklyHours} soat
+                    <span className="text-slate-400">
+                      {t({ en: "Weekly:", uz: "Haftalik:", ru: "В неделю:", ko: "주간:" })}
+                    </span>{" "}
+                    {course.weeklyDays} {t({ en: "days", uz: "kun", ru: "дн.", ko: "일" })} • {course.weeklyHours}{" "}
+                    {t({ en: "hours", uz: "soat", ru: "часов", ko: "시간" })}
                   </p>
                   <p>
-                    <span className="text-slate-400">Davomiylik:</span> {course.durationWeeks} hafta
+                    <span className="text-slate-400">
+                      {t({ en: "Duration:", uz: "Davomiylik:", ru: "Длительность:", ko: "기간:" })}
+                    </span>{" "}
+                    {course.durationWeeks} {t({ en: "weeks", uz: "hafta", ru: "нед.", ko: "주" })}
                   </p>
                   <p>
-                    <span className="text-slate-400">Dars tili:</span> {course.teachingLanguage}
+                    <span className="text-slate-400">
+                      {t({ en: "Language:", uz: "Dars tili:", ru: "Язык:", ko: "언어:" })}
+                    </span>{" "}
+                    {course.teachingLanguage}
                   </p>
                 </div>
 
@@ -270,11 +316,11 @@ export function EducationServiceSection() {
                   <span className="rounded-full bg-slate-900/70 px-3 py-1">{course.price}</span>
                   {isAuthenticated ? (
                     <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-100">
-                      Batafsil ko'rish
+                      {t({ en: "View details", uz: "Batafsil ko'rish", ru: "Подробнее", ko: "상세 보기" })}
                     </span>
                   ) : (
                     <span className="rounded-full bg-slate-900/70 px-3 py-1 text-slate-300">
-                      Batafsil ko'rish
+                      {t({ en: "View details", uz: "Batafsil ko'rish", ru: "Подробнее", ko: "상세 보기" })}
                     </span>
                   )}
                 </div>

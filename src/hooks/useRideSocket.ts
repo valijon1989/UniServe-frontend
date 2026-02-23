@@ -126,7 +126,11 @@ const normalizeMessage = (raw: unknown): { type: RideEventType; payload: RidePay
   return { type: typeCandidate, payload: value as RidePayload };
 };
 
-const applyRideEvent = (prev: RideRecord | undefined, type: RideEventType, payload: RidePayload) => {
+const applyRideEvent = (
+  prev: RideRecord | undefined,
+  type: RideEventType,
+  payload: RidePayload
+): RideRecord | null => {
   const rideId = (payload as RideRequestedPayload).rideId || prev?.rideId;
   if (!rideId) return null;
   const updatedAt = Date.now();

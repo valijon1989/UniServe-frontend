@@ -291,6 +291,17 @@ const makeAgent = (
       | "consultationDurations"
       | "consultationLanguages"
       | "consultationPackages"
+      | "sportCertificates"
+      | "sportAchievements"
+      | "sportPhilosophy"
+      | "sportExcludedCases"
+      | "sportStudentsCount"
+      | "legalLicenseMasked"
+      | "legalLicenseAuthority"
+      | "legalEducation"
+      | "legalSpecialties"
+      | "legalExcludedMatters"
+      | "legalVerifiedAt"
     >
   > = {}
 ): ServiceAgent => ({

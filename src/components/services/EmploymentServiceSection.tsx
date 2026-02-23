@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
 import { toQuery } from "@/lib/fetcher";
-import { initialJobListings, type JobKind, type JobListing } from "@/data/jobListings";
+import { initialJobListings, type JobKind, type JobListing, type LocalizedText } from "@/data/jobListings";
+import { useI18n } from "@/context/i18n";
 
 const kindLabels: Record<JobKind, string> = {
   permanent: "Doimiy ishlar",
@@ -23,6 +24,12 @@ export function EmploymentServiceSection() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { t, language } = useI18n();
+  const resolveLocalizedText = (value?: string | LocalizedText) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    return value[language] ?? value.en ?? value.uz ?? value.ru ?? value.ko ?? "";
+  };
   const { isAuthenticated, token } = useAuthStore();
   const [filters, setFilters] = useState({ location: "", maxDistance: "" });
   const [permanentState, setPermanentState] = useState<JobResponse>({
@@ -166,11 +173,19 @@ export function EmploymentServiceSection() {
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Ish topib berish xizmati</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Doimiy va vaqtinchalik ishlar bozori</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+            {t({ en: "Employment services", uz: "Ish topib berish xizmati", ru: "Услуги занятости", ko: "고용 서비스" })}
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">
+            {t({ en: "Permanent and temporary job marketplace", uz: "Doimiy va vaqtinchalik ishlar bozori", ru: "Рынок постоянных и временных вакансий", ko: "정규/임시 채용 마켓" })}
+          </h2>
           <p className="mt-2 max-w-2xl text-sm text-slate-300">
-            Vakansiya topish va kadrlar tanlash. Bu bo'limda ish beruvchilar e'lon qo'yadi, ish
-            qidiruvchilar esa o'ziga mos vakansiyani topib, e'lon egasi bilan bog'lanishi mumkin.
+            {t({
+              en: "Employers post vacancies while seekers find fits and contact posted employers.",
+              uz: "Vakansiya topish va kadrlar tanlash. Bu bo'limda ish beruvchilar e'lon qo'yadi, ish qidiruvchilar esa o'ziga mos vakansiyani topib, e'lon egasi bilan bog'lanishi mumkin.",
+              ru: "Работодатели публикуют вакансии, а соискатели находят подходящие и связываются с ними.",
+              ko: "고용주는 공고를 올리고, 구직자는 적합한 공고를 찾아 연락합니다."
+            })}
           </p>
         </div>
         {isAuthenticated ? (
@@ -178,62 +193,80 @@ export function EmploymentServiceSection() {
             type="button"
             className="rounded-full bg-emerald-500/20 px-4 py-2 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-400/40"
           >
-            E'lon qo'yish
+            {t({ en: "Post a job", uz: "E'lon qo'yish", ru: "Разместить вакансию", ko: "공고 올리기" })}
           </button>
         ) : (
           <Link
             href="/login"
             className="rounded-full bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200"
           >
-            E'lon qo'yish uchun kirish
+            {t({ en: "Log in to post", uz: "E'lon qo'yish uchun kirish", ru: "Войти для публикации", ko: "등록하려면 로그인" })}
           </Link>
         )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Chap qism</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            {t({ en: "Permanent pane", uz: "Chap qism", ru: "Слева", ko: "왼쪽" })}
+          </p>
           <div className="mt-2 flex items-center justify-between">
             <h3 className="text-base font-semibold text-white">{kindLabels.permanent}</h3>
             <span className="rounded-full bg-slate-900/70 px-3 py-1 text-[11px] text-slate-300">
-              {permanentState.total || permanentState.items.length} ta e'lon
+              {permanentState.total || permanentState.items.length} {t({ en: "listings", uz: "ta e'lon", ru: "объявления", ko: "건" })}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            Zavod, qurilish va doimiy ishlar shu bo'limda joylanadi.
+            {t({
+              en: "Factory, construction and stable jobs live here.",
+              uz: "Zavod, qurilish va doimiy ishlar shu bo'limda joylanadi.",
+              ru: "Заводы, строительство и постоянная работа указаны здесь.",
+              ko: "공장, 건설 및 정규직이 여기에 표시됩니다."
+            })}
           </p>
         </div>
         <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">O'ng qism</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            {t({ en: "Temporary pane", uz: "O'ng qism", ru: "Справа", ko: "오른쪽" })}
+          </p>
           <div className="mt-2 flex items-center justify-between">
             <h3 className="text-base font-semibold text-white">{kindLabels.temporary}</h3>
             <span className="rounded-full bg-slate-900/70 px-3 py-1 text-[11px] text-slate-300">
-              {temporaryState.total || temporaryState.items.length} ta e'lon
+              {temporaryState.total || temporaryState.items.length} {t({ en: "listings", uz: "ta e'lon", ru: "объявления", ko: "건" })}
             </span>
           </div>
           <p className="mt-2 text-xs text-slate-400">
-            Bir kunlik, bir haftalik yoki bir necha soatlik ishlar shu bo'limda.
+            {t({
+              en: "Daily gigs, weekly shifts and hourly work reside here.",
+              uz: "Bir kunlik, bir haftalik yoki bir necha soatlik ishlar shu bo'limda.",
+              ru: "Ежедневные смены, недельные и почасовые задания.",
+              ko: "일일, 주간, 시간제 일자리를 제공합니다."
+            })}
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-4">
         <div className="flex flex-1 flex-col gap-2">
-          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Lokatsiya</label>
+          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            {t({ en: "Location", uz: "Lokatsiya", ru: "Местоположение", ko: "위치" })}
+          </label>
           <input
             className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-            placeholder="Masalan: Toshkent"
+            placeholder={t({ en: "Example: Tashkent", uz: "Masalan: Toshkent", ru: "Пример: Ташкент", ko: "예: 타슈켄트" })}
             value={filters.location}
             onChange={(event) => setFilters((prev) => ({ ...prev, location: event.target.value }))}
           />
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Masofa (km)</label>
+          <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            {t({ en: "Distance (km)", uz: "Masofa (km)", ru: "Расстояние (км)", ko: "거리 (km)" })}
+          </label>
           <input
             type="number"
             min="0"
             className="w-40 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-            placeholder="Masofa"
+            placeholder={t({ en: "Distance", uz: "Masofa", ru: "Расстояние", ko: "거리" })}
             value={filters.maxDistance}
             onChange={(event) => setFilters((prev) => ({ ...prev, maxDistance: event.target.value }))}
           />
@@ -245,14 +278,18 @@ export function EmploymentServiceSection() {
           }}
           className="rounded-full bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200"
         >
-          Filtrni tozalash
+          {t({ en: "Clear filters", uz: "Filtrni tozalash", ru: "Сбросить фильтры", ko: "필터 초기화" })}
         </button>
       </div>
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Yangi ish e'loni</h3>
-          <span className="text-xs text-slate-400">Faqat login bo'lganlar qo'ya oladi</span>
+          <h3 className="text-base font-semibold text-white">
+            {t({ en: "Submit a job", uz: "Yangi ish e'loni", ru: "Подать вакансию", ko: "채용 공고 등록" })}
+          </h3>
+          <span className="text-xs text-slate-400">
+            {t({ en: "Only logged-in users can post.", uz: "Faqat login bo'lganlar qo'ya oladi", ru: "Только авторизованные пользователи", ko: "로그인한 사용자만" })}
+          </span>
         </div>
         {isAuthenticated ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -263,84 +300,84 @@ export function EmploymentServiceSection() {
                 setFormState((prev) => ({ ...prev, kind: event.target.value as JobKind }))
               }
             >
-              <option value="permanent">Doimiy ish</option>
-              <option value="temporary">Vaqtinchalik ish</option>
+              <option value="permanent">{t({ en: "Permanent", uz: "Doimiy ish", ru: "Постоянно", ko: "정규직" })}</option>
+              <option value="temporary">{t({ en: "Temporary", uz: "Vaqtinchalik ish", ru: "Временная", ko: "임시직" })}</option>
             </select>
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Ish nomi"
+              placeholder={t({ en: "Job title", uz: "Ish nomi", ru: "Название вакансии", ko: "직무 명" })}
               value={formState.title}
               onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Kompaniya"
+              placeholder={t({ en: "Company", uz: "Kompaniya", ru: "Компания", ko: "회사" })}
               value={formState.company}
               onChange={(event) => setFormState((prev) => ({ ...prev, company: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Manzil"
+              placeholder={t({ en: "Location", uz: "Manzil", ru: "Адрес", ko: "위치" })}
               value={formState.location}
               onChange={(event) => setFormState((prev) => ({ ...prev, location: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Masofa (km)"
+              placeholder={t({ en: "Distance (km)", uz: "Masofa (km)", ru: "Расстояние (км)", ko: "거리 (km)" })}
               value={formState.distanceKm}
               onChange={(event) => setFormState((prev) => ({ ...prev, distanceKm: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Ish vaqti"
+              placeholder={t({ en: "Schedule", uz: "Ish vaqti", ru: "График", ko: "근무 시간" })}
               value={formState.schedule}
               onChange={(event) => setFormState((prev) => ({ ...prev, schedule: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Ish haqi"
+              placeholder={t({ en: "Salary", uz: "Ish haqi", ru: "Зарплата", ko: "급여" })}
               value={formState.salary}
               onChange={(event) => setFormState((prev) => ({ ...prev, salary: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Ish turi"
+              placeholder={t({ en: "Job type", uz: "Ish turi", ru: "Тип работы", ko: "직무 유형" })}
               value={formState.jobType}
               onChange={(event) => setFormState((prev) => ({ ...prev, jobType: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Yotoqxona (bor/yo'q)"
+              placeholder={t({ en: "Housing (yes/no)", uz: "Yotoqxona (bor/yo'q)", ru: "Жилье (да/нет)", ko: "기숙사 (있음/없음)" })}
               value={formState.housing}
               onChange={(event) => setFormState((prev) => ({ ...prev, housing: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Ovqat (masalan: 2 mahal)"
+              placeholder={t({ en: "Meals (e.g. 2 per day)", uz: "Ovqat (masalan: 2 mahal)", ru: "Питание (например: 2 раза)", ko: "식사 (예: 하루 2회)" })}
               value={formState.meals}
               onChange={(event) => setFormState((prev) => ({ ...prev, meals: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 md:col-span-2"
-              placeholder="Talablar (vergul bilan)"
+              placeholder={t({ en: "Requirements (comma separated)", uz: "Talablar (vergul bilan)", ru: "Требования через запятую", ko: "요구 사항 (쉼표로 구분)" })}
               value={formState.requirements}
               onChange={(event) => setFormState((prev) => ({ ...prev, requirements: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200 md:col-span-2"
-              placeholder="Viza turlari (vergul bilan)"
+              placeholder={t({ en: "Visa types (comma separated)", uz: "Viza turlari (vergul bilan)", ru: "Типы виз (через запятую)", ko: "비자 유형 (쉼표 구분)" })}
               value={formState.visaTypes}
               onChange={(event) => setFormState((prev) => ({ ...prev, visaTypes: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Aloqa telefoni"
+              placeholder={t({ en: "Contact phone", uz: "Aloqa telefoni", ru: "Телефон", ko: "연락처 전화" })}
               value={formState.contactPhone}
               onChange={(event) => setFormState((prev) => ({ ...prev, contactPhone: event.target.value }))}
             />
             <input
               className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-200"
-              placeholder="Telegram (masalan: @username)"
+              placeholder={t({ en: "Telegram (e.g. @username)", uz: "Telegram (masalan: @username)", ru: "Telegram (напр.: @username)", ko: "Telegram (예: @username)" })}
               value={formState.contactTelegram}
               onChange={(event) => setFormState((prev) => ({ ...prev, contactTelegram: event.target.value }))}
             />
@@ -350,16 +387,30 @@ export function EmploymentServiceSection() {
                 onClick={handleSubmit}
                 className="rounded-full bg-emerald-500/20 px-4 py-2 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-400/40"
               >
-                E'lonni qo'shish
+                {t({ en: "Add job", uz: "E'lonni qo'shish", ru: "Добавить объявление", ko: "공고 추가" })}
               </button>
               <p className="mt-2 text-[11px] text-slate-400">
-                Har bir yangi e'lon uchun alohida rasm biriktiriladi.
+                {t({
+                  en: "Each job gets its own image attachment.",
+                  uz: "Har bir yangi e'lon uchun alohida rasm biriktiriladi.",
+                  ru: "Каждому объявлению прикрепляется отдельное изображение.",
+                  ko: "각 공고에는 자체 이미지가 첨부됩니다."
+                })}
               </p>
             </div>
           </div>
         ) : (
           <div className="mt-4 text-sm text-slate-300">
-            E'lon qo'yish uchun <Link href="/login" className="text-emerald-200 underline">login</Link> qiling.
+            {t({
+              en: "Log in to post a job.",
+              uz: "E'lon qo'yish uchun login qiling.",
+              ru: "Войдите, чтобы разместить вакансию.",
+              ko: "공고를 등록하려면 로그인하세요."
+            })}
+            {" "}
+            <Link href="/login" className="text-emerald-200 underline">
+              {t({ en: "Login", uz: "Login", ru: "Вход", ko: "로그인" })}
+            </Link>
           </div>
         )}
       </div>
@@ -390,11 +441,15 @@ export function EmploymentServiceSection() {
                   >
                     <Link
                       href={`/jobs/${job.id}?from=${encodeURIComponent(returnTo)}`}
-                      aria-label={`${job.title} tafsilotlari`}
+                      aria-label={`${resolveLocalizedText(job.title)} tafsilotlari`}
                       className="absolute inset-0 z-10"
                     />
                     <div className="relative h-40 w-full overflow-hidden bg-slate-900">
-                      <img src={job.image} alt={job.title} className="h-full w-full object-cover" />
+                      <img
+                        src={job.image}
+                        alt={resolveLocalizedText(job.title)}
+                        className="h-full w-full object-cover"
+                      />
                       <span className="absolute right-3 top-3 rounded-full bg-slate-950/80 px-3 py-1 text-[11px] text-slate-100">
                         {job.postedAt}
                       </span>
@@ -403,29 +458,29 @@ export function EmploymentServiceSection() {
                     <div className="relative z-20 space-y-3 p-4 pointer-events-none">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <h4 className="text-sm font-semibold text-white">{job.title}</h4>
-                          <p className="text-xs text-slate-300">{job.company}</p>
+                          <h4 className="text-sm font-semibold text-white">{resolveLocalizedText(job.title)}</h4>
+                          <p className="text-xs text-slate-300">{resolveLocalizedText(job.company)}</p>
                         </div>
                         <span className="rounded-full bg-slate-900/70 px-3 py-1 text-[11px] text-slate-300">
-                          {job.salary}
+                          {resolveLocalizedText(job.salary)}
                         </span>
                       </div>
 
-                      <div className="grid gap-2 text-[11px] text-slate-300">
-                        <p>
-                          <span className="text-slate-400">Manzil:</span> {job.location} • Masofa: {job.distanceKm} km
-                        </p>
-                        <p>
-                          <span className="text-slate-400">Ish vaqti:</span> {job.schedule}
-                        </p>
-                        <p>
-                          <span className="text-slate-400">Ish turi:</span> {job.jobType}
-                        </p>
-                        <p>
-                          <span className="text-slate-400">Yotoqxona:</span> {job.housing} •{" "}
-                          <span className="text-slate-400">Ovqat:</span> {job.meals}
-                        </p>
-                      </div>
+                    <div className="grid gap-2 text-[11px] text-slate-300">
+                      <p>
+                          <span className="text-slate-400">{t({ en: "Location:", uz: "Manzil:", ru: "Адрес:", ko: "위치:" })}</span> {resolveLocalizedText(job.location)} • {t({ en: "Distance:", uz: "Masofa:", ru: "Расстояние:", ko: "거리:" })} {job.distanceKm} km
+                      </p>
+                      <p>
+                        <span className="text-slate-400">{t({ en: "Schedule:", uz: "Ish vaqti:", ru: "График:", ko: "근무 시간:" })}</span> {resolveLocalizedText(job.schedule)}
+                      </p>
+                      <p>
+                        <span className="text-slate-400">{t({ en: "Job type:", uz: "Ish turi:", ru: "Тип работы:", ko: "직무 유형:" })}</span> {resolveLocalizedText(job.jobType)}
+                      </p>
+                      <p>
+                        <span className="text-slate-400">{t({ en: "Housing:", uz: "Yotoqxona:", ru: "Проживание:", ko: "숙소:" })}</span> {resolveLocalizedText(job.housing)} •{" "}
+                        <span className="text-slate-400">{t({ en: "Meals:", uz: "Ovqat:", ru: "Питание:", ko: "식사:" })}</span> {resolveLocalizedText(job.meals)}
+                      </p>
+                    </div>
 
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Talablar</p>
@@ -496,9 +551,9 @@ export function EmploymentServiceSection() {
                     Keyingi
                   </button>
                 </div>
-                <span>
-                  Sahifa {page} / {state.totalPages}
-                </span>
+                  <span>
+                    {t({ en: "Page", uz: "Sahifa", ru: "Страница", ko: "페이지" })} {page} / {state.totalPages}
+                  </span>
               </div>
             </div>
           )

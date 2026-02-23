@@ -1,116 +1,171 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
+
+type TranslatedText = { en: string; uz: string; ru: string; ko: string };
 
 type AgentCard = {
   name: string;
-  role: string;
-  route: string;
+  role: TranslatedText;
+  route: TranslatedText;
   rating: string;
   jobs: string;
-  price: string;
+  price: TranslatedText;
   image: string;
-  tags: string[];
+  tags: TranslatedText[];
   kind: "local" | "international";
   createdAt: string;
   details: {
-    transport: string;
-    capacity: string;
-    deliveryType: string;
-    verified: string[];
+    transport: TranslatedText;
+    capacity: TranslatedText;
+    deliveryType: TranslatedText;
+    verified: TranslatedText[];
   };
 };
+
+const tr = (en: string, uz: string, ru: string, ko: string): TranslatedText => ({
+  en,
+  uz,
+  ru,
+  ko
+});
+
+const includesAny = (value: TranslatedText, keywords: string[]) => {
+  const parts = [value.en, value.uz, value.ru, value.ko].map((text) => text.toLowerCase());
+  return keywords.some((keyword) => parts.some((text) => text.includes(keyword)));
+};
+
+const includesAnyInArray = (values: TranslatedText[], keywords: string[]) =>
+  values.some((value) => includesAny(value, keywords));
 
 const localAgents: AgentCard[] = [
   {
     name: "Aziza Karimova",
-    role: "Mahalliy express kuryer",
-    route: "Toshkent -> Andijon",
+    role: tr("Local express courier", "Mahalliy express kuryer", "Местный экспресс-курьер", "현지 익스프레스 배달원"),
+    route: tr("Tashkent → Andijan", "Toshkent -> Andijon", "Ташкент → Андижан", "타슈кент → 안디жан"),
     rating: "4.9",
     jobs: "1,248",
-    price: "18 000 so'm",
+    price: tr("18,000 UZS", "18 000 so'm", "18 000 сум", "18,000 сум"),
     image: "/services/delivery/07.jpg",
-    tags: ["Face ID", "Avto: 10A123BC", "24/7 rejim"],
+    tags: [
+      tr("Face ID", "Face ID", "Face ID", "Face ID"),
+      tr("Car: 10A123BC", "Avto: 10A123BC", "Авто: 10A123BC", "차량: 10A123BC"),
+      tr("24/7 mode", "24/7 rejim", "режим 24/7", "24/7 режим")
+    ],
     kind: "local",
     createdAt: "2024-12-10",
     details: {
-      transport: "Yengil avtomobil",
-      capacity: "0-50 kg",
-      deliveryType: "Eshikdan eshikgacha",
-      verified: ["Face ID", "SMS kod", "Avto raqam"]
+      transport: tr("Sedan", "Yengil avtomobil", "Легковой автомобиль", "승용차"),
+      capacity: tr("0-50 kg", "0-50 kg", "0-50 кг", "0-50 кг"),
+      deliveryType: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      verified: [
+        tr("Face ID", "Face ID", "Face ID", "Face ID"),
+        tr("SMS code", "SMS kod", "SMS код", "SMS 코드"),
+        tr("Car plate", "Avto raqam", "Номер авто", "차량 번호")
+      ]
     }
   },
   {
     name: "Dilshod Murodov",
-    role: "Mahalliy eko kuryer",
-    route: "Samarqand <-> Buxoro",
+    role: tr("Local eco courier", "Mahalliy eko kuryer", "Местный эко-курьер", "현지 친환경 배달원"),
+    route: tr("Samarkand ↔ Bukhara", "Samarqand <-> Buxoro", "Самарканд ↔ Бухара", "사마르칸트 ↔ 부하라"),
     rating: "4.7",
     jobs: "782",
-    price: "12 000 so'm",
+    price: tr("12,000 UZS", "12 000 so'm", "12 000 сум", "12,000 сум"),
     image: "/services/delivery/15.jpg",
-    tags: ["Velokuryer", "Tezkor", "Face ID"],
+    tags: [
+      tr("Bike courier", "Velokuryer", "Велокурьер", "자전거 배달원"),
+      tr("Fast", "Tezkor", "Быстро", "빠름"),
+      tr("Face ID", "Face ID", "Face ID", "Face ID")
+    ],
     kind: "local",
     createdAt: "2024-11-22",
     details: {
-      transport: "Velokuryer",
-      capacity: "0-15 kg",
-      deliveryType: "Shahar ichida",
-      verified: ["Face ID", "Telefon tasdiq"]
+      transport: tr("Bicycle", "Velokuryer", "Велокурьер", "자전거"),
+      capacity: tr("0-15 kg", "0-15 kg", "0-15 кг", "0-15 кг"),
+      deliveryType: tr("Within city", "Shahar ichida", "В пределах города", "도시 내"),
+      verified: [
+        tr("Face ID", "Face ID", "Face ID", "Face ID"),
+        tr("Phone verification", "Telefon tasdiq", "Подтверждение телефона", "전화 확인")
+      ]
     }
   },
   {
     name: "Malika Sobirova",
-    role: "Mahalliy shaharlararo agent",
-    route: "Farg'ona -> Namangan",
+    role: tr("Local intercity agent", "Mahalliy shaharlararo agent", "Местный межгородской агент", "현지 도시간 에이전트"),
+    route: tr("Fergana → Namangan", "Farg'ona -> Namangan", "Фергана → Наманган", "페르가나 → 나만간"),
     rating: "4.8",
     jobs: "954",
-    price: "15 000 so'm",
+    price: tr("15,000 UZS", "15 000 so'm", "15 000 сум", "15,000 сум"),
     image: "/services/delivery/19.jpg",
-    tags: ["Avto: 40B778AA", "SMS kod", "Tezkor"],
+    tags: [
+      tr("Car: 40B778AA", "Avto: 40B778AA", "Авто: 40B778AA", "차량: 40B778AA"),
+      tr("SMS code", "SMS kod", "SMS код", "SMS 코드"),
+      tr("Fast", "Tezkor", "Быстро", "빠름")
+    ],
     kind: "local",
     createdAt: "2025-01-08",
     details: {
-      transport: "Yengil avtomobil",
-      capacity: "0-80 kg",
-      deliveryType: "Viloyatlar orasida",
-      verified: ["SMS kod", "Avto raqam", "Hujjat"]
+      transport: tr("Sedan", "Yengil avtomobil", "Легковой автомобиль", "승용차"),
+      capacity: tr("0-80 kg", "0-80 kg", "0-80 кг", "0-80 кг"),
+      deliveryType: tr("Between regions", "Viloyatlar orasida", "Между регионами", "지역 간"),
+      verified: [
+        tr("SMS code", "SMS kod", "SMS код", "SMS 코드"),
+        tr("Car plate", "Avto raqam", "Номер авто", "차량 번호"),
+        tr("Document", "Hujjat", "Документ", "서류")
+      ]
     }
   },
   {
     name: "Umidjon Raximov",
-    role: "Mahalliy yuk tashish agenti",
-    route: "Nukus -> Urganch",
+    role: tr("Local freight agent", "Mahalliy yuk tashish agenti", "Местный грузовой агент", "현지 화물 에이전트"),
+    route: tr("Nukus → Urgench", "Nukus -> Urganch", "Нукус → Ургенч", "누쿠스 → ур겐치"),
     rating: "4.6",
     jobs: "611",
-    price: "25 000 so'm",
+    price: tr("25,000 UZS", "25 000 so'm", "25 000 сум", "25,000 сум"),
     image: "/services/delivery/22.jpg",
-    tags: ["Yuk tashish", "SMS kod", "Avto: 95K330AA"],
+    tags: [
+      tr("Freight", "Yuk tashish", "Грузоперевозка", "화물 운송"),
+      tr("SMS code", "SMS kod", "SMS код", "SMS 코드"),
+      tr("Car: 95K330AA", "Avto: 95K330AA", "Авто: 95K330AA", "차량: 95K330AA")
+    ],
     kind: "local",
     createdAt: "2024-10-18",
     details: {
-      transport: "Yuk furgoni",
-      capacity: "30-200 kg",
-      deliveryType: "Viloyatlar orasida",
-      verified: ["SMS kod", "Hujjat"]
+      transport: tr("Cargo van", "Yuk furgoni", "Грузовой фургон", "화물 밴"),
+      capacity: tr("30-200 kg", "30-200 kg", "30-200 кг", "30-200 кг"),
+      deliveryType: tr("Between regions", "Viloyatlar orasida", "Между регионами", "지역 간"),
+      verified: [
+        tr("SMS code", "SMS kod", "SMS код", "SMS 코드"),
+        tr("Document", "Hujjat", "Документ", "서류")
+      ]
     }
   },
   {
     name: "Nilufar Tursunova",
-    role: "Mahalliy tezkor kuryer",
-    route: "Toshkent -> Jizzax",
+    role: tr("Local fast courier", "Mahalliy tezkor kuryer", "Местный быстрый курьер", "현지 빠른 배달원"),
+    route: tr("Tashkent → Jizzakh", "Toshkent -> Jizzax", "Ташкент → Джизак", "타슈кент → 지자흐"),
     rating: "4.9",
     jobs: "1,102",
-    price: "20 000 so'm",
+    price: tr("20,000 UZS", "20 000 so'm", "20 000 сум", "20,000 сум"),
     image: "/services/delivery/26.jpg",
-    tags: ["Tezkor", "Face ID", "Avto: 01M555NA"],
+    tags: [
+      tr("Fast", "Tezkor", "Быстро", "빠름"),
+      tr("Face ID", "Face ID", "Face ID", "Face ID"),
+      tr("Car: 01M555NA", "Avto: 01M555NA", "Авто: 01M555NA", "차량: 01M555NA")
+    ],
     kind: "local",
     createdAt: "2025-02-03",
     details: {
-      transport: "Yengil avtomobil",
-      capacity: "0-60 kg",
-      deliveryType: "Eshikdan eshikgacha",
-      verified: ["Face ID", "Avto raqam"]
+      transport: tr("Sedan", "Yengil avtomobil", "Легковой автомобиль", "승용차"),
+      capacity: tr("0-60 kg", "0-60 kg", "0-60 кг", "0-60 кг"),
+      deliveryType: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      verified: [
+        tr("Face ID", "Face ID", "Face ID", "Face ID"),
+        tr("Car plate", "Avto raqam", "Номер авто", "차량 번호")
+      ]
     }
   }
 ];
@@ -118,141 +173,214 @@ const localAgents: AgentCard[] = [
 const internationalAgents: AgentCard[] = [
   {
     name: "Park Ji-hoon",
-    role: "Xalqaro eshikdan eshikgacha",
-    route: "Seul -> Toshkent",
+    role: tr("International door-to-door", "Xalqaro eshikdan eshikgacha", "Международная дверь-дверь", "국제 문-문"),
+    route: tr("Seoul → Tashkent", "Seul -> Toshkent", "Сеул → Ташкент", "서울 → 타슈кент"),
     rating: "4.8",
     jobs: "436",
-    price: "kg uchun $6",
+    price: tr("$6 per kg", "kg uchun $6", "$6 за кг", "kg당 $6"),
     image: "/services/delivery/24.jpg",
-    tags: ["Aeroport", "3-20 kg", "Elektronika"],
+    tags: [
+      tr("Airport", "Aeroport", "Аэропорт", "공항"),
+      tr("3-20 kg", "3-20 kg", "3-20 кг", "3-20 кг"),
+      tr("Electronics", "Elektronika", "Электроника", "전자제품")
+    ],
     kind: "international",
     createdAt: "2025-01-16",
     details: {
-      transport: "Aviayuk",
-      capacity: "3-20 kg",
-      deliveryType: "Eshikdan eshikgacha",
-      verified: ["Pasport", "Face ID", "Bojxona"]
+      transport: tr("Air cargo", "Aviayuk", "Авиагруз", "항공 화물"),
+      capacity: tr("3-20 kg", "3-20 kg", "3-20 кг", "3-20 кг"),
+      deliveryType: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      verified: [
+        tr("Passport", "Pasport", "Паспорт", "여권"),
+        tr("Face ID", "Face ID", "Face ID", "Face ID"),
+        tr("Customs", "Bojxona", "Таможня", "세관")
+      ]
     }
   },
   {
     name: "Aigerim Kenzhe",
-    role: "Xalqaro aeroportgacha",
-    route: "Almata -> Toshkent",
+    role: tr("International to airport", "Xalqaro aeroportgacha", "Международная до аэропорта", "국제 공항까지"),
+    route: tr("Almaty → Tashkent", "Almata -> Toshkent", "Алматы → Ташкент", "알마티 → 타슈кент"),
     rating: "4.6",
     jobs: "289",
-    price: "kg uchun $4",
+    price: tr("$4 per kg", "kg uchun $4", "$4 за кг", "kg당 $4"),
     image: "/services/delivery/28.jpg",
-    tags: ["Aeroport", "1-15 kg", "Hujjatlar"],
+    tags: [
+      tr("Airport", "Aeroport", "Аэропорт", "공항"),
+      tr("1-15 kg", "1-15 kg", "1-15 кг", "1-15 кг"),
+      tr("Documents", "Hujjatlar", "Документы", "서류")
+    ],
     kind: "international",
     createdAt: "2024-09-05",
     details: {
-      transport: "Aviayuk",
-      capacity: "1-15 kg",
-      deliveryType: "Aeroportgacha",
-      verified: ["Pasport", "Hujjat"]
+      transport: tr("Air cargo", "Aviayuk", "Авиагруз", "항공 화물"),
+      capacity: tr("1-15 kg", "1-15 kg", "1-15 кг", "1-15 кг"),
+      deliveryType: tr("To airport", "Aeroportgacha", "До аэропорта", "공항까지"),
+      verified: [
+        tr("Passport", "Pasport", "Паспорт", "여권"),
+        tr("Document", "Hujjat", "Документ", "서류")
+      ]
     }
   },
   {
     name: "Said Aliyev",
-    role: "Xalqaro eshikdan eshikgacha",
-    route: "Istanbul -> Samarqand",
+    role: tr("International door-to-door", "Xalqaro eshikdan eshikgacha", "Международная дверь-дверь", "국제 문-문"),
+    route: tr("Istanbul → Samarkand", "Istanbul -> Samarqand", "Стамбул → Самарканд", "이스탄불 → 사마르칸트"),
     rating: "4.9",
     jobs: "512",
-    price: "kg uchun $7",
+    price: tr("$7 per kg", "kg uchun $7", "$7 за кг", "kg당 $7"),
     image: "/services/delivery/33.jpg",
-    tags: ["Eshikdan eshikgacha", "2-25 kg", "Maishiy texnika"],
+    tags: [
+      tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      tr("2-25 kg", "2-25 kg", "2-25 кг", "2-25 кг"),
+      tr("Home appliances", "Maishiy texnika", "Бытовая техника", "가전제품")
+    ],
     kind: "international",
     createdAt: "2025-02-01",
     details: {
-      transport: "Aviayuk + kur'er",
-      capacity: "2-25 kg",
-      deliveryType: "Eshikdan eshikgacha",
-      verified: ["Pasport", "Face ID", "Bojxona"]
+      transport: tr("Air cargo + courier", "Aviayuk + kur'er", "Авиагруз + курьер", "항공 화물 + 배달"),
+      capacity: tr("2-25 kg", "2-25 kg", "2-25 кг", "2-25 кг"),
+      deliveryType: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      verified: [
+        tr("Passport", "Pasport", "Паспорт", "여권"),
+        tr("Face ID", "Face ID", "Face ID", "Face ID"),
+        tr("Customs", "Bojxona", "Таможня", "세관")
+      ]
     }
   },
   {
     name: "Yuna Choi",
-    role: "Xalqaro tezkor agent",
-    route: "Busan -> Toshkent",
+    role: tr("International express agent", "Xalqaro tezkor agent", "Международный быстрый агент", "국제 익스프레스 에이전트"),
+    route: tr("Busan → Tashkent", "Busan -> Toshkent", "Пусан → Ташкент", "부산 → 타슈кент"),
     rating: "4.7",
     jobs: "378",
-    price: "kg uchun $5",
+    price: tr("$5 per kg", "kg uchun $5", "$5 за кг", "kg당 $5"),
     image: "/services/delivery/31.jpg",
-    tags: ["Tezkor", "Aeroport", "3-18 kg"],
+    tags: [
+      tr("Fast", "Tezkor", "Быстро", "빠름"),
+      tr("Airport", "Aeroport", "Аэропорт", "공항"),
+      tr("3-18 kg", "3-18 kg", "3-18 кг", "3-18 кг")
+    ],
     kind: "international",
     createdAt: "2024-12-02",
     details: {
-      transport: "Aviayuk",
-      capacity: "3-18 kg",
-      deliveryType: "Aeroportgacha",
-      verified: ["Pasport", "Bojxona"]
+      transport: tr("Air cargo", "Aviayuk", "Авиагруз", "항공 화물"),
+      capacity: tr("3-18 kg", "3-18 kg", "3-18 кг", "3-18 кг"),
+      deliveryType: tr("To airport", "Aeroportgacha", "До аэропорта", "공항까지"),
+      verified: [
+        tr("Passport", "Pasport", "Паспорт", "여권"),
+        tr("Customs", "Bojxona", "Таможня", "세관")
+      ]
     }
   },
   {
     name: "Bunyod Ergashev",
-    role: "Xalqaro posilka",
-    route: "Dubay -> Toshkent",
+    role: tr("International parcel", "Xalqaro posilka", "Международная посылка", "국제 소포"),
+    route: tr("Dubai → Tashkent", "Dubay -> Toshkent", "Дубай → Ташкент", "두바이 → 타슈кент"),
     rating: "4.5",
     jobs: "264",
-    price: "kg uchun $6",
+    price: tr("$6 per kg", "kg uchun $6", "$6 за кг", "kg당 $6"),
     image: "/services/delivery/35.jpg",
-    tags: ["Eshikdan eshikgacha", "5-30 kg", "Brend mahsulot"],
+    tags: [
+      tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      tr("5-30 kg", "5-30 kg", "5-30 кг", "5-30 кг"),
+      tr("Branded goods", "Brend mahsulot", "Брендовые товары", "브랜드 제품")
+    ],
     kind: "international",
     createdAt: "2024-08-14",
     details: {
-      transport: "Aviayuk",
-      capacity: "5-30 kg",
-      deliveryType: "Eshikdan eshikgacha",
-      verified: ["Pasport", "Hujjat"]
+      transport: tr("Air cargo", "Aviayuk", "Авиагруз", "항공 화물"),
+      capacity: tr("5-30 kg", "5-30 kg", "5-30 кг", "5-30 кг"),
+      deliveryType: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문"),
+      verified: [
+        tr("Passport", "Pasport", "Паспорт", "여권"),
+        tr("Document", "Hujjat", "Документ", "서류")
+      ]
     }
   }
 ];
 
-const verificationSteps = [
+const verificationSteps: Array<{ title: TranslatedText; desc: TranslatedText }> = [
   {
-    title: "Agentlikka o'tish so'rovi",
-    desc: "Telefon, @mail, shaxsiy rasm, uy manzili va Face ID yuboriladi."
+    title: tr("Agent onboarding request", "Agentlikka o'tish so'rovi", "Запрос на подключение агента", "에이전트 신청"),
+    desc: tr(
+      "Phone, email, personal photo, home address, and Face ID are submitted.",
+      "Telefon, @mail, shaxsiy rasm, uy manzili va Face ID yuboriladi.",
+      "Отправляются телефон, email, личное фото, адрес и Face ID.",
+      "전화, 이메일, личное фото, 주소, Face ID 제출."
+    )
   },
   {
-    title: "Admin tekshiruvi",
-    desc: "Hujjatlar va yuz tasdig'i mos bo'lsa 1 daqiqada tasdiqlanadi."
+    title: tr("Admin review", "Admin tekshiruvi", "Проверка админом", "관리자 검토"),
+    desc: tr(
+      "Approved within 1 minute if documents and face match.",
+      "Hujjatlar va yuz tasdig'i mos bo'lsa 1 daqiqada tasdiqlanadi.",
+      "Если документы и лицо совпадают — подтверждение за 1 минуту.",
+      "서류와 얼굴이 일치하면 1분 내 승인."
+    )
   },
   {
-    title: "1-2 daqiqalik monitoring",
-    desc: "Maqom o'zgarmasa, foydalanuvchiga admin bilan bog'lanish xabari yuboriladi."
+    title: tr("1–2 minute monitoring", "1-2 daqiqalik monitoring", "Мониторинг 1–2 минуты", "1–2분 모니터링"),
+    desc: tr(
+      "If status doesn't change, user gets a contact admin notice.",
+      "Maqom o'zgarmasa, foydalanuvchiga admin bilan bog'lanish xabari yuboriladi.",
+      "Если статус не меняется, пользователю приходит сообщение связаться с админом.",
+      "상태가 바뀌지 않으면 관리자에게 문의 알림."
+    )
   },
   {
-    title: "Agent turlari",
-    desc: "Har bir tur uchun maxsus talablar (mahalliy/xalqaro) qo'llanadi."
+    title: tr("Agent types", "Agent turlari", "Типы агентов", "에이전트 유형"),
+    desc: tr(
+      "Special requirements apply per type (local/international).",
+      "Har bir tur uchun maxsus talablar (mahalliy/xalqaro) qo'llanadi.",
+      "Для каждого типа действуют особые требования (местный/международный).",
+      "유형별 요구사항 적용 (현지/국제)."
+    )
   }
 ];
 
-const controlItems = [
+const controlItems: Array<{ title: TranslatedText; desc: TranslatedText }> = [
   {
-    title: "Statuslar va boshqaruv",
-    desc: "Admin agentni active, block, deleted holatlariga o'tkazadi va turini o'zgartiradi."
+    title: tr("Statuses and management", "Statuslar va boshqaruv", "Статусы и управление", "상태 및 관리"),
+    desc: tr(
+      "Admin switches agent to active, block, deleted and changes type.",
+      "Admin agentni active, block, deleted holatlariga o'tkazadi va turini o'zgartiradi.",
+      "Админ переводит агента в active/block/deleted и меняет тип.",
+      "관리자가 active/block/deleted 전환 및 유형 변경."
+    )
   },
   {
-    title: "Muloqot oynasi",
-    desc: "Agent tasdiqlansa, Kerrot kabi chat ochiladi va xavfsizlik ogohlantirishi ko'rinadi."
+    title: tr("Communication window", "Muloqot oynasi", "Окно общения", "소통 창"),
+    desc: tr(
+      "After approval, a chat opens and safety notice appears.",
+      "Agent tasdiqlansa, Kerrot kabi chat ochiladi va xavfsizlik ogohlantirishi ko'rinadi.",
+      "После подтверждения открывается чат и показывается предупреждение о безопасности.",
+      "승인 후 чат이 열리고 보안 안내가 표시됩니다."
+    )
   },
   {
-    title: "Ishonchli to'lov",
-    desc: "To'lov loyihaning hisobida saqlanadi, xizmat bajarilgach agentga o'tkaziladi."
+    title: tr("Secure payments", "Ishonchli to'lov", "Безопасная оплата", "안전 결제"),
+    desc: tr(
+      "Payment is held by the platform and released after completion.",
+      "To'lov loyihaning hisobida saqlanadi, xizmat bajarilgach agentga o'tkaziladi.",
+      "Оплата хранится на платформе и переводится после выполнения.",
+      "결제는 플랫폼에 보관되며 완료 후 전달됩니다."
+    )
   }
 ];
 
-const filters = [
-  { id: "top", label: "Eng yuqori baho" },
-  { id: "fast", label: "Tezkor yetkazish" },
-  { id: "local", label: "Mahalliy" },
-  { id: "international", label: "Xalqaro" },
-  { id: "weight-3-20", label: "3-20 kg" },
-  { id: "door", label: "Eshikdan eshikgacha" },
-  { id: "airport", label: "Aeroportgacha" }
+const filters: Array<{ id: string; label: TranslatedText }> = [
+  { id: "top", label: tr("Top rated", "Eng yuqori baho", "Высокий рейтинг", "상위 평점") },
+  { id: "fast", label: tr("Fast delivery", "Tezkor yetkazish", "Быстрая доставка", "빠른 доставка") },
+  { id: "local", label: tr("Local", "Mahalliy", "Местные", "현지") },
+  { id: "international", label: tr("International", "Xalqaro", "Международные", "국제") },
+  { id: "weight-3-20", label: tr("3-20 kg", "3-20 kg", "3-20 кг", "3-20 кг") },
+  { id: "door", label: tr("Door-to-door", "Eshikdan eshikgacha", "Дверь-дверь", "문-문") },
+  { id: "airport", label: tr("To airport", "Aeroportgacha", "До аэропорта", "공항까지") }
 ];
 
 export function DeliveryServiceSection() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"all" | "local" | "international">("all");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortMode, setSortMode] = useState<"rating" | "new">("rating");
@@ -286,15 +414,36 @@ export function DeliveryServiceSection() {
 
   const handleUseService = () => {
     if (!isAuthenticated) {
-      setNotice("Xizmatdan foydalanish uchun ro'yxatdan o'ting yoki login qiling.");
+      setNotice(
+        t({
+          en: "Please sign up or log in to use the service.",
+          uz: "Xizmatdan foydalanish uchun ro'yxatdan o'ting yoki login qiling.",
+          ru: "Зарегистрируйтесь или войдите, чтобы воспользоваться сервисом.",
+          ko: "서비스를 이용하려면 가입하거나 로그인하세요."
+        })
+      );
       return;
     }
-    setNotice("So'rov yuborildi. To'lov xizmat yakunlangach tasdiqlanadi.");
+    setNotice(
+      t({
+        en: "Request sent. Payment will be confirmed after completion.",
+        uz: "So'rov yuborildi. To'lov xizmat yakunlangach tasdiqlanadi.",
+        ru: "Запрос отправлен. Оплата подтверждается после выполнения.",
+        ko: "요청이 отправлено. 완료 후 결제가 подтверж됩니다."
+      })
+    );
   };
 
   const handleOpenChat = () => {
     if (!isAuthenticated) {
-      setNotice("Xabarlashish uchun ro'yxatdan o'ting yoki login qiling.");
+      setNotice(
+        t({
+          en: "Please sign up or log in to chat.",
+          uz: "Xabarlashish uchun ro'yxatdan o'ting yoki login qiling.",
+          ru: "Зарегистрируйтесь или войдите для чата.",
+          ko: "채팅하려면 가입하거나 로그인하세요."
+        })
+      );
       return;
     }
     setShowChat(true);
@@ -304,7 +453,14 @@ export function DeliveryServiceSection() {
 
   const handleOpenDispute = () => {
     if (!isAuthenticated) {
-      setNotice("Nizo ochish uchun ro'yxatdan o'ting yoki login qiling.");
+      setNotice(
+        t({
+          en: "Please sign up or log in to open a dispute.",
+          uz: "Nizo ochish uchun ro'yxatdan o'ting yoki login qiling.",
+          ru: "Зарегистрируйтесь или войдите, чтобы открыть спор.",
+          ko: "분쟁을 열려면 가입하거나 로그인하세요."
+        })
+      );
       return;
     }
     setShowDispute(true);
@@ -338,20 +494,27 @@ export function DeliveryServiceSection() {
     if (activeFilters.includes("top") && Number(agent.rating) < 4.8) return false;
 
     if (activeFilters.includes("fast")) {
-      const fast = agent.tags.some((tag) => tag.toLowerCase().includes("tezkor")) || agent.role.toLowerCase().includes("express");
+      const fast = includesAnyInArray(agent.tags, ["tezkor", "fast", "экспресс", "быстро", "빠른", "빠름"]) ||
+        includesAny(agent.role, ["express", "tezkor", "экспресс", "быстро", "빠른"]);
       if (!fast) return false;
     }
 
     if (activeFilters.includes("weight-3-20")) {
-      const range = parseRange(agent.details.capacity);
+      const range = parseRange(agent.details.capacity.uz);
       if (!range || range.min > 20 || range.max < 3) return false;
     }
 
-    if (activeFilters.includes("door") && !agent.details.deliveryType.toLowerCase().includes("eshik")) {
+    if (
+      activeFilters.includes("door") &&
+      !includesAny(agent.details.deliveryType, ["eshik", "door", "двер", "문"])
+    ) {
       return false;
     }
 
-    if (activeFilters.includes("airport") && !agent.details.deliveryType.toLowerCase().includes("aeroport")) {
+    if (
+      activeFilters.includes("airport") &&
+      !includesAny(agent.details.deliveryType, ["aeroport", "airport", "аэропорт", "공항"])
+    ) {
       return false;
     }
 
@@ -382,11 +545,31 @@ export function DeliveryServiceSection() {
     (safeInternationalPage - 1) * pageSize,
     safeInternationalPage * pageSize
   );
-  const chatTemplates = [
-    "Narxni aniqlashtirib bering.",
-    "Yetkazish muddati nechchi kun?",
-    "Eshikdan eshikgacha xizmat bormi?",
-    "Qabul qilinmaydigan yuk turlari bormi?"
+  const chatTemplates: TranslatedText[] = [
+    {
+      en: "Please clarify the price.",
+      uz: "Narxni aniqlashtirib bering.",
+      ru: "Уточните цену, пожалуйста.",
+      ko: "가격을 уточ해 주세요."
+    },
+    {
+      en: "How many days is delivery?",
+      uz: "Yetkazish muddati nechchi kun?",
+      ru: "Сколько дней доставка?",
+      ko: "배송 срок은 며칠인가요?"
+    },
+    {
+      en: "Do you offer door-to-door service?",
+      uz: "Eshikdan eshikgacha xizmat bormi?",
+      ru: "Есть ли услуга дверь-дверь?",
+      ko: "문-문 서비스가 있나요?"
+    },
+    {
+      en: "Are there prohibited cargo types?",
+      uz: "Qabul qilinmaydigan yuk turlari bormi?",
+      ru: "Есть ли запрещенные типы груза?",
+      ko: "제한되는 화물 종류가 있나요?"
+    }
   ];
 
   return (
@@ -434,13 +617,13 @@ export function DeliveryServiceSection() {
           <h2 className="text-lg font-semibold text-emerald-50">Agentlikka o'tish jarayoni</h2>
           <div className="mt-4 space-y-4">
             {verificationSteps.map((step, index) => (
-              <div key={step.title} className="flex gap-4">
+              <div key={step.title.uz} className="flex gap-4">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-semibold text-emerald-100">
                   0{index + 1}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-100">{step.title}</p>
-                  <p className="text-xs text-slate-400">{step.desc}</p>
+                  <p className="text-sm font-semibold text-slate-100">{t(step.title)}</p>
+                  <p className="text-xs text-slate-400">{t(step.desc)}</p>
                 </div>
               </div>
             ))}
@@ -451,9 +634,9 @@ export function DeliveryServiceSection() {
           <h2 className="text-lg font-semibold text-emerald-50">Nazorat va ishonch</h2>
           <div className="mt-4 grid gap-4">
             {controlItems.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4">
-                <p className="text-sm font-semibold text-slate-100">{item.title}</p>
-                <p className="mt-2 text-xs text-slate-400">{item.desc}</p>
+              <div key={item.title.uz} className="rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4">
+                <p className="text-sm font-semibold text-slate-100">{t(item.title)}</p>
+                <p className="mt-2 text-xs text-slate-400">{t(item.desc)}</p>
               </div>
             ))}
           </div>
@@ -589,7 +772,7 @@ export function DeliveryServiceSection() {
                 }`}
                 aria-pressed={isActive}
               >
-                {filter.label}
+                {t(filter.label)}
               </button>
             );
           })}
@@ -645,9 +828,9 @@ export function DeliveryServiceSection() {
                         handleOpenAgent(agent);
                       }
                     }}
-                    className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/60 transition hover:-translate-y-1 hover:border-emerald-500/40"
+                    className="group flex h-[360px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/60 transition hover:-translate-y-1 hover:border-emerald-500/40"
                   >
-                    <div className="relative h-44 overflow-hidden">
+                    <div className="relative h-36 overflow-hidden">
                       <img
                         src={agent.image}
                         alt={agent.name}
@@ -657,24 +840,29 @@ export function DeliveryServiceSection() {
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                       <div className="absolute bottom-3 left-4">
                         <p className="text-sm font-semibold text-white">{agent.name}</p>
-                        <p className="text-xs text-emerald-200">{agent.role}</p>
+                        <p className="text-xs text-emerald-200">{t(agent.role)}</p>
                       </div>
                     </div>
                     <div className="flex flex-1 flex-col gap-3 p-4 text-xs text-slate-300">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                        <span>{agent.route}</span>
-                        <span>* {agent.rating}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>📍 {t(agent.route)}</span>
+                        <span>⭐ {agent.rating}</span>
                       </div>
                       <div className="flex items-center justify-between rounded-xl bg-slate-950/70 px-3 py-2 text-xs text-slate-200">
-                        <span>{agent.price}</span>
-                        <span>{agent.jobs} xizmat</span>
+                        <span>💰 {t(agent.price)}</span>
+                        <span>🧾 {agent.jobs}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {agent.tags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
-                            {tag}
+                        {agent.tags.slice(0, 3).map((tag, idx) => (
+                          <span key={`${agent.name}-${idx}`} className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
+                            {t(tag)}
                           </span>
                         ))}
+                        {agent.tags.length > 3 && (
+                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
+                            +{agent.tags.length - 3}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-auto flex flex-wrap gap-2">
                         <button
@@ -685,7 +873,7 @@ export function DeliveryServiceSection() {
                           }}
                           className="rounded-full border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/40"
                         >
-                          Batafsil
+                          👁
                         </button>
                         <button
                           type="button"
@@ -696,7 +884,7 @@ export function DeliveryServiceSection() {
                           }}
                           className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
                         >
-                          Xizmatdan foydalanish
+                          ✅
                         </button>
                       </div>
                     </div>
@@ -766,9 +954,9 @@ export function DeliveryServiceSection() {
                         handleOpenAgent(agent);
                       }
                     }}
-                    className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/60 transition hover:-translate-y-1 hover:border-amber-400/40"
+                    className="group flex h-[360px] cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-900/60 transition hover:-translate-y-1 hover:border-amber-400/40"
                   >
-                    <div className="relative h-44 overflow-hidden">
+                    <div className="relative h-36 overflow-hidden">
                       <img
                         src={agent.image}
                         alt={agent.name}
@@ -778,24 +966,29 @@ export function DeliveryServiceSection() {
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                       <div className="absolute bottom-3 left-4">
                         <p className="text-sm font-semibold text-white">{agent.name}</p>
-                        <p className="text-xs text-amber-200">{agent.role}</p>
+                        <p className="text-xs text-amber-200">{t(agent.role)}</p>
                       </div>
                     </div>
                     <div className="flex flex-1 flex-col gap-3 p-4 text-xs text-slate-300">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                        <span>{agent.route}</span>
-                        <span>* {agent.rating}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>📍 {t(agent.route)}</span>
+                        <span>⭐ {agent.rating}</span>
                       </div>
                       <div className="flex items-center justify-between rounded-xl bg-slate-950/70 px-3 py-2 text-xs text-slate-200">
-                        <span>{agent.price}</span>
-                        <span>{agent.jobs} xizmat</span>
+                        <span>💰 {t(agent.price)}</span>
+                        <span>🧾 {agent.jobs}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {agent.tags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-                            {tag}
+                        {agent.tags.slice(0, 3).map((tag, idx) => (
+                          <span key={`${agent.name}-${idx}`} className="rounded-full bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+                            {t(tag)}
                           </span>
                         ))}
+                        {agent.tags.length > 3 && (
+                          <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+                            +{agent.tags.length - 3}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-auto flex flex-wrap gap-2">
                         <button
@@ -806,7 +999,7 @@ export function DeliveryServiceSection() {
                           }}
                           className="rounded-full border border-slate-700/70 bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/40"
                         >
-                          Batafsil
+                          👁
                         </button>
                         <button
                           type="button"
@@ -817,7 +1010,7 @@ export function DeliveryServiceSection() {
                           }}
                           className="rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20"
                         >
-                          Xizmatdan foydalanish
+                          ✅
                         </button>
                       </div>
                     </div>
@@ -922,7 +1115,7 @@ export function DeliveryServiceSection() {
                   {selectedAgent.kind === "local" ? "Mahalliy agent" : "Xalqaro agent"}
                 </p>
                 <h3 className="mt-2 text-xl font-semibold">{selectedAgent.name}</h3>
-                <p className="text-sm text-slate-400">{selectedAgent.role}</p>
+                <p className="text-sm text-slate-400">{t(selectedAgent.role)}</p>
               </div>
               <button
                 type="button"
@@ -944,11 +1137,11 @@ export function DeliveryServiceSection() {
                 <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                   <div className="flex items-center justify-between">
                     <span>Yo'nalish</span>
-                    <span className="text-slate-100">{selectedAgent.route}</span>
+                    <span className="text-slate-100">{t(selectedAgent.route)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Narx</span>
-                    <span className="text-emerald-200">{selectedAgent.price}</span>
+                    <span className="text-emerald-200">{t(selectedAgent.price)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Baho</span>
@@ -960,9 +1153,9 @@ export function DeliveryServiceSection() {
                   </div>
                 </div>
               <div className="flex flex-wrap gap-2">
-                {selectedAgent.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-200">
-                    {tag}
+                {selectedAgent.tags.map((tag, idx) => (
+                  <span key={`${selectedAgent.name}-tag-${idx}`} className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-200">
+                    {t(tag)}
                   </span>
                 ))}
               </div>
@@ -974,21 +1167,21 @@ export function DeliveryServiceSection() {
                   <div className="mt-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span>Transport</span>
-                      <span className="text-slate-100">{selectedAgent.details.transport}</span>
+                      <span className="text-slate-100">{t(selectedAgent.details.transport)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Sig'im</span>
-                      <span className="text-slate-100">{selectedAgent.details.capacity}</span>
+                      <span className="text-slate-100">{t(selectedAgent.details.capacity)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Yetkazish turi</span>
-                      <span className="text-slate-100">{selectedAgent.details.deliveryType}</span>
+                      <span className="text-slate-100">{t(selectedAgent.details.deliveryType)}</span>
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedAgent.details.verified.map((item) => (
-                      <span key={item} className="rounded-full bg-slate-800 px-2 py-1 text-[11px] text-slate-200">
-                        {item}
+                    {selectedAgent.details.verified.map((item, idx) => (
+                      <span key={`${selectedAgent.name}-${idx}`} className="rounded-full bg-slate-800 px-2 py-1 text-[11px] text-slate-200">
+                        {t(item)}
                       </span>
                     ))}
                   </div>
@@ -1033,12 +1226,12 @@ export function DeliveryServiceSection() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {chatTemplates.map((template) => (
                         <button
-                          key={template}
+                          key={template.uz}
                           type="button"
-                          onClick={() => setMessageDraft(template)}
+                          onClick={() => setMessageDraft(t(template))}
                           className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
                         >
-                          {template}
+                          {t(template)}
                         </button>
                       ))}
                     </div>

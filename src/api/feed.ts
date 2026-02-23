@@ -22,6 +22,37 @@ export interface FeedItem {
   comments?: any[];
 }
 
+export interface CreateFeedInput {
+  text?: string;
+  content?: string;
+  category?: string;
+  type?: string;
+  images?: string[];
+  mediaUrl?: string;
+}
+
+const normalizeFeedItem = (item: FeedItem, idx = 0): FeedItem => {
+  const author = item.author || ({} as FeedItem["author"]);
+  const images = item.images || [];
+  return {
+    ...item,
+    id: item.id || item._id || String(idx),
+    text: item.text ?? item.content ?? "",
+    content: item.content ?? item.text ?? "",
+    mediaUrl: item.mediaUrl || images[0],
+    createdAt: item.createdAt || new Date().toISOString(),
+    likesCount: item.likesCount ?? (Array.isArray(item.likes) ? item.likes.length : 0),
+    commentsCount: item.commentsCount ?? (Array.isArray(item.comments) ? item.comments.length : 0),
+    author: {
+      _id: author?._id,
+      name: author?.name || "Foydalanuvchi",
+      avatarUrl: author?.avatarUrl,
+      role: (author?.role as any) || "USER"
+    },
+    type: item.type || item.category || ""
+  };
+};
+
 export async function getFeed(): Promise<FeedItem[]> {
   const res = await api.get("/feed");
   const normalize = (value: any): FeedItem[] | null => {
@@ -43,30 +74,16 @@ export async function getFeed(): Promise<FeedItem[]> {
   for (const candidate of candidates) {
     const normalized = normalize(candidate);
     if (normalized) {
-      return normalized.map((item, idx) => {
-        const author = item.author || {};
-        const images = item.images || [];
-        return {
-          ...item,
-          id: item.id || item._id || String(idx),
-          text: item.text ?? item.content ?? "",
-          content: item.content ?? item.text ?? "",
-          mediaUrl: item.mediaUrl || images[0],
-          createdAt: item.createdAt || new Date().toISOString(),
-          likesCount: item.likesCount ?? (Array.isArray(item.likes) ? item.likes.length : 0),
-          commentsCount: item.commentsCount ?? (Array.isArray(item.comments) ? item.comments.length : 0),
-          author: {
-            _id: author._id,
-            name: author.name || "Foydalanuvchi",
-            avatarUrl: author.avatarUrl,
-            role: (author.role as any) || "USER"
-          },
-          type: item.type || item.category || ""
-        };
-      });
+      return normalized.map((item, idx) => normalizeFeedItem(item, idx));
     }
   }
 
   console.warn("Unexpected feed response shape", res.data);
   return [];
+}
+
+export async function createFeedPost(payload: CreateFeedInput): Promise<FeedItem> {
+  const res = await api.post("/feed", payload);
+  const raw = res.data?.item || res.data?.data?.item || res.data?.data || res.data;
+  return normalizeFeedItem(raw as FeedItem, 0);
 }

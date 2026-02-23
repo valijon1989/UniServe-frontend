@@ -5,6 +5,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { client } from "@/api/client";
+import { getLatestProducts } from "@/api/products";
+import { getLatestServices } from "@/api/services";
 
 type TopItem = {
   _id?: string;
@@ -32,6 +34,32 @@ function normalizeItems(res: ApiResponse) {
   return res.items || res.data?.items || [];
 }
 
+const mapLatestProductToTop = (item: any, idx: number): TopItem => ({
+  _id: item._id,
+  id: item.id || item._id || `latest-product-${idx}`,
+  title: item.title || item.name || "Mahsulot",
+  category: item.category,
+  image: item.thumbnail || item.coverImageUrl || item.images?.[0],
+  orders: item.stats?.purchases ?? item.orders ?? item.purchases ?? 0,
+  views: item.stats?.views ?? item.views ?? 0,
+  likes: item.stats?.likes ?? item.likes ?? 0,
+  currency: item.currency,
+  price: item.price
+});
+
+const mapLatestServiceToTop = (item: any, idx: number): TopItem => ({
+  _id: item._id,
+  id: item.id || item._id || `latest-service-${idx}`,
+  title: item.title || item.name || "Xizmat",
+  category: item.category,
+  image: item.coverImageUrl || item.images?.[0],
+  orders: item.orders ?? 0,
+  views: item.views ?? 0,
+  likes: item.likes ?? 0,
+  currency: item.currency,
+  price: item.hourlyRate ?? item.price
+});
+
 const medal = ["🥇", "🥈", "🥉"];
 const medalBg = [
   "from-amber-500/30 via-amber-400/20 to-amber-600/30",
@@ -50,14 +78,33 @@ export function TopPodium() {
       setLoading(true);
       setError(null);
       try {
-        const [prodRes, servRes] = await Promise.all([
+        const [prodRes, servRes, latestProducts, latestServices] = await Promise.all([
           client.get<ApiResponse>("/products/trending?limit=3&page=1"),
-          client.get<ApiResponse>("/services/trending?limit=3&page=1")
+          client.get<ApiResponse>("/services/trending?limit=3&page=1"),
+          getLatestProducts(),
+          getLatestServices()
         ]);
-        setProducts(normalizeItems(prodRes.data));
-        setServices(normalizeItems(servRes.data));
+        const trendingProducts = normalizeItems(prodRes.data);
+        const trendingServices = normalizeItems(servRes.data);
+
+        const fallbackProducts = (latestProducts || []).slice(0, 3).map(mapLatestProductToTop);
+        const fallbackServices = (latestServices || []).slice(0, 3).map(mapLatestServiceToTop);
+
+        setProducts(trendingProducts.length > 0 ? trendingProducts : fallbackProducts);
+        setServices(trendingServices.length > 0 ? trendingServices : fallbackServices);
       } catch (err: any) {
         setError(err?.message || "Podiumni yuklab bo'lmadi");
+        try {
+          const [latestProducts, latestServices] = await Promise.all([
+            getLatestProducts(),
+            getLatestServices()
+          ]);
+          setProducts((latestProducts || []).slice(0, 3).map(mapLatestProductToTop));
+          setServices((latestServices || []).slice(0, 3).map(mapLatestServiceToTop));
+        } catch {
+          setProducts([]);
+          setServices([]);
+        }
       } finally {
         setLoading(false);
       }

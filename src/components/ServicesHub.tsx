@@ -77,6 +77,13 @@ type DisplayService = {
   sportCourseModules?: string[];
   sportCourseLength?: string;
   sportMaxParticipants?: number;
+  translationMode?: "oral" | "written";
+  translationSpeed?: string;
+  translationFormat?: string;
+  translationSla?: string;
+  sourceLang?: string;
+  targetLang?: string;
+  notarization?: boolean;
 };
 
 const emptyForm: ServiceFormState = {
@@ -181,6 +188,7 @@ export function ServicesHub() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { t: translate } = useI18n();
   const replaceTimerRef = useRef<number | null>(null);
   const taxiSeatStorageKey = "uniserve_taxi_seat";
   const taxiClassStorageKey = "uniserve_taxi_class";
@@ -243,7 +251,6 @@ export function ServicesHub() {
   const [legalLanguage, setLegalLanguage] = useState("all");
   const [legalFormat, setLegalFormat] = useState("all");
   const [legalTrust, setLegalTrust] = useState("all");
-  const { t } = useI18n();
   const { role, isAuthenticated, hydrateFromStorage, token } = useAuthStore();
   const { status: rideSocketStatus, latestRide, sendRideEvent } = useRideSocket({
     token,
@@ -580,42 +587,42 @@ export function ServicesHub() {
 
   const getCategoryLabel = (id: string, fallback: string) => {
     const map: Record<string, string> = {
-      taxi: t("services.category.taxi"),
-      delivery: t("services.category.delivery"),
-      technical: t("services.category.technical"),
-      construction: t("services.category.construction"),
-      moving: t("services.category.moving"),
-      cleaning: t("services.category.cleaning"),
-      nanny: t("services.category.nanny"),
-      marketing: t("services.category.marketing"),
-      employment: t("services.category.employment"),
-      education: t("services.category.education"),
-      consulting: t("services.category.consulting"),
-      translation: t("services.category.translation"),
-      psychology: t("services.category.psychology"),
-      legal: t("services.category.legal"),
-      sport: t("services.category.sport")
+      taxi: translate("services.category.taxi"),
+      delivery: translate("services.category.delivery"),
+      technical: translate("services.category.technical"),
+      construction: translate("services.category.construction"),
+      moving: translate("services.category.moving"),
+      cleaning: translate("services.category.cleaning"),
+      nanny: translate("services.category.nanny"),
+      marketing: translate("services.category.marketing"),
+      employment: translate("services.category.employment"),
+      education: translate("services.category.education"),
+      consulting: translate("services.category.consulting"),
+      translation: translate("services.category.translation"),
+      psychology: translate("services.category.psychology"),
+      legal: translate("services.category.legal"),
+      sport: translate("services.category.sport")
     };
     return map[id] || fallback;
   };
 
   const getCategoryDescription = (id: string, fallback: string) => {
     const map: Record<string, string> = {
-      taxi: t("services.category.taxi.desc"),
-      delivery: t("services.category.delivery.desc"),
-      technical: t("services.category.technical.desc"),
-      construction: t("services.category.construction.desc"),
-      moving: t("services.category.moving.desc"),
-      cleaning: t("services.category.cleaning.desc"),
-      nanny: t("services.category.nanny.desc"),
-      marketing: t("services.category.marketing.desc"),
-      employment: t("services.category.employment.desc"),
-      education: t("services.category.education.desc"),
-      consulting: t("services.category.consulting.desc"),
-      translation: t("services.category.translation.desc"),
-      psychology: t("services.category.psychology.desc"),
-      legal: t("services.category.legal.desc"),
-      sport: t("services.category.sport.desc")
+      taxi: translate("services.category.taxi.desc"),
+      delivery: translate("services.category.delivery.desc"),
+      technical: translate("services.category.technical.desc"),
+      construction: translate("services.category.construction.desc"),
+      moving: translate("services.category.moving.desc"),
+      cleaning: translate("services.category.cleaning.desc"),
+      nanny: translate("services.category.nanny.desc"),
+      marketing: translate("services.category.marketing.desc"),
+      employment: translate("services.category.employment.desc"),
+      education: translate("services.category.education.desc"),
+      consulting: translate("services.category.consulting.desc"),
+      translation: translate("services.category.translation.desc"),
+      psychology: translate("services.category.psychology.desc"),
+      legal: translate("services.category.legal.desc"),
+      sport: translate("services.category.sport.desc")
     };
     return map[id] || fallback;
   };
@@ -637,22 +644,22 @@ export function ServicesHub() {
     setFormSuccess(null);
 
     const errors: string[] = [];
-    if (!form.title.trim()) errors.push(t("services.add.errors.name"));
-    if (!form.categoryId) errors.push(t("services.add.errors.category"));
-    if (!form.price || Number(form.price) <= 0) errors.push(t("services.add.errors.price"));
-    if (wordCount === 0 || wordCount > 500) errors.push(t("services.add.errors.description"));
-    if (!form.certificates.trim()) errors.push(t("services.add.errors.cert"));
+    if (!form.title.trim()) errors.push(translate("services.add.errors.name"));
+    if (!form.categoryId) errors.push(translate("services.add.errors.category"));
+    if (!form.price || Number(form.price) <= 0) errors.push(translate("services.add.errors.price"));
+    if (wordCount === 0 || wordCount > 500) errors.push(translate("services.add.errors.description"));
+    if (!form.certificates.trim()) errors.push(translate("services.add.errors.cert"));
     if (form.images.length < 3 || form.images.length > 20) {
-      errors.push(t("services.add.errors.images"));
+      errors.push(translate("services.add.errors.images"));
     }
-    if (!form.agree) errors.push(t("services.add.errors.agree"));
+    if (!form.agree) errors.push(translate("services.add.errors.agree"));
 
     if (errors.length > 0) {
       setFormError(errors[0]);
       return;
     }
 
-    setFormSuccess(t("services.add.success"));
+    setFormSuccess(translate("services.add.success"));
     setForm({
       ...emptyForm,
       type: form.type,
@@ -1284,15 +1291,16 @@ export function ServicesHub() {
       const isVariant = i >= baseServices.length;
       const baseDate = new Date(base.createdAt);
       const createdAt = new Date(baseDate.getTime() + i * 86400000).toISOString();
-      const imageStart = i * 3;
+      const baseHash = Math.abs(hashValue(base.displayId || base.title));
+      const imageStart = baseHash % pool.length;
       expanded.push({
         ...base,
         displayId: `${base.displayId}-v${i + 1}`,
         title: isVariant
-          ? `${base.title} · ${t("services.service.variant")} ${variantIndex}`
+          ? `${base.title} · ${translate("services.service.variant")} ${variantIndex}`
           : base.title,
         images: [
-          pool[imageStart % pool.length],
+          pool[imageStart],
           pool[(imageStart + 1) % pool.length],
           pool[(imageStart + 2) % pool.length]
         ],
@@ -1376,7 +1384,7 @@ export function ServicesHub() {
     nannyType,
     nannyTypes,
     sortMode,
-    t,
+    translate,
     taxiAgents
   ]);
 
@@ -1422,16 +1430,16 @@ export function ServicesHub() {
 
   const canShowAddService = isAuthenticated && role === "AGENT" && agentKind === "SERVICE";
   const isSellerAgent = isAuthenticated && role === "AGENT" && agentKind === "SELLER";
-  const isServiceAgentLocked = canShowAddService && agentGroup && agentCategory;
+  const isServiceAgentLocked = Boolean(canShowAddService && agentGroup && agentCategory);
 
-  const renderRating = (rating: number) => `${t("services.agent.rating")}: ${rating.toFixed(1)}/5`;
+  const renderRating = (rating: number) => `${translate("services.agent.rating")}: ${rating.toFixed(1)}/5`;
 
   const renderAgentStats = (agent: ServiceAgent) => [
-    `${t("services.agent.clients")}: ${formatCount(agent.totalClients)}`,
-    `${t("services.agent.followers")}: ${formatCount(agent.followers)}`,
-    `${t("services.agent.nice")}: ${formatCount(agent.niceCount)}`,
-    `${t("services.agent.shares")}: ${formatCount(agent.shareCount)}`,
-    `${t("services.agent.reviews")}: ${formatCount(agent.reviewCount)}`
+    `${translate("services.agent.clients")}: ${formatCount(agent.totalClients)}`,
+    `${translate("services.agent.followers")}: ${formatCount(agent.followers)}`,
+    `${translate("services.agent.nice")}: ${formatCount(agent.niceCount)}`,
+    `${translate("services.agent.shares")}: ${formatCount(agent.shareCount)}`,
+    `${translate("services.agent.reviews")}: ${formatCount(agent.reviewCount)}`
   ];
 
   const getNannyTypeLabel = (value?: string) =>
@@ -1484,40 +1492,175 @@ export function ServicesHub() {
 
   const formatRideStatus = (status: string) => {
     const map: Record<string, string> = {
-      requested: "So'rov yuborildi",
-      assigned: "Haydovchi biriktirildi",
-      taken: "Haydovchi qabul qildi",
-      confirmed: "Mijoz tasdiqladi",
-      completed: "Safar yakunlandi"
+      requested: translate({
+        en: "Request sent",
+        uz: "So'rov yuborildi",
+        ru: "Запрос отправлен",
+        ko: "요청 전송됨"
+      }),
+      assigned: translate({
+        en: "Driver assigned",
+        uz: "Haydovchi biriktirildi",
+        ru: "Водитель назначен",
+        ko: "기사 배정됨"
+      }),
+      taken: translate({
+        en: "Driver accepted",
+        uz: "Haydovchi qabul qildi",
+        ru: "Водитель принял",
+        ko: "기사 수락"
+      }),
+      confirmed: translate({
+        en: "Client confirmed",
+        uz: "Mijoz tasdiqladi",
+        ru: "Клиент подтвердил",
+        ko: "고객 확인"
+      }),
+      completed: translate({
+        en: "Trip completed",
+        uz: "Safar yakunlandi",
+        ru: "Поездка завершена",
+        ko: "여행 완료"
+      })
     };
     return map[status] || status;
   };
 
   const formatSocketStatus = (status: string) => {
     const map: Record<string, string> = {
-      idle: "To'xtatilgan",
-      connecting: "Ulanmoqda",
-      open: "Onlayn",
-      closed: "Ulanish uzildi",
-      error: "Xatolik"
+      idle: translate({ en: "Idle", uz: "To'xtatilgan", ru: "Остановлено", ko: "대기" }),
+      connecting: translate({ en: "Connecting", uz: "Ulanmoqda", ru: "Подключение", ko: "연결 중" }),
+      open: translate({ en: "Online", uz: "Onlayn", ru: "Онлайн", ko: "온라인" }),
+      closed: translate({ en: "Disconnected", uz: "Ulanish uzildi", ru: "Соединение разорвано", ko: "연결 끊김" }),
+      error: translate({ en: "Error", uz: "Xatolik", ru: "Ошибка", ko: "오류" })
     };
     return map[status] || status;
   };
 
+  const getTranslationCategoryLabelLocalized = (subCategory?: string) => {
+    switch (subCategory) {
+      case "translation-official":
+        return translate({
+          en: "Official documents",
+          uz: "Rasmiy hujjatlar",
+          ru: "Официальные документы",
+          ko: "공식 문서"
+        });
+      case "translation-education":
+        return translate({
+          en: "Education documents",
+          uz: "Ta'lim hujjatlari",
+          ru: "Образовательные документы",
+          ko: "교육 문서"
+        });
+      case "translation-visa":
+        return translate({
+          en: "Visa / migration",
+          uz: "Visa / migratsiya",
+          ru: "Виза / миграция",
+          ko: "비자 / 이민"
+        });
+      case "translation-business":
+        return translate({
+          en: "Business",
+          uz: "Biznes",
+          ru: "Бизнес",
+          ko: "비즈니스"
+        });
+      case "translation-medical":
+        return translate({
+          en: "Medical",
+          uz: "Tibbiy",
+          ru: "Медицинские",
+          ko: "의료"
+        });
+      case "translation-technical":
+        return translate({
+          en: "Technical",
+          uz: "Texnik",
+          ru: "Технические",
+          ko: "기술"
+        });
+      case "translation-oral":
+        return translate({
+          en: "Oral",
+          uz: "Og'zaki",
+          ru: "Устный",
+          ko: "구두"
+        });
+      case "translation-personal":
+        return translate({
+          en: "Personal",
+          uz: "Shaxsiy",
+          ru: "Личные",
+          ko: "개인"
+        });
+      default:
+        return translate({
+          en: "Translation",
+          uz: "Tarjimonlik",
+          ru: "Перевод",
+          ko: "번역"
+        });
+    }
+  };
+
+  const getTranslationSlaLabel = (service: DisplayService) => {
+    const raw = getTranslationSla(service);
+    if (raw === "2-6 soat") {
+      return translate({ en: "2–6 hours", uz: "2-6 soat", ru: "2–6 часов", ko: "2–6시간" });
+    }
+    if (raw === "24 soat") {
+      return translate({ en: "24 hours", uz: "24 soat", ru: "24 часа", ko: "24시간" });
+    }
+    if (raw === "2-3 ish kuni") {
+      return translate({ en: "2–3 business days", uz: "2-3 ish kuni", ru: "2–3 рабочих дня", ko: "2–3영업일" });
+    }
+    return raw;
+  };
+
+  const translateOfficialTag = (tag: string) => {
+    if (tag === "Notarial") {
+      return translate({ en: "Notarized", uz: "Notarial", ru: "Нотариально", ko: "공증" });
+    }
+    if (tag === "Muhrli") {
+      return translate({ en: "Stamped", uz: "Muhrli", ru: "С печатью", ko: "도장" });
+    }
+    if (tag === "Guvohnoma") {
+      return translate({ en: "Certificate", uz: "Guvohnoma", ru: "Свидетельство", ko: "증명서" });
+    }
+    if (tag === "Oddiy") {
+      return translate({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "일반" });
+    }
+    return tag;
+  };
+
   const renderServiceCard = (service: DisplayService, keyPrefix = "") => {
-    const translationLabel = getTranslationCategoryLabel(service.subCategory);
+    const translationLabel = getTranslationCategoryLabelLocalized(service.subCategory);
     const translationPair = `${service.sourceLang || "—"} → ${service.targetLang || "—"}`;
-    const translationSlaLabel = getTranslationSla(service);
-    const translationOfficialTags = getTranslationOfficialTags(service);
+    const translationSlaLabel = getTranslationSlaLabel(service);
+    const translationOfficialTags = getTranslationOfficialTags(service).map(translateOfficialTag);
+    const translationTopTags = translationOfficialTags.slice(0, 2);
+    const translationExtraTags = Math.max(0, translationOfficialTags.length - translationTopTags.length);
     const legalJurisdictionLabel =
       service.legalJurisdiction === "KR"
         ? "KR"
         : service.legalJurisdiction === "INT"
-          ? "Xalqaro"
+          ? translate({ en: "International", uz: "Xalqaro", ru: "Международная", ko: "국제" })
           : "UZ";
     const legalTitle = isLegalCategory
-      ? `${service.legalArea || "Huquqiy"} · ${service.title}`
+      ? `${service.legalArea || translate({ en: "Legal", uz: "Huquqiy", ru: "Юридическое", ko: "법률" })} · ${
+          service.title
+        }`
       : service.title;
+    const certs = service.certificates.slice(0, 2);
+    const certsExtra = Math.max(0, service.certificates.length - certs.length);
+    const formats = service.agent.consultationFormats || ["Online"];
+    const formatTop = formats.slice(0, 2);
+    const formatExtra = Math.max(0, formats.length - formatTop.length);
+    const audiences = service.agent.audiences || [];
+    const audienceTop = audiences.slice(0, 2);
+    const audienceExtra = Math.max(0, audiences.length - audienceTop.length);
     return (
       <div
         key={`${keyPrefix}${service.displayId}`}
@@ -1525,7 +1668,7 @@ export function ServicesHub() {
         tabIndex={0}
         onClick={(event) => handleServiceCardClick(event, service.displayId)}
         onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
-        className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
+        className="flex h-[440px] cursor-pointer flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
       >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
@@ -1546,41 +1689,39 @@ export function ServicesHub() {
             <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
             {(service.agent.region || service.agent.distanceKm) && (
               <p className="text-[11px] text-slate-500">
-                {service.agent.region || "Hudud"} · {service.agent.distanceKm ?? "—"} km
+                📍 {service.agent.region || translate({ en: "Region", uz: "Hudud", ru: "Регион", ko: "지역" })} ·{" "}
+                {service.agent.distanceKm ?? "—"} km
               </p>
             )}
             {isConsultingCategory && service.agent.languages && service.agent.languages.length > 0 && (
-              <p className="text-[11px] text-slate-500">
-                {service.agent.languages.join(" · ")}
+              <p className="truncate text-[11px] text-slate-500">
+                🌐 {service.agent.languages.slice(0, 2).join(" · ")}
               </p>
             )}
             {isPsychologyCategory && (
-              <p className="text-[11px] text-slate-500">🔒 Maxfiy muloqot</p>
+              <p className="text-[11px] text-slate-500">
+                🔒 {translate({ en: "Private", uz: "Maxfiy", ru: "Конфиденциально", ko: "비공개 상담" })}
+              </p>
             )}
           </div>
         </Link>
-        <div className="flex flex-col items-end gap-1">
-          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
-            {t("services.agent.verified")}
+        <div className="flex items-center gap-2 text-[11px] text-slate-200">
+          <span title="Verified" className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200">
+            ✔
           </span>
           {isConsultingCategory && service.certificates.length > 0 && (
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
-              Sertifikat tekshirildi
-            </span>
-          )}
-          {isPsychologyCategory && (
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
-              Tasdiqlangan mutaxassis
+            <span title="Certificates checked" className="rounded-full bg-slate-800 px-2 py-0.5">
+              📜
             </span>
           )}
           {isLegalCategory && service.agent.legalLicenseMasked && (
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
-              ⚖️ Litsenziyalangan
+            <span title="Licensed" className="rounded-full bg-slate-800 px-2 py-0.5">
+              ⚖️
             </span>
           )}
           {isSportCategory && service.agent.sportCertificates && (
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-200">
-              🏅 Sertifikat
+            <span title="Certified" className="rounded-full bg-slate-800 px-2 py-0.5">
+              🏅
             </span>
           )}
         </div>
@@ -1608,44 +1749,50 @@ export function ServicesHub() {
 
       <div className="mt-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-100">{legalTitle}</p>
-          <p className="text-xs text-slate-400">{service.description}</p>
+          <p className="line-clamp-1 text-sm font-semibold text-slate-100">{legalTitle}</p>
+          <p className="line-clamp-2 text-xs text-slate-400">{service.description}</p>
           {isNannyCategory && (
             <p className="mt-1 text-[11px] text-emerald-200">
-              {getNannyTypeLabel(service.subCategory)}
+              👶 {getNannyTypeLabel(service.subCategory)}
             </p>
           )}
           {isConsultingCategory && (
             <>
               <p className="mt-1 text-[11px] text-emerald-200">
-                {service.agent.specialty || "Konsalting yo'nalishi"}
+                🧭 {service.agent.specialty || "Konsalting yo'nalishi"}
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.agent.region || service.agent.location || "Hudud"}
+                  📍 {service.agent.region || service.agent.location || "Hudud"}
                 </span>
-                {(service.agent.consultationFormats || ["Online"]).map((item) => (
+                {formatTop.map((item) => (
                   <span key={`${service.displayId}-format-${item}`} className="rounded-full bg-slate-900 px-2 py-1">
-                    {item}
+                    💬 {item}
                   </span>
                 ))}
+                {formatExtra > 0 && (
+                  <span className="rounded-full bg-slate-900 px-2 py-1">+{formatExtra}</span>
+                )}
               </div>
             </>
           )}
           {isPsychologyCategory && (
             <>
               <p className="mt-1 text-[11px] text-emerald-200">
-                {service.agent.specialty || "Psixolog"}
+                🧠 {service.agent.specialty || "Psixolog"}
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {(service.agent.audiences || []).join(" · ") || "Kattalar"}
+                  👥 {(audienceTop.length ? audienceTop.join(" · ") : "Kattalar")}
+                </span>
+                {audienceExtra > 0 && (
+                  <span className="rounded-full bg-slate-900 px-2 py-1">+{audienceExtra}</span>
+                )}
+                <span className="rounded-full bg-slate-900 px-2 py-1">
+                  💬 {(service.agent.consultationFormats || ["Chat", "Video"]).slice(0, 2).join(" · ")}
                 </span>
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {(service.agent.consultationFormats || ["Chat", "Video"]).join(" · ")}
-                </span>
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {(service.agent.consultationDurations || ["50 daqiqa"]).join(" · ")}
+                  ⏱ {(service.agent.consultationDurations || ["50 daqiqa"]).slice(0, 1).join(" · ")}
                 </span>
               </div>
             </>
@@ -1653,21 +1800,21 @@ export function ServicesHub() {
           {isLegalCategory && (
             <>
               <p className="mt-1 text-[11px] text-emerald-200">
-                {service.legalServiceType || "Maslahat"} · {legalJurisdictionLabel}
+                ⚖️ {service.legalServiceType || "Maslahat"} · {legalJurisdictionLabel}
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.legalServiceType || "Maslahat"}
+                  💬 {service.legalServiceType || "Maslahat"}
                 </span>
                 <span className="rounded-full bg-slate-900 px-2 py-1">
                   {service.legalJurisdiction === "KR"
                     ? "🇰🇷 Koreya"
                     : service.legalJurisdiction === "INT"
-                      ? "Xalqaro"
+                      ? "🌍 Xalqaro"
                       : "🇺🇿 O‘zbekiston"}
                 </span>
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.legalFormat?.map((item) => item).join(" · ") || "Chat"}
+                  {service.legalFormat?.slice(0, 2).join(" · ") || "Chat"}
                 </span>
               </div>
             </>
@@ -1675,18 +1822,18 @@ export function ServicesHub() {
           {isSportCategory && (
             <>
               <p className="mt-1 text-[11px] text-emerald-200">
-                {service.sportType || "Sport"} · {service.sportServiceType || "Mashg‘ulot"}
+                🏅 {service.sportType || "Sport"} · {service.sportServiceType || "Mashg‘ulot"}
               </p>
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  Tajriba: {service.agent.experienceYears} yil
+                  ⏳ {service.agent.experienceYears} yil
                 </span>
                 <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.sportFormat?.join(" · ") || "online/offline"}
+                  🎯 {service.sportFormat?.slice(0, 2).join(" · ") || "online/offline"}
                 </span>
                 {service.sportLevel && (
                   <span className="rounded-full bg-slate-900 px-2 py-1">
-                    {service.sportLevel}
+                    🧩 {service.sportLevel}
                   </span>
                 )}
               </div>
@@ -1718,25 +1865,35 @@ export function ServicesHub() {
       {isTranslationCategory && (
         <div className="mt-2 space-y-2 text-[11px] text-slate-400">
           <p className="text-xs text-slate-300">
-            {translationLabel} ({translationPair})
+            🌐 {translationLabel} ({translationPair})
           </p>
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
               ⏱ {translationSlaLabel}
             </span>
-            {translationOfficialTags.map((tag) => (
+            {translationTopTags.map((tag) => (
               <span key={`${service.displayId}-official-${tag}`} className="rounded-full bg-slate-900 px-2 py-1">
-                {tag === "Oddiy" ? "Oddiy tarjima" : tag}
+                {tag}
               </span>
             ))}
+            {translationExtraTags > 0 && (
+              <span className="rounded-full bg-slate-900 px-2 py-1">+{translationExtraTags}</span>
+            )}
             {service.translationMode && (
               <span className="rounded-full bg-slate-900 px-2 py-1">
-                {service.translationMode === "oral" ? "Og'zaki" : "Yozma"}
+                {service.translationMode === "oral"
+                  ? `🗣 ${translate({ en: "Oral", uz: "Og'zaki", ru: "Устный", ko: "구두" })}`
+                  : `✍️ ${translate({ en: "Written", uz: "Yozma", ru: "Письменный", ko: "문서" })}`}
               </span>
             )}
             {service.translationFormat && (
               <span className="rounded-full bg-slate-900 px-2 py-1">
-                {service.translationFormat}
+                📎{" "}
+                {service.translationFormat === "Scan"
+                  ? translate({ en: "Image → text", uz: "Rasm → matn", ru: "Изображение → текст", ko: "이미지 → 텍스트" })
+                  : service.translationFormat === "Original"
+                    ? translate({ en: "Original (stamped)", uz: "Original (muhrli)", ru: "Оригинал (с печатью)", ko: "원본 (도장)" })
+                    : service.translationFormat}
               </span>
             )}
           </div>
@@ -1744,58 +1901,63 @@ export function ServicesHub() {
       )}
 
       <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-        {service.certificates.map((cert) => (
+        {certs.map((cert) => (
           <span key={`${service.displayId}-${cert}`} className="rounded-full bg-slate-900 px-2 py-1">
-            {cert}
+            📜 {cert}
           </span>
         ))}
+        {certsExtra > 0 && (
+          <span className="rounded-full bg-slate-900 px-2 py-1">+{certsExtra}</span>
+        )}
         {isConsultingCategory && (
           <>
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              Platformada: {getMonthsOnPlatform(service.createdAt)} oy
+              🗓 {getMonthsOnPlatform(service.createdAt)} {translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}
             </span>
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              Trust: {getConsultingTrustScore(service)}/100
+              🛡 {getConsultingTrustScore(service)}/100
             </span>
           </>
         )}
         {isTranslationCategory && (
           <>
             <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ✅ Tasdiqlangan tarjimon
+              ✅ {translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}
             </span>
             {service.notarization && (
-              <span className="rounded-full bg-slate-900 px-2 py-1">Immigration mos</span>
+              <span className="rounded-full bg-slate-900 px-2 py-1">
+                🧾 {translate({ en: "Immigration", uz: "Immigratsiya", ru: "Иммиграция", ko: "이민" })}
+              </span>
             )}
           </>
         )}
         {isPsychologyCategory && (
           <>
             <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ✅ Tasdiqlangan mutaxassis
+              ✅ {translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}
             </span>
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              Platformada: {getMonthsOnPlatform(service.createdAt)} oy
+              🗓 {getMonthsOnPlatform(service.createdAt)} {translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}
             </span>
           </>
         )}
         {isLegalCategory && (
           <>
             <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ⚖️ Litsenziya tekshirildi
+              ⚖️ {translate({ en: "Verified", uz: "Tekshirildi", ru: "Проверено", ko: "검증됨" })}
             </span>
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              Javob: {service.legalResponseTime || "~24 soat"}
+              ⏱ {service.legalResponseTime || translate({ en: "~24 hours", uz: "~24 soat", ru: "~24 часа", ko: "~24시간" })}
             </span>
           </>
         )}
         {isSportCategory && (
           <>
             <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              🏅 Sertifikat / medal
+              🏅 {translate({ en: "Certified", uz: "Sertifikat", ru: "Сертификат", ko: "자격" })}
             </span>
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              O‘quvchilar: {formatCount(service.agent.sportStudentsCount ?? 0)}
+              👥 {formatCount(service.agent.sportStudentsCount ?? 0)}
             </span>
           </>
         )}
@@ -1825,7 +1987,7 @@ export function ServicesHub() {
               key={`${service.displayId}-${idx}`}
               src={src}
               alt={image.alt}
-              className="h-20 w-full rounded-lg object-cover"
+              className="h-16 w-full rounded-lg object-cover"
               loading="lazy"
               onError={(event) => {
                 if (fallback) {
@@ -1839,33 +2001,12 @@ export function ServicesHub() {
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-slate-900 px-2 py-1">
-            {renderRating(service.rating)}
-          </span>
-          <span className="rounded-full bg-slate-900 px-2 py-1">
-            Tugallangan: {formatCount(service.agent.completedOrders ?? service.usedCount)}
-          </span>
-          <span className="rounded-full bg-slate-900 px-2 py-1">
-            Sharhlar: {formatCount(service.reviewCount)}
-          </span>
-          {isPsychologyCategory && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              Sharhlar anonim
-            </span>
-          )}
+          <span className="rounded-full bg-slate-900 px-2 py-1">⭐ {service.rating.toFixed(1)}</span>
+          <span className="rounded-full bg-slate-900 px-2 py-1">✅ {formatCount(service.agent.completedOrders ?? service.usedCount)}</span>
+          <span className="rounded-full bg-slate-900 px-2 py-1">💬 {formatCount(service.reviewCount)}</span>
           {isConsultingCategory && (
             <span className="rounded-full bg-slate-900 px-2 py-1">
-              Javob: ~{(hashValue(service.agent.id) % 8) + 1} soat
-            </span>
-          )}
-          {isLegalCategory && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              Ishlar: {formatCount(service.agent.completedOrders ?? service.usedCount)}
-            </span>
-          )}
-          {isSportCategory && service.sportResult && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              Natija: {service.sportResult}
+              ⏱ ~{(hashValue(service.agent.id) % 8) + 1} {translate({ en: "hours", uz: "soat", ru: "часов", ko: "시간" })}
             </span>
           )}
         </div>
@@ -1877,11 +2018,11 @@ export function ServicesHub() {
               : "bg-slate-800 text-slate-400"
           }`}
         >
-          {service.canRate ? t("services.service.rate") : t("services.service.rateOnly")}
+          {service.canRate ? "⭐" : "☆"}
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+      <div className="mt-auto flex flex-wrap gap-2 pt-3 text-xs">
         {isConsultingCategory ? (
           <>
             <button
@@ -1889,21 +2030,21 @@ export function ServicesHub() {
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-emerald-500/80 px-3 py-1 text-slate-950"
             >
-              So'rov yuborish
+              💬
             </button>
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
             >
-              Savol berish
+              ❓
             </button>
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
             >
-              Agentni follow
+              ★
             </button>
           </>
         ) : isLegalCategory ? (
@@ -1913,14 +2054,14 @@ export function ServicesHub() {
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
             >
-              Maslahat so'rash
+              ⚖️
             </button>
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
             >
-              Savol berish
+              ❓
             </button>
           </>
         ) : isSportCategory ? (
@@ -1930,14 +2071,14 @@ export function ServicesHub() {
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
             >
-              Mashg‘ulotga yozilish
+              🏃
             </button>
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
             >
-              Savol berish
+              ❓
             </button>
           </>
         ) : isTranslationCategory ? (
@@ -1950,14 +2091,14 @@ export function ServicesHub() {
               }}
               className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
             >
-              Hujjat yuborish
+              📎
             </button>
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
               className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
             >
-              Savol berish
+              ❓
             </button>
           </>
         ) : isPsychologyCategory ? (
@@ -1970,7 +2111,7 @@ export function ServicesHub() {
               }}
               className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
             >
-              Xavfsiz yozish
+              🔒
             </button>
             <button
               type="button"
@@ -1983,13 +2124,13 @@ export function ServicesHub() {
         ) : (
           <>
             <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {t("services.actions.nice")} ({formatCount(service.niceCount)})
+              {translate("services.actions.nice")} ({formatCount(service.niceCount)})
             </button>
             <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {t("services.actions.followAgent")}
+              {translate("services.actions.followAgent")}
             </button>
             <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {t("services.actions.share")} ({formatCount(service.shareCount)})
+              {translate("services.actions.share")} ({formatCount(service.shareCount)})
             </button>
           </>
         )}
@@ -2008,7 +2149,7 @@ export function ServicesHub() {
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">{t("services.hub.label")}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">{translate("services.hub.label")}</p>
             <h1 className="text-2xl font-semibold text-slate-50">
               {isLegalCategory
                 ? "Huquqiy maslahat va xizmatlar"
@@ -2016,7 +2157,7 @@ export function ServicesHub() {
                   ? "Professional sport murabbiylari va treninglar"
                 : isPsychologyCategory
                   ? "Psixologik yordam va maslahatlar"
-                  : t("services.hub.title")}
+                  : translate("services.hub.title")}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">
               {isLegalCategory
@@ -2025,7 +2166,7 @@ export function ServicesHub() {
                   ? "Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar."
                 : isPsychologyCategory
                   ? "Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda."
-                  : t("services.hub.description")}
+                  : translate("services.hub.description")}
             </p>
           </div>
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-100">
@@ -2036,7 +2177,7 @@ export function ServicesHub() {
                   ? "🔵 Murabbiy bo‘lish / Kurs joylash"
                 : isPsychologyCategory
                   ? "🔒 Barcha yozishmalar maxfiy"
-                  : t("services.hub.noteTitle")}
+                  : translate("services.hub.noteTitle")}
             </p>
             <p className="mt-1 text-amber-200/90">
               {isLegalCategory
@@ -2045,7 +2186,7 @@ export function ServicesHub() {
                   ? "Murabbiy sifatida ro‘yxatdan o‘tib trening yoki kursingizni joylashtiring."
                 : isPsychologyCategory
                   ? "Sizning yozishmalaringiz faqat siz va mutaxassisga ko'rinadi."
-                  : t("services.hub.noteBody")}
+                  : translate("services.hub.noteBody")}
             </p>
             {isSportCategory && (
               <Link
@@ -2075,16 +2216,16 @@ export function ServicesHub() {
         </div>
         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{t("services.list.title")}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{translate("services.list.title")}</p>
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>{t("services.sort.label")}:</span>
+              <span>{translate("services.sort.label")}:</span>
               <select
                 className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as "top" | "new")}
               >
-                <option value="top">{t("services.sort.top")}</option>
-                <option value="new">{t("services.sort.new")}</option>
+                <option value="top">{translate("services.sort.top")}</option>
+                <option value="new">{translate("services.sort.new")}</option>
               </select>
             </div>
           </div>
@@ -2108,9 +2249,21 @@ export function ServicesHub() {
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                  Qurilish va quruvchilar xizmati
+                  {translate({
+                    en: "Construction services",
+                    uz: "Qurilish va quruvchilar xizmati",
+                    ru: "Строительные услуги",
+                    ko: "건설 서비스"
+                  })}
                 </p>
-                <p className="mt-2 text-sm text-slate-300">Remont, ustalik va obodonlashtirish.</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  {translate({
+                    en: "Renovation, craftsmanship, and improvement.",
+                    uz: "Remont, ustalik va obodonlashtirish.",
+                    ru: "Ремонт, мастерство и благоустройство.",
+                    ko: "리모델링, 장인 작업, 환경 개선."
+                  })}
+                </p>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {constructionSections.map((section) => (
@@ -2126,7 +2279,7 @@ export function ServicesHub() {
                   >
                     <span>{section.title}</span>
                     <span className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-300">
-                      Bo'limga o'tish
+                      {translate({ en: "Open section", uz: "Bo'limga o'tish", ru: "Открыть раздел", ko: "섹션 열기" })}
                     </span>
                   </button>
                 ))}
@@ -2141,7 +2294,7 @@ export function ServicesHub() {
                       : "bg-slate-900/70 text-slate-300"
                   }`}
                 >
-                  Barcha bo'limlar
+                  {translate({ en: "All sections", uz: "Barcha bo'limlar", ru: "Все разделы", ko: "모든 섹션" })}
                 </button>
                 {(constructionSections.find((item) => item.id === constructionSection)?.subCategories ||
                   constructionSections[0].subCategories
@@ -2166,33 +2319,54 @@ export function ServicesHub() {
             <div className="mt-4 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Konsolting xizmati</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
+                    {translate({ en: "Consulting service", uz: "Konsolting xizmati", ru: "Консалтинг", ko: "컨설팅 서비스" })}
+                  </p>
                   <p className="mt-2 text-sm text-slate-300">
-                    Korea ↔ Uzbekistan bo'yicha aniq yo'nalish: viza, ish, ta'lim, biznes, moslashuv.
+                    {translate({
+                      en: "Korea ↔ Uzbekistan focus: visa, jobs, education, business, adaptation.",
+                      uz: "Korea ↔ Uzbekistan bo'yicha aniq yo'nalish: viza, ish, ta'lim, biznes, moslashuv.",
+                      ru: "Фокус Корея ↔ Узбекистан: виза, работа, обучение, бизнес, адаптация.",
+                      ko: "한국 ↔ 우즈베키스탄: 비자, 취업, 교육, 비즈니스, 적응"
+                    })}
                   </p>
                   <a
                     href="#consulting-how"
                     className="mt-2 inline-flex items-center gap-2 text-xs text-sky-200 underline"
                   >
-                    Qanday ishlaydi?
+                    {translate({ en: "How it works?", uz: "Qanday ishlaydi?", ru: "Как это работает?", ko: "어떻게 работает?" })}
                   </a>
                 </div>
                 <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] text-emerald-100">
-                  <p className="font-semibold">Trust Score</p>
+                  <p className="font-semibold">
+                    {translate({ en: "Trust Score", uz: "Trust Score", ru: "Trust Score", ko: "신뢰 점수" })}
+                  </p>
                   <p className="mt-1 text-emerald-200/90">
-                    ID/sertifikat, reyting, tugallangan ishlar va javob tezligi asosida.
+                    {translate({
+                      en: "Based on ID/certificates, rating, completed jobs, and response speed.",
+                      uz: "ID/sertifikat, reyting, tugallangan ishlar va javob tezligi asosida.",
+                      ru: "На основе ID/сертификатов, рейтинга, завершенных работ и скорости ответа.",
+                      ko: "ID/자격증, 평점, 완료 건수, 응답 속도 기반."
+                    })}
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-[1.3fr_0.7fr]">
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Qidiruv</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Search", uz: "Qidiruv", ru: "Поиск", ko: "검색" })}
+                  </label>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input
                       value={consultingQuery}
                       onChange={(event) => setConsultingQuery(event.target.value)}
-                      placeholder="Visa, CV, Koreyada ish, biznes, moslashuv, tarjima"
+                      placeholder={translate({
+                        en: "Visa, CV, jobs in Korea, business, adaptation, translation",
+                        uz: "Visa, CV, Koreyada ish, biznes, moslashuv, tarjima",
+                        ru: "Виза, CV, работа в Корее, бизнес, адаптация, перевод",
+                        ko: "비자, CV, 한국 취업, 비즈니스, 적응, 번역"
+                      })}
                       className="min-w-[220px] flex-1 rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs text-slate-100"
                     />
                     <button
@@ -2200,7 +2374,7 @@ export function ServicesHub() {
                       onClick={() => setConsultingQuery("")}
                       className="rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200"
                     >
-                      Tozalash
+                      {translate({ en: "Clear", uz: "Tozalash", ru: "Очистить", ko: "지우기" })}
                     </button>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -2217,7 +2391,14 @@ export function ServicesHub() {
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Valyuta & vaqt zonasi</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({
+                      en: "Currency & time zone",
+                      uz: "Valyuta & vaqt zonasi",
+                      ru: "Валюта и часовой пояс",
+                      ko: "통화 및 시간대"
+                    })}
+                  </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
@@ -2242,11 +2423,16 @@ export function ServicesHub() {
                       KRW
                     </button>
                     <span className="rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-300">
-                      Agent vaqti: KST
+                      {translate({ en: "Agent time: KST", uz: "Agent vaqti: KST", ru: "Время агента: KST", ko: "에이전트 시간: KST" })}
                     </span>
                   </div>
                   <p className="mt-2 text-[11px] text-slate-500">
-                    Valyuta konvertatsiya taxminiy ko'rsatiladi.
+                    {translate({
+                      en: "Currency conversion is shown approximately.",
+                      uz: "Valyuta konvertatsiya taxminiy ko'rsatiladi.",
+                      ru: "Конвертация валюты показана приблизительно.",
+                    ko: "환전 금액은 приблиз적으로 표시됩니다."
+                    })}
                   </p>
                 </div>
               </div>
@@ -2269,7 +2455,9 @@ export function ServicesHub() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">Kim uchun?</span>
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
+                  {translate({ en: "For who?", uz: "Kim uchun?", ru: "Для кого?", ko: "대상?" })}
+                </span>
                 <button
                   type="button"
                   onClick={() => setConsultingAudience("all")}
@@ -2279,7 +2467,7 @@ export function ServicesHub() {
                       : "bg-slate-900/70 text-slate-300"
                   }`}
                 >
-                  Barchasi
+                  {translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}
                 </button>
                 {consultingAudiences.map((item) => (
                   <button
@@ -2299,31 +2487,42 @@ export function ServicesHub() {
 
               <div className="mt-2 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Joylashuv</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Location", uz: "Joylashuv", ru: "Локация", ko: "위치" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingLocation}
                     onChange={(e) => setConsultingLocation(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="korea">Koreya</option>
-                    <option value="uzbekistan">O'zbekiston</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="korea">{translate({ en: "Korea", uz: "Koreya", ru: "Корея", ko: "한국" })}</option>
+                    <option value="uzbekistan">
+                      {translate({ en: "Uzbekistan", uz: "O'zbekiston", ru: "Узбекистан", ko: "우즈베키스탄" })}
+                    </option>
                   </select>
                   <input
                     value={consultingCity}
                     onChange={(event) => setConsultingCity(event.target.value)}
-                    placeholder="Shahar (ixtiyoriy)"
+                    placeholder={translate({
+                      en: "City (optional)",
+                      uz: "Shahar (ixtiyoriy)",
+                      ru: "Город (необязательно)",
+                      ko: "도시 (선택)"
+                    })}
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Language", uz: "Til", ru: "Язык", ko: "언어" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingLanguage}
                     onChange={(e) => setConsultingLanguage(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     <option value="UZ">UZ</option>
                     <option value="KR">KR</option>
                     <option value="RU">RU</option>
@@ -2331,13 +2530,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Format", uz: "Format", ru: "Формат", ko: "형식" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingFormat}
                     onChange={(e) => setConsultingFormat(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {consultingFormats.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -2346,70 +2547,80 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Narx</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Price", uz: "Narx", ru: "Цена", ko: "가격" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingPrice}
                     onChange={(e) => setConsultingPrice(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="0-700">0 - 700k</option>
-                    <option value="700-1500">700k - 1.5m</option>
-                    <option value="1500+">1.5m+</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="0-700">{translate({ en: "0 - 700k", uz: "0 - 700k", ru: "0 - 700k", ko: "0 - 700k" })}</option>
+                    <option value="700-1500">{translate({ en: "700k - 1.5m", uz: "700k - 1.5m", ru: "700k - 1.5m", ko: "700k - 1.5m" })}</option>
+                    <option value="1500+">{translate({ en: "1.5m+", uz: "1.5m+", ru: "1.5m+", ko: "1.5m+" })}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Experience", uz: "Tajriba", ru: "Опыт", ko: "경력" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingExperience}
                     onChange={(e) => setConsultingExperience(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="1-3">1-3 yil</option>
-                    <option value="4-6">4-6 yil</option>
-                    <option value="7+">7+ yil</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="1-3">{translate({ en: "1-3 years", uz: "1-3 yil", ru: "1-3 года", ko: "1-3년" })}</option>
+                    <option value="4-6">{translate({ en: "4-6 years", uz: "4-6 yil", ru: "4-6 лет", ko: "4-6년" })}</option>
+                    <option value="7+">{translate({ en: "7+ years", uz: "7+ yil", ru: "7+ лет", ko: "7+년" })}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Reyting</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Rating", uz: "Reyting", ru: "Рейтинг", ko: "평점" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingRating}
                     onChange={(e) => setConsultingRating(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     <option value="4.7">4.7+</option>
                     <option value="4.5">4.5+</option>
                     <option value="4.3">4.3+</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Mavjudlik</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Availability", uz: "Mavjudlik", ru: "Доступность", ko: "가능 시간" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingAvailability}
                     onChange={(e) => setConsultingAvailability(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="today">Bugun bo'sh</option>
-                    <option value="48h">48 soat ichida</option>
-                    <option value="soon">Tez orada</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="today">{translate({ en: "Free today", uz: "Bugun bo'sh", ru: "Свободен сегодня", ko: "오늘 가능" })}</option>
+                    <option value="48h">{translate({ en: "Within 48 hours", uz: "48 soat ichida", ru: "В течение 48 часов", ko: "48시간 내" })}</option>
+                    <option value="soon">{translate({ en: "Soon", uz: "Tez orada", ru: "Скоро", ko: "곧" })}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saralash</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={consultingSort}
                     onChange={(e) => setConsultingSort(e.target.value)}
                   >
-                    <option value="match">Eng mos</option>
-                    <option value="rating">Eng yuqori reyting</option>
-                    <option value="fast">Eng tez javob</option>
-                    <option value="cheap">Arzonroq</option>
-                    <option value="popular">Ko'p buyurtma</option>
-                    <option value="new">Yangi</option>
+                    <option value="match">{translate({ en: "Best match", uz: "Eng mos", ru: "Лучшее совпадение", ko: "최적 매칭" })}</option>
+                    <option value="rating">{translate({ en: "Top rating", uz: "Eng yuqori reyting", ru: "Высокий рейтинг", ko: "높은 평점" })}</option>
+                    <option value="fast">{translate({ en: "Fast response", uz: "Eng tez javob", ru: "Быстрый ответ", ko: "빠른 응답" })}</option>
+                    <option value="cheap">{translate({ en: "Cheaper", uz: "Arzonroq", ru: "Дешевле", ko: "저렴한" })}</option>
+                    <option value="popular">{translate({ en: "Most orders", uz: "Ko'p buyurtma", ru: "Много заказов", ko: "주문 많음" })}</option>
+                    <option value="new">{translate({ en: "Newest", uz: "Yangi", ru: "Новые", ko: "신규" })}</option>
                   </select>
                 </div>
               </div>
@@ -2418,14 +2629,21 @@ export function ServicesHub() {
                 id="consulting-how"
                 className="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300"
               >
-                <p className="font-semibold text-slate-100">Qanday ishlaydi?</p>
+                <p className="font-semibold text-slate-100">
+                  {translate({ en: "How it works?", uz: "Qanday ishlaydi?", ru: "Как это работает?", ko: "어떻게 работает?" })}
+                </p>
                 <div className="mt-2 grid gap-2 text-[11px] text-slate-400 sm:grid-cols-3">
-                  <span>1. So'rov yuborasiz</span>
-                  <span>2. Agent moslikni tasdiqlaydi</span>
-                  <span>3. Ish reja + natija</span>
+                  <span>{translate({ en: "1. You send a request", uz: "1. So'rov yuborasiz", ru: "1. Отправляете запрос", ko: "1. 요청 전송" })}</span>
+                  <span>{translate({ en: "2. Agent confirms fit", uz: "2. Agent moslikni tasdiqlaydi", ru: "2. Агент подтверждает", ko: "2. 에이전트 확인" })}</span>
+                  <span>{translate({ en: "3. Plan + results", uz: "3. Ish reja + natija", ru: "3. План + результат", ko: "3. 계획 + 결과" })}</span>
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500">
-                  Huquqiy/visa xizmatlari rasmiy vakillik emas. Rasmiy organ qaroriga ta'sir qilmaydi.
+                  {translate({
+                    en: "Legal/visa services are not official representation and do not affect government decisions.",
+                    uz: "Huquqiy/visa xizmatlari rasmiy vakillik emas. Rasmiy organ qaroriga ta'sir qilmaydi.",
+                    ru: "Юр./визовые услуги не являются официальным представительством и не влияют на решения органов.",
+                    ko: "법률/비자 서비스는 공식 대리인이 아니며 정부 결정에 영향을 주지 않습니다."
+                  })}
                 </p>
               </div>
             </div>
@@ -2434,16 +2652,30 @@ export function ServicesHub() {
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                  Psixologik yordam va maslahatlar
+                  {translate({
+                    en: "Psychological support and counseling",
+                    uz: "Psixologik yordam va maslahatlar",
+                    ru: "Психологическая помощь и консультации",
+                    ko: "심리 상담과 도움"
+                  })}
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda.
+                  {translate({
+                    en: "Confidential and reliable sessions with certified specialists. Online and offline.",
+                    uz: "Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda.",
+                    ru: "Конфиденциальные и надежные сессии с сертифицированными специалистами. Онлайн и офлайн.",
+                    ko: "공인 전문가와 비공개 상담. 온라인/오프라인."
+                  })}
                 </p>
-                <p className="mt-2 text-[11px] text-slate-400">🔒 Barcha yozishmalar maxfiy</p>
+                <p className="mt-2 text-[11px] text-slate-400">
+                  {translate({ en: "🔒 All messages are private", uz: "🔒 Barcha yozishmalar maxfiy", ru: "🔒 Все сообщения конфиденциальны", ko: "🔒 모든 메시지는 비공개" })}
+                </p>
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Muammo yo'nalishi</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                  {translate({ en: "Issue focus", uz: "Muammo yo'nalishi", ru: "Направление проблемы", ko: "문제 분야" })}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                   {psychologyIssues.map((issue) => (
                     <button
@@ -2464,13 +2696,15 @@ export function ServicesHub() {
 
               <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Kimlar uchun</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "For who", uz: "Kimlar uchun", ru: "Для кого", ko: "대상" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={psychologyAudience}
                     onChange={(e) => setPsychologyAudience(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {psychologyAudiences.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2479,13 +2713,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Format", uz: "Format", ru: "Формат", ko: "형식" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={psychologyFormat}
                     onChange={(e) => setPsychologyFormat(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {psychologyFormats.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -2494,30 +2730,36 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Til</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Language", uz: "Til", ru: "Язык", ko: "언어" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={psychologyLanguage}
                     onChange={(e) => setPsychologyLanguage(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="UZ">O'zbek</option>
-                    <option value="KR">Koreys</option>
-                    <option value="RU">Rus</option>
-                    <option value="EN">Ingliz</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="UZ">{translate({ en: "Uzbek", uz: "O'zbek", ru: "Узбекский", ko: "우즈베크어" })}</option>
+                    <option value="KR">{translate({ en: "Korean", uz: "Koreys", ru: "Корейский", ko: "한국어" })}</option>
+                    <option value="RU">{translate({ en: "Russian", uz: "Rus", ru: "Русский", ko: "러시아어" })}</option>
+                    <option value="EN">{translate({ en: "English", uz: "Ingliz", ru: "Английский", ko: "영어" })}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tajriba</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Experience", uz: "Tajriba", ru: "Опыт", ko: "경력" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={psychologyExperience}
                     onChange={(e) => setPsychologyExperience(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="certified">Sertifikat tasdiqlangan</option>
-                    <option value="3+">3+ yil</option>
-                    <option value="5+">5+ yil</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="certified">
+                      {translate({ en: "Certificate verified", uz: "Sertifikat tasdiqlangan", ru: "Сертификат подтвержден", ko: "자격증 확인됨" })}
+                    </option>
+                    <option value="3+">{translate({ en: "3+ years", uz: "3+ yil", ru: "3+ года", ko: "3+년" })}</option>
+                    <option value="5+">{translate({ en: "5+ years", uz: "5+ yil", ru: "5+ лет", ko: "5+년" })}</option>
                   </select>
                 </div>
               </div>
@@ -2527,16 +2769,35 @@ export function ServicesHub() {
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                  Huquqiy maslahat va xizmatlar
+                  {translate({
+                    en: "Legal advice and services",
+                    uz: "Huquqiy maslahat va xizmatlar",
+                    ru: "Юридические консультации и услуги",
+                    ko: "법률 상담 및 서비스"
+                  })}
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar.
+                  {translate({
+                    en: "Official and reliable advice from certified lawyers.",
+                    uz: "Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar.",
+                    ru: "Официальные и надежные консультации от сертифицированных юристов.",
+                    ko: "공인 법률 전문가의 신뢰할 수 있는 상담."
+                  })}
                 </p>
-                <p className="mt-2 text-[11px] text-slate-400">⚖️ Malaka tekshiriladi · 🔒 Maxfiylik</p>
+                <p className="mt-2 text-[11px] text-slate-400">
+                  {translate({
+                    en: "⚖️ Credentials verified · 🔒 Confidential",
+                    uz: "⚖️ Malaka tekshiriladi · 🔒 Maxfiylik",
+                    ru: "⚖️ Проверка квалификации · 🔒 Конфиденциально",
+                    ko: "⚖️ 자격 검증 · 🔒 비공개"
+                  })}
+                </p>
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Huquq sohasi</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                  {translate({ en: "1. Legal area", uz: "1. Huquq sohasi", ru: "1. Область права", ko: "1. 법률 분야" })}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                   {legalAreas.map((area) => (
                     <button
@@ -2555,20 +2816,27 @@ export function ServicesHub() {
                 </div>
                 {legalArea === "all" && (
                   <p className="mt-2 text-[11px] text-slate-400">
-                    Hammasi ko‘rinmoqda. Tanlasangiz faqat o‘sha yo‘nalish chiqadi.
+                    {translate({
+                      en: "All shown. Select a specific area to filter.",
+                      uz: "Hammasi ko‘rinmoqda. Tanlasangiz faqat o‘sha yo‘nalish chiqadi.",
+                      ru: "Показаны все. Выберите область для фильтрации.",
+                      ko: "모두 표시 중입니다. 선택하면 해당 영역만 표시됩니다."
+                    })}
                   </p>
                 )}
               </div>
 
               <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Xizmat turi</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "2. Service type", uz: "2. Xizmat turi", ru: "2. Тип услуги", ko: "2. 서비스 유형" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={legalServiceType}
                     onChange={(e) => setLegalServiceType(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {legalServiceTypes.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2577,13 +2845,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Yurisdiksiya</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "3. Jurisdiction", uz: "3. Yurisdiksiya", ru: "3. Юрисдикция", ko: "3. 관할" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={legalJurisdiction}
                     onChange={(e) => setLegalJurisdiction(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {legalJurisdictions.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -2592,13 +2862,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Til</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "4. Language", uz: "4. Til", ru: "4. Язык", ko: "4. 언어" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={legalLanguage}
                     onChange={(e) => setLegalLanguage(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {legalLanguages.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2607,13 +2879,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Format</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "5. Format", uz: "5. Format", ru: "5. Формат", ko: "5. 형식" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={legalFormat}
                     onChange={(e) => setLegalFormat(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {legalFormats.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -2622,16 +2896,20 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">6. Ishonchlilik</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "6. Trust", uz: "6. Ishonchlilik", ru: "6. Доверие", ko: "6. 신뢰" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={legalTrust}
                     onChange={(e) => setLegalTrust(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="license">✅ Litsenziya tasdiqlangan</option>
-                    <option value="5y">5+ yil tajriba</option>
-                    <option value="rating">Yuqori reyting</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="license">
+                      {translate({ en: "✅ License verified", uz: "✅ Litsenziya tasdiqlangan", ru: "✅ Лицензия подтверждена", ko: "✅ лицензия 확인" })}
+                    </option>
+                    <option value="5y">{translate({ en: "5+ years experience", uz: "5+ yil tajriba", ru: "5+ лет опыта", ko: "5+년 경력" })}</option>
+                    <option value="rating">{translate({ en: "High rating", uz: "Yuqori reyting", ru: "Высокий рейтинг", ko: "높은 평점" })}</option>
                   </select>
                 </div>
               </div>
@@ -2641,18 +2919,35 @@ export function ServicesHub() {
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">
-                  Professional sport murabbiylari va treninglar
+                  {translate({
+                    en: "Professional sports coaches and training",
+                    uz: "Professional sport murabbiylari va treninglar",
+                    ru: "Профессиональные тренеры и тренировки",
+                    ko: "전문 스포츠 코치 및 트레이닝"
+                  })}
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar.
+                  {translate({
+                    en: "Individual sessions, online/offline training, and professional courses.",
+                    uz: "Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar.",
+                    ru: "Индивидуальные занятия, онлайн/офлайн тренировки и профессиональные курсы.",
+                    ko: "개별 수업, 온라인/오프라인 트레이닝 및 전문 코스."
+                  })}
                 </p>
                 <p className="mt-2 text-[11px] text-slate-400">
-                  Birga shug‘ullanishni xohlovchilar uchun ham e’lonlar mavjud.
+                  {translate({
+                    en: "There are also listings for group partners.",
+                    uz: "Birga shug‘ullanishni xohlovchilar uchun ham e’lonlar mavjud.",
+                    ru: "Есть объявления и для тех, кто хочет заниматься вместе.",
+                    ko: "함께 운동할 파트너를 찾는 게시물도 있습니다."
+                  })}
                 </p>
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Sport turi</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                  {translate({ en: "1. Sport type", uz: "1. Sport turi", ru: "1. Вид спорта", ko: "1. 스포츠 유형" })}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                   <button
                     type="button"
@@ -2663,7 +2958,7 @@ export function ServicesHub() {
                         : "bg-slate-900/70 text-slate-300"
                     }`}
                   >
-                    Barchasi
+                    {translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}
                   </button>
                   {sportTypes.map((item) => (
                     <button
@@ -2684,13 +2979,15 @@ export function ServicesHub() {
 
               <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Xizmat turi</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "2. Service type", uz: "2. Xizmat turi", ru: "2. Тип услуги", ko: "2. 서비스 유형" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={sportServiceType}
                     onChange={(e) => setSportServiceType(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {sportServiceTypes.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2699,13 +2996,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Daraja</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "3. Level", uz: "3. Daraja", ru: "3. Уровень", ko: "3. 수준" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={sportLevel}
                     onChange={(e) => setSportLevel(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {sportLevels.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2714,13 +3013,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Kimlar uchun</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "4. For who", uz: "4. Kimlar uchun", ru: "4. Для кого", ko: "4. 대상" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={sportAudience}
                     onChange={(e) => setSportAudience(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {sportAudiences.map((item) => (
                       <option key={item} value={item}>
                         {item}
@@ -2729,13 +3030,15 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Format</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "5. Format", uz: "5. Format", ru: "5. Формат", ko: "5. 형식" })}
+                  </label>
                   <select
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={sportFormat}
                     onChange={(e) => setSportFormat(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     {sportFormats.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.label}
@@ -2744,20 +3047,34 @@ export function ServicesHub() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">6. Shahar / tuman</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "6. City / district", uz: "6. Shahar / tuman", ru: "6. Город / район", ko: "6. 도시 / 구" })}
+                  </label>
                   <input
                     value={sportCity}
                     onChange={(event) => setSportCity(event.target.value)}
-                    placeholder="Toshkent, Samarqand..."
+                    placeholder={translate({
+                      en: "Tashkent, Samarkand...",
+                      uz: "Toshkent, Samarqand...",
+                      ru: "Ташкент, Самарканд...",
+                      ko: "타슈кент, 사마르칸트..."
+                    })}
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Sport zali nomi</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Gym name", uz: "Sport zali nomi", ru: "Название зала", ko: "체육관 이름" })}
+                  </label>
                   <input
                     value={sportGym}
                     onChange={(event) => setSportGym(event.target.value)}
-                    placeholder="FitZone Gym..."
+                    placeholder={translate({
+                      en: "FitZone Gym...",
+                      uz: "FitZone Gym...",
+                      ru: "FitZone Gym...",
+                      ko: "FitZone Gym..."
+                    })}
                     className="mt-2 w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                   />
                 </div>
@@ -2771,12 +3088,19 @@ export function ServicesHub() {
                   Uniserv Translation
                 </p>
                 <p className="mt-2 text-sm text-slate-300">
-                  Tezlik va rasmiylik birinchi o'rinda. Hujjat turini tanlang va mos tarjimonni toping.
+                  {translate({
+                    en: "Speed and formality first. Choose a document type and find the right translator.",
+                    uz: "Tezlik va rasmiylik birinchi o'rinda. Hujjat turini tanlang va mos tarjimonni toping.",
+                    ru: "Скорость и официальность важнее всего. Выберите тип документа и найдите переводчика.",
+                    ko: "속도와 공신력이 우선입니다. 문서 유형을 선택하고 적합한 번역사를 찾으세요."
+                  })}
                 </p>
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">1. Hujjat turi</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                  {translate({ en: "1. Document type", uz: "1. Hujjat turi", ru: "1. Тип документа", ko: "1. 문서 유형" })}
+                </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                   {translationTabs.map((tab) => (
                     <button
@@ -2797,7 +3121,9 @@ export function ServicesHub() {
 
               <div className="mt-4 grid gap-3 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">2. Til (qaysidan)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "2. Language (from)", uz: "2. Til (qaysidan)", ru: "2. Язык (с какого)", ko: "2. 언어 (출발)" })}
+                  </label>
                   <input
                     list="translation-from-list"
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
@@ -2812,7 +3138,9 @@ export function ServicesHub() {
                   </datalist>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">3. Til (qaysiga)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "3. Language (to)", uz: "3. Til (qaysiga)", ru: "3. Язык (на какой)", ko: "3. 언어 (도착)" })}
+                  </label>
                   <input
                     list="translation-to-list"
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
@@ -2827,55 +3155,63 @@ export function ServicesHub() {
                   </datalist>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">4. Rasmiylik</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "4. Formality", uz: "4. Rasmiylik", ru: "4. Официальность", ko: "4. 공식성" })}
+                  </label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationOfficial}
                     onChange={(e) => setTranslationOfficial(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="Oddiy">Oddiy tarjima</option>
-                    <option value="Notarial">Notarial tasdiq</option>
-                    <option value="Muhrli">Muhrli tarjima</option>
-                    <option value="Guvohnoma">Guvohnoma bilan</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="Oddiy">{translate({ en: "Standard translation", uz: "Oddiy tarjima", ru: "Обычный перевод", ko: "일반 번역" })}</option>
+                    <option value="Notarial">{translate({ en: "Notarized", uz: "Notarial tasdiq", ru: "Нотариальное заверение", ko: "공증" })}</option>
+                    <option value="Muhrli">{translate({ en: "Stamped translation", uz: "Muhrli tarjima", ru: "Перевод с печатью", ko: "도장 번역" })}</option>
+                    <option value="Guvohnoma">{translate({ en: "With certificate", uz: "Guvohnoma bilan", ru: "Со свидетельством", ko: "증명서 포함" })}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">5. Tezlik (SLA)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "5. Speed (SLA)", uz: "5. Tezlik (SLA)", ru: "5. Скорость (SLA)", ko: "5. 속도 (SLA)" })}
+                  </label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationSla}
                     onChange={(e) => setTranslationSla(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="2-6 soat">2-6 soat</option>
-                    <option value="24 soat">24 soat</option>
-                    <option value="2-3 ish kuni">2-3 ish kuni</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="2-6 soat">{translate({ en: "2–6 hours", uz: "2-6 soat", ru: "2–6 часов", ko: "2–6시간" })}</option>
+                    <option value="24 soat">{translate({ en: "24 hours", uz: "24 soat", ru: "24 часа", ko: "24시간" })}</option>
+                    <option value="2-3 ish kuni">{translate({ en: "2–3 business days", uz: "2-3 ish kuni", ru: "2–3 рабочих дня", ko: "2–3영업일" })}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Format</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Format", uz: "Format", ru: "Формат", ko: "형식" })}
+                  </label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationFormat}
                     onChange={(e) => setTranslationFormat(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                     <option value="PDF">PDF / DOCX</option>
-                    <option value="Scan">Rasm → matn</option>
-                    <option value="Original">Original (muhrli)</option>
+                    <option value="Scan">{translate({ en: "Image → text", uz: "Rasm → matn", ru: "Изображение → текст", ko: "이미지 → 텍스트" })}</option>
+                    <option value="Original">{translate({ en: "Original (stamped)", uz: "Original (muhrli)", ru: "Оригинал (с печатью)", ko: "원본 (도장)" })}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Og'zaki</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Oral", uz: "Og'zaki", ru: "Устный", ko: "구두" })}
+                  </label>
                   <select
                     className="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationMode}
                     onChange={(e) => setTranslationMode(e.target.value)}
                   >
-                    <option value="all">Barchasi</option>
-                    <option value="written">Yozma</option>
-                    <option value="oral">Og'zaki</option>
+                    <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
+                    <option value="written">{translate({ en: "Written", uz: "Yozma", ru: "Письменный", ko: "문서" })}</option>
+                    <option value="oral">{translate({ en: "Oral", uz: "Og'zaki", ru: "Устный", ko: "구두" })}</option>
                   </select>
                 </div>
               </div>
@@ -2883,16 +3219,23 @@ export function ServicesHub() {
               {translationTab === "translation-official" && (
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-slate-300">
-                    Rasmiy tanlandi → notarial opsiyalar ko'rinadi
+                    {translate({
+                      en: "Official selected → notarization options appear",
+                      uz: "Rasmiy tanlandi → notarial opsiyalar ko'rinadi",
+                      ru: "Выбрано официально → видны опции нотариуса",
+                      ko: "공식 선택됨 → 공증 옵션 표시"
+                    })}
                   </span>
                   <select
                     className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                     value={translationNotarization}
                     onChange={(e) => setTranslationNotarization(e.target.value)}
                   >
-                    <option value="all">Notarial: barchasi</option>
-                    <option value="yes">Notarial bor</option>
-                    <option value="no">Notarial yo'q</option>
+                    <option value="all">
+                      {translate({ en: "Notarized: all", uz: "Notarial: barchasi", ru: "Нотариус: все", ko: "공증: 전체" })}
+                    </option>
+                    <option value="yes">{translate({ en: "Notarized", uz: "Notarial bor", ru: "Есть нотариус", ko: "공증 있음" })}</option>
+                    <option value="no">{translate({ en: "Notarized: no", uz: "Notarial yo'q", ru: "Без нотариуса", ko: "공증 없음" })}</option>
                   </select>
                 </div>
               )}
@@ -2913,9 +3256,11 @@ export function ServicesHub() {
                   }}
                   className="rounded-full bg-slate-900/70 px-3 py-1 text-slate-300"
                 >
-                  Barchasi
+                  {translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}
                 </button>
-                <span className="text-slate-500">Filtrlarni tozalash</span>
+                <span className="text-slate-500">
+                  {translate({ en: "Clear filters", uz: "Filtrlarni tozalash", ru: "Очистить фильтры", ko: "필터 초기화" })}
+                </span>
               </div>
             </div>
           )}
@@ -2939,7 +3284,9 @@ export function ServicesHub() {
               </div>
               <div className="flex flex-wrap items-end gap-3 text-xs text-slate-300">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Yosh (min)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Age (min)", uz: "Yosh (min)", ru: "Возраст (мин)", ko: "나이 (최소)" })}
+                  </label>
                   <input
                     type="number"
                     min={18}
@@ -2950,7 +3297,9 @@ export function ServicesHub() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Yosh (max)</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Age (max)", uz: "Yosh (max)", ru: "Возраст (макс)", ko: "나이 (최대)" })}
+                  </label>
                   <input
                     type="number"
                     min={18}
@@ -2961,7 +3310,9 @@ export function ServicesHub() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Boshlanish</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "Start", uz: "Boshlanish", ru: "Начало", ko: "시작" })}
+                  </label>
                   <input
                     type="time"
                     className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
@@ -2970,7 +3321,9 @@ export function ServicesHub() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Tugash</label>
+                  <label className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {translate({ en: "End", uz: "Tugash", ru: "Окончание", ko: "종료" })}
+                  </label>
                   <input
                     type="time"
                     className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
@@ -3020,7 +3373,7 @@ export function ServicesHub() {
                     }}
                     className="rounded-full bg-rose-500/10 px-3 py-1 text-rose-200 ring-1 ring-rose-500/40"
                   >
-                    Tozalash
+                    {translate({ en: "Clear", uz: "Tozalash", ru: "Очистить", ko: "지우기" })}
                   </button>
                 </div>
               </div>
@@ -3033,12 +3386,12 @@ export function ServicesHub() {
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 shadow-lg shadow-black/20">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-sky-200">{t("services.add.badge")}</p>
-              <h2 className="text-xl font-semibold text-slate-50">{t("services.add.title")}</h2>
-              <p className="mt-1 text-sm text-slate-400">{t("services.add.description")}</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-sky-200">{translate("services.add.badge")}</p>
+              <h2 className="text-xl font-semibold text-slate-50">{translate("services.add.title")}</h2>
+              <p className="mt-1 text-sm text-slate-400">{translate("services.add.description")}</p>
             </div>
             <div className="text-xs text-slate-400">
-              {t("services.hub.wordLabel")}:{" "}
+              {translate("services.hub.wordLabel")}:{" "}
               <span className={wordCount > 500 ? "text-red-400" : "text-slate-200"}>{wordCount}</span>/500
             </div>
           </div>
@@ -3047,7 +3400,7 @@ export function ServicesHub() {
             <div className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.typeLabel")}</label>
+                  <label className="mb-1 block text-xs text-slate-300">{translate("services.add.typeLabel")}</label>
                   <select
                     className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
                     value={form.type}
@@ -3056,12 +3409,12 @@ export function ServicesHub() {
                     }
                     disabled={isServiceAgentLocked}
                   >
-                    <option value="material">{t("services.add.type.material")}</option>
-                    <option value="spiritual">{t("services.add.type.spiritual")}</option>
+                    <option value="material">{translate("services.add.type.material")}</option>
+                    <option value="spiritual">{translate("services.add.type.spiritual")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.categoryLabel")}</label>
+                  <label className="mb-1 block text-xs text-slate-300">{translate("services.add.categoryLabel")}</label>
                   <select
                     className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
                     value={form.categoryId}
@@ -3082,16 +3435,16 @@ export function ServicesHub() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.nameLabel")}</label>
+                  <label className="mb-1 block text-xs text-slate-300">{translate("services.add.nameLabel")}</label>
                   <input
                     className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
                     value={form.title}
                     onChange={(e) => handleFormChange("title", e.target.value)}
-                    placeholder={t("services.add.namePlaceholder")}
+                    placeholder={translate("services.add.namePlaceholder")}
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-slate-300">{t("services.add.priceLabel")}</label>
+                  <label className="mb-1 block text-xs text-slate-300">{translate("services.add.priceLabel")}</label>
                   <div className="flex gap-2">
                     <input
                       type="number"
@@ -3116,30 +3469,30 @@ export function ServicesHub() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-slate-300">{t("services.add.certLabel")}</label>
+                <label className="mb-1 block text-xs text-slate-300">{translate("services.add.certLabel")}</label>
                 <input
                   className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
                   value={form.certificates}
                   onChange={(e) => handleFormChange("certificates", e.target.value)}
-                  placeholder={t("services.add.certPlaceholder")}
+                  placeholder={translate("services.add.certPlaceholder")}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-slate-300">{t("services.add.descLabel")}</label>
+                <label className="mb-1 block text-xs text-slate-300">{translate("services.add.descLabel")}</label>
                 <textarea
                   className="min-h-[120px] w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
                   value={form.description}
                   onChange={(e) => handleFormChange("description", e.target.value)}
-                  placeholder={t("services.add.descPlaceholder")}
+                  placeholder={translate("services.add.descPlaceholder")}
                 />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-xs font-semibold text-slate-200">{t("services.add.imagesTitle")}</p>
-                <p className="mt-1 text-xs text-slate-400">{t("services.add.imagesDesc")}</p>
+                <p className="text-xs font-semibold text-slate-200">{translate("services.add.imagesTitle")}</p>
+                <p className="mt-1 text-xs text-slate-400">{translate("services.add.imagesDesc")}</p>
                 <input
                   type="file"
                   multiple
@@ -3148,7 +3501,7 @@ export function ServicesHub() {
                   onChange={(e) => handleFormChange("images", Array.from(e.target.files || []))}
                 />
                 <p className="mt-2 text-xs text-slate-500">
-                  {t("services.add.imagesSelected")}: {form.images.length}
+                  {translate("services.add.imagesSelected")}: {form.images.length}
                 </p>
               </div>
 
@@ -3160,7 +3513,7 @@ export function ServicesHub() {
                     onChange={(e) => handleFormChange("agree", e.target.checked)}
                     className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-400"
                   />
-                  <span>{t("services.add.agree")}</span>
+                  <span>{translate("services.add.agree")}</span>
                 </label>
               </div>
 
@@ -3171,7 +3524,7 @@ export function ServicesHub() {
                 type="submit"
                 className="w-full rounded-xl bg-emerald-400/90 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 hover:bg-emerald-300"
               >
-                {t("services.add.submit")}
+                {translate("services.add.submit")}
               </button>
             </div>
           </form>
@@ -3209,14 +3562,14 @@ export function ServicesHub() {
             {(!isTranslationCategory || translationRest.length > 0) && (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-200">{t("services.list.title")}</p>
+                  <p className="text-sm font-semibold text-slate-200">{translate("services.list.title")}</p>
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <button
                       type="button"
                       onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                       className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
                     >
-                      {t("services.pagination.prev")}
+                      {translate("services.pagination.prev")}
                     </button>
                     <div className="flex items-center gap-1">
                       {pageButtons.map((page) => (
@@ -3239,10 +3592,10 @@ export function ServicesHub() {
                       onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                       className="rounded-full bg-slate-900 px-3 py-1 text-slate-200"
                     >
-                      {t("services.pagination.next")}
+                      {translate("services.pagination.next")}
                     </button>
                     <span className="text-xs text-slate-500">
-                      {t("services.pagination.page")} {safePage} {t("services.pagination.of")} {totalPages}
+                      {translate("services.pagination.page")} {safePage} {translate("services.pagination.of")} {totalPages}
                     </span>
                   </div>
                 </div>
@@ -3253,7 +3606,7 @@ export function ServicesHub() {
               <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
                 <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                   <div className="flex items-center gap-2">
-                    <span>O'rinlar:</span>
+                    <span>{translate({ en: "Seats:", uz: "O'rinlar:", ru: "Места:", ko: "좌석:" })}</span>
                     <select
                       className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                       value={selectedSeat}
@@ -3262,22 +3615,22 @@ export function ServicesHub() {
                         setSelectedSeat(value === "all" ? "all" : Number(value) as TaxiSeatCount);
                       }}
                     >
-                      <option value="all">Barchasi</option>
+                      <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                       {taxiSeatOptions.map((seat) => (
                         <option key={seat} value={seat}>
-                          {seat} kishi
+                          {seat} {translate({ en: "seats", uz: "kishi", ru: "мест", ko: "명" })}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span>Tur:</span>
+                    <span>{translate({ en: "Type:", uz: "Tur:", ru: "Тип:", ko: "유형:" })}</span>
                     <select
                       className="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-100"
                       value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value as "all" | TaxiVehicleClass)}
                     >
-                      <option value="all">Barchasi</option>
+                      <option value="all">{translate({ en: "All", uz: "Barchasi", ru: "Все", ko: "전체" })}</option>
                       {taxiClassOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -3286,7 +3639,12 @@ export function ServicesHub() {
                     </select>
                   </div>
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
-                    {taxiAgents.length} ta agent topildi
+                    {translate({
+                      en: `${taxiAgents.length} agents found`,
+                      uz: `${taxiAgents.length} ta agent topildi`,
+                      ru: `Найдено ${taxiAgents.length} агент(ов)`,
+                      ko: `${taxiAgents.length}명의 에이전트를 찾았습니다`
+                    })}
                   </span>
                 </div>
               </div>
@@ -3295,7 +3653,9 @@ export function ServicesHub() {
             {activeCategory.id === "taxi" && (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-400">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-200">Real-time buyurtma holati</p>
+                  <p className="text-sm font-semibold text-slate-200">
+                    {translate({ en: "Real-time order status", uz: "Real-time buyurtma holati", ru: "Статус заказа в реальном времени", ko: "실시간 주문 상태" })}
+                  </p>
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-slate-300">
                     {formatSocketStatus(rideSocketStatus)}
                   </span>
@@ -3303,22 +3663,30 @@ export function ServicesHub() {
                 {latestRide ? (
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-slate-500">Ride ID</p>
+                      <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                        {translate({ en: "Ride ID", uz: "Ride ID", ru: "ID поездки", ko: "라이드 ID" })}
+                      </p>
                       <p className="text-sm text-slate-100">{latestRide.rideId}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-slate-500">Holat</p>
+                      <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                        {translate({ en: "Status", uz: "Holat", ru: "Статус", ko: "상태" })}
+                      </p>
                       <p className="text-sm text-emerald-200">{formatRideStatus(latestRide.status)}</p>
                     </div>
                     {latestRide.pickupLocation && (
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Qayerdan</p>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                          {translate({ en: "From", uz: "Qayerdan", ru: "Откуда", ko: "출발지" })}
+                        </p>
                         <p className="text-sm text-slate-200">{latestRide.pickupLocation}</p>
                       </div>
                     )}
                     {latestRide.dropoffLocation && (
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Qayerga</p>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                          {translate({ en: "To", uz: "Qayerga", ru: "Куда", ko: "도착지" })}
+                        </p>
                         <p className="text-sm text-slate-200">{latestRide.dropoffLocation}</p>
                       </div>
                     )}
@@ -3326,7 +3694,7 @@ export function ServicesHub() {
                       <div className="flex flex-wrap gap-2 text-[11px]">
                         {latestRide.seatCount && (
                           <span className="rounded-full bg-slate-900 px-2 py-1 text-slate-300">
-                            {latestRide.seatCount} kishi
+                            {latestRide.seatCount} {translate({ en: "seats", uz: "kishi", ru: "мест", ko: "명" })}
                           </span>
                         )}
                         {latestRide.taxiClass && (
@@ -3338,7 +3706,9 @@ export function ServicesHub() {
                     )}
                     {(latestRide.offeredFare || latestRide.estimatedFare || latestRide.finalFare) && (
                       <div>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-500">Narx</p>
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                          {translate({ en: "Price", uz: "Narx", ru: "Цена", ko: "가격" })}
+                        </p>
                         <p className="text-sm text-slate-100">
                           {latestRide.finalFare
                             ? `${formatCount(latestRide.finalFare)} ${latestRide.currency || "UZS"}`
@@ -3358,11 +3728,16 @@ export function ServicesHub() {
                           className="rounded-full bg-emerald-400/20 px-4 py-1 text-xs text-emerald-200"
                           disabled={rideSocketStatus !== "open"}
                         >
-                          Safarni tasdiqlash
+                          {translate({ en: "Confirm ride", uz: "Safarni tasdiqlash", ru: "Подтвердить поездку", ko: "탑승 확정" })}
                         </button>
                         {rideSocketStatus !== "open" && (
                           <p className="mt-1 text-[11px] text-slate-500">
-                            Tasdiqlash uchun real-time ulanish kerak.
+                            {translate({
+                              en: "Real-time connection is required to confirm.",
+                              uz: "Tasdiqlash uchun real-time ulanish kerak.",
+                              ru: "Для подтверждения нужен real-time канал.",
+                              ko: "확인하려면 실시간 연결이 필요합니다."
+                            })}
                           </p>
                         )}
                       </div>
@@ -3370,7 +3745,12 @@ export function ServicesHub() {
                   </div>
                 ) : (
                   <p className="mt-3 text-xs text-slate-500">
-                    Hozircha real-time buyurtma yo'q.
+                    {translate({
+                      en: "No real-time orders yet.",
+                      uz: "Hozircha real-time buyurtma yo'q.",
+                      ru: "Пока нет заказов в реальном времени.",
+                      ko: "현재 실시간 주문이 없습니다."
+                    })}
                   </p>
                 )}
               </div>
@@ -3379,7 +3759,14 @@ export function ServicesHub() {
             {isTranslationCategory && translationFeatured.length > 0 && (
               <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-emerald-100">Eng yuqori baholangan tarjimonlar</p>
+                  <p className="text-sm font-semibold text-emerald-100">
+                    {translate({
+                      en: "Top-rated translators",
+                      uz: "Eng yuqori baholangan tarjimonlar",
+                      ru: "Переводчики с высоким рейтингом",
+                      ko: "최고 평점 번역사"
+                    })}
+                  </p>
                   <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] text-emerald-200">
                     TOP 10
                   </span>

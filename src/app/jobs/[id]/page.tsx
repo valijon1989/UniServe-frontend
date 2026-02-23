@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
-import type { JobListing } from "@/data/jobListings";
+import type { JobListing, LocalizedText } from "@/data/jobListings";
 import { useAuthStore } from "@/store/auth";
+import { useI18n } from "@/context/i18n";
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -14,6 +15,13 @@ export default function JobDetailPage() {
   const { isAuthenticated } = useAuthStore();
   const [job, setJob] = useState<JobListing | null>(null);
   const [loading, setLoading] = useState(true);
+  const { language } = useI18n();
+
+  const resolveLocalizedText = (value?: string | LocalizedText) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    return value[language] ?? value.en ?? value.uz ?? value.ru ?? value.ko ?? "";
+  };
 
   const returnTo = useMemo(() => searchParams.get("from"), [searchParams]);
   const currentPath = useMemo(() => {
@@ -83,29 +91,33 @@ export default function JobDetailPage() {
         <div className="mt-4 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-4">
             <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-              <img src={job.image} alt={job.title} className="h-64 w-full object-cover" />
+              <img
+                src={job.image}
+                alt={resolveLocalizedText(job.title)}
+                className="h-64 w-full object-cover"
+              />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-white">{job.title}</h1>
-              <p className="text-sm text-slate-300">{job.company}</p>
+              <h1 className="text-2xl font-semibold text-white">{resolveLocalizedText(job.title)}</h1>
+              <p className="text-sm text-slate-300">{resolveLocalizedText(job.company)}</p>
               <p className="mt-2 text-xs text-slate-400">
-                {job.location} • Masofa: {job.distanceKm} km • {job.postedAt}
+                {resolveLocalizedText(job.location)} • Masofa: {job.distanceKm} km • {job.postedAt}
               </p>
             </div>
 
             <div className="grid gap-2 text-sm text-slate-300">
               <p>
-                <span className="text-slate-400">Ish haqi:</span> {job.salary}
+                <span className="text-slate-400">Ish haqi:</span> {resolveLocalizedText(job.salary)}
               </p>
               <p>
-                <span className="text-slate-400">Ish vaqti:</span> {job.schedule}
+                <span className="text-slate-400">Ish vaqti:</span> {resolveLocalizedText(job.schedule)}
               </p>
               <p>
-                <span className="text-slate-400">Ish turi:</span> {job.jobType}
+                <span className="text-slate-400">Ish turi:</span> {resolveLocalizedText(job.jobType)}
               </p>
               <p>
-                <span className="text-slate-400">Yotoqxona:</span> {job.housing} •{" "}
-                <span className="text-slate-400">Ovqat:</span> {job.meals}
+                <span className="text-slate-400">Yotoqxona:</span> {resolveLocalizedText(job.housing)} •{" "}
+                <span className="text-slate-400">Ovqat:</span> {resolveLocalizedText(job.meals)}
               </p>
             </div>
           </div>

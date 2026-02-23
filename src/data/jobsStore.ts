@@ -1,4 +1,10 @@
-import { initialJobListings, type JobKind, type JobListing } from "@/data/jobListings";
+import {
+  initialJobListings,
+  type JobKind,
+  type JobListing,
+  type LocalizedText,
+  tx
+} from "@/data/jobListings";
 
 type ListParams = {
   kind?: JobKind;
@@ -24,9 +30,15 @@ const toNumber = (value: string | null, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const resolveLocalizedText = (value?: string | LocalizedText) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.en || value.uz || value.ru || value.ko || "";
+};
+
 const matchesLocation = (job: JobListing, query: string) => {
   if (!query) return true;
-  return job.location.toLowerCase().includes(query.toLowerCase());
+  return resolveLocalizedText(job.location).toLowerCase().includes(query.toLowerCase());
 };
 
 export const listJobs = (params: ListParams): ListResponse => {
@@ -85,15 +97,25 @@ export const addJob = (payload: {
   const newJob: JobListing = {
     id: `custom-${Date.now()}`,
     image,
-    title: payload.title,
-    company: payload.company,
-    location: payload.location,
+    title: tx(payload.title, payload.title, payload.title, payload.title),
+    company: tx(payload.company, payload.company, payload.company, payload.company),
+    location: tx(payload.location, payload.location, payload.location, payload.location),
     distanceKm: Number(payload.distanceKm || 0),
-    schedule: payload.schedule || "-",
-    salary: payload.salary,
-    jobType: payload.jobType || "-",
-    housing: payload.housing || "Yotoqxona yo'q",
-    meals: payload.meals || "Ovqat: yo'q",
+    schedule: tx(payload.schedule || "-", payload.schedule || "-", payload.schedule || "-", payload.schedule || "-"),
+    salary: tx(payload.salary, payload.salary, payload.salary, payload.salary),
+    jobType: tx(payload.jobType || "-", payload.jobType || "-", payload.jobType || "-", payload.jobType || "-"),
+    housing: tx(
+      payload.housing || "Yotoqxona yo'q",
+      payload.housing || "Yotoqxona yo'q",
+      payload.housing || "Yotoqxona yo'q",
+      payload.housing || "Yotoqxona yo'q"
+    ),
+    meals: tx(
+      payload.meals || "Ovqat: yo'q",
+      payload.meals || "Ovqat: yo'q",
+      payload.meals || "Ovqat: yo'q",
+      payload.meals || "Ovqat: yo'q"
+    ),
     requirements: payload.requirements || [],
     visaTypes: payload.visaTypes || [],
     contactPhone: payload.contactPhone,

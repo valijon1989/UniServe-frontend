@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { client } from "@/api/client";
+import { useI18n } from "@/context/i18n";
 
 interface Agent {
   name?: string;
@@ -28,6 +29,7 @@ interface PopularResponse {
 }
 
 export default function PopularProducts() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -43,7 +45,15 @@ export default function PopularProducts() {
       setProducts(fromItems);
       setTotalPages(data.totalPages || data.data?.totalPages || 1);
     } catch (err: any) {
-      setError(err?.message || "Ma'lumotlarni yuklab bo'lmadi");
+      setError(
+        err?.message ||
+          t({
+            en: "Failed to load data",
+            uz: "Ma'lumotlarni yuklab bo'lmadi",
+            ru: "Не удалось загрузить данные",
+            ko: "데이터를 불러오지 못했습니다"
+          })
+      );
     } finally {
       setLoading(false);
     }
@@ -59,10 +69,16 @@ export default function PopularProducts() {
   return (
     <div className="mt-10 space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {loading && <p className="text-sm text-slate-400">Yuklanmoqda...</p>}
+        {loading && (
+          <p className="text-sm text-slate-400">
+            {t({ en: "Loading...", uz: "Yuklanmoqda...", ru: "Загрузка...", ko: "로딩 중..." })}
+          </p>
+        )}
         {error && <p className="text-sm text-red-400">{error}</p>}
         {!loading && !error && products.length === 0 && (
-          <p className="text-sm text-slate-400">Mahsulotlar topilmadi.</p>
+          <p className="text-sm text-slate-400">
+            {t({ en: "No products found.", uz: "Mahsulotlar topilmadi.", ru: "Товары не найдены.", ko: "상품을 찾을 수 없습니다." })}
+          </p>
         )}
 
         {products.map((p) => (
@@ -73,7 +89,10 @@ export default function PopularProducts() {
             <div className="overflow-hidden rounded-lg border border-slate-800/60 bg-slate-900/60">
               <img
                 src={p.image || "/placeholder.png"}
-                alt={p.name || "Mahsulot"}
+                alt={
+                  p.name ||
+                  t({ en: "Product", uz: "Mahsulot", ru: "Товар", ko: "상품" })
+                }
                 className="h-40 w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.onerror = null;
@@ -82,15 +101,23 @@ export default function PopularProducts() {
               />
             </div>
             <h3 className="mt-2 text-sm font-semibold text-slate-100 line-clamp-1">
-              {p.name || "Nomsiz mahsulot"}
+              {p.name ||
+                t({ en: "Untitled product", uz: "Nomsiz mahsulot", ru: "Без названия", ko: "제목 없음" })}
             </h3>
             <p className="text-xs text-slate-400 line-clamp-1">
-              {p.agent?.name || "Agent ma'lum emas"}
+              {p.agent?.name ||
+                t({ en: "Agent unknown", uz: "Agent ma'lum emas", ru: "Агент неизвестен", ko: "에이전트 미상" })}
             </p>
             <div className="mt-2 flex gap-3 text-xs text-slate-300">
-              <span>Like {p.likes ?? 0}</span>
-              <span>Views {p.views ?? 0}</span>
-              <span>Orders {p.orders ?? 0}</span>
+              <span>
+                {t({ en: "Likes", uz: "Layklar", ru: "Лайки", ko: "좋아요" })} {p.likes ?? 0}
+              </span>
+              <span>
+                {t({ en: "Views", uz: "Ko'rishlar", ru: "Просмотры", ko: "조회" })} {p.views ?? 0}
+              </span>
+              <span>
+                {t({ en: "Orders", uz: "Buyurtmalar", ru: "Заказы", ko: "주문" })} {p.orders ?? 0}
+              </span>
             </div>
           </div>
         ))}
@@ -101,9 +128,9 @@ export default function PopularProducts() {
           type="button"
           onClick={() => canPrev && setPage((prev) => prev - 1)}
           disabled={!canPrev}
-          className="rounded-lg border border-slate-800 px-3 py-1 text-sm text-slate-100 disabled:opacity-50"
-        >
-          Oldingi
+        className="rounded-lg border border-slate-800 px-3 py-1 text-sm text-slate-100 disabled:opacity-50"
+      >
+          {t({ en: "Previous", uz: "Oldingi", ru: "Назад", ko: "이전" })}
         </button>
         <span className="text-sm text-slate-300">
           {page} / {totalPages}
@@ -112,9 +139,9 @@ export default function PopularProducts() {
           type="button"
           onClick={() => canNext && setPage((prev) => prev + 1)}
           disabled={!canNext}
-          className="rounded-lg border border-slate-800 px-3 py-1 text-sm text-slate-100 disabled:opacity-50"
-        >
-          Keyingi
+        className="rounded-lg border border-slate-800 px-3 py-1 text-sm text-slate-100 disabled:opacity-50"
+      >
+          {t({ en: "Next", uz: "Keyingi", ru: "Далее", ko: "다음" })}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { client } from "@/api/client";
+import { useI18n } from "@/context/i18n";
 
 type Item = {
   _id?: string;
@@ -11,9 +12,19 @@ type Item = {
   title?: string;
   image?: string;
   banner?: string;
+  thumbnail?: string;
+  imageUrl?: string;
+  coverUrl?: string;
+  cover?: string;
+  images?: Array<string | { src?: string; url?: string }>;
+  media?: Array<string | { src?: string; url?: string }>;
+  photos?: Array<string | { src?: string; url?: string }>;
+  gallery?: Array<string | { src?: string; url?: string }>;
   description?: string;
   agent?: { name?: string };
+  createdBy?: { name?: string };
   rating?: number;
+  stats?: { likes?: number; views?: number; orders?: number };
   likes?: number;
   views?: number;
   orders?: number;
@@ -34,6 +45,34 @@ function normalizeResponse(res: ApiResponse) {
   return { items, totalPages };
 }
 
+const extractImage = (item: Item) => {
+  const fromArray = (arr?: Array<string | { src?: string; url?: string }>) => {
+    if (!arr || arr.length === 0) return undefined;
+    const first = arr[0];
+    if (typeof first === "string") return first;
+    return first?.src || first?.url;
+  };
+  return (
+    item.image ||
+    item.banner ||
+    item.thumbnail ||
+    item.imageUrl ||
+    item.coverUrl ||
+    item.cover ||
+    fromArray(item.images) ||
+    fromArray(item.media) ||
+    fromArray(item.photos) ||
+    fromArray(item.gallery) ||
+    "/placeholder.png"
+  );
+};
+
+const extractRating = (item: Item) => {
+  if (typeof item.rating === "number") return item.rating;
+  const avg = (item as any)?.rating?.avg ?? (item as any)?.rating?.average;
+  return typeof avg === "number" ? avg : 0;
+};
+
 interface SectionState {
   items: Item[];
   totalPages: number;
@@ -51,6 +90,7 @@ const emptyState: SectionState = {
 };
 
 export function TrendingShowcase() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<SectionState>(emptyState);
   const [services, setServices] = useState<SectionState>(emptyState);
 
@@ -72,7 +112,14 @@ export function TrendingShowcase() {
         items: [],
         totalPages: 1,
         loading: false,
-        error: err?.message || "Ma'lumotlarni yuklab bo'lmadi",
+        error:
+          err?.message ||
+          t({
+            en: "Failed to load data",
+            uz: "Ma'lumotlarni yuklab bo'lmadi",
+            ru: "Не удалось загрузить данные",
+            ko: "데이터를 불러오지 못했습니다"
+          }),
         page
       });
     }
@@ -87,13 +134,19 @@ export function TrendingShowcase() {
     () =>
       products.items.map((item) => ({
         key: item._id || item.id || item.name,
-        name: item.name || item.title || "Nomsiz mahsulot",
-        agent: item.agent?.name || "Agent ma'lum emas",
-        image: item.image || item.banner || "/placeholder.png",
-        rating: item.rating ?? 0,
-        likes: item.likes ?? 0,
-        views: item.views ?? 0,
-        orders: item.orders ?? 0,
+        name:
+          item.name ||
+          item.title ||
+          t({ en: "Untitled product", uz: "Nomsiz mahsulot", ru: "Без названия", ko: "이름 없는 상품" }),
+        agent:
+          item.agent?.name ||
+          item.createdBy?.name ||
+          t({ en: "Unknown agent", uz: "Agent ma'lum emas", ru: "Агент неизвестен", ko: "에이전트 정보 없음" }),
+        image: extractImage(item),
+        rating: extractRating(item),
+        likes: item.likes ?? item.stats?.likes ?? 0,
+        views: item.views ?? item.stats?.views ?? 0,
+        orders: item.orders ?? item.stats?.orders ?? (item.stats as any)?.purchases ?? 0,
         href: item._id || item.id ? `/products/${item._id || item.id}` : "#"
       })),
     [products.items]
@@ -103,13 +156,19 @@ export function TrendingShowcase() {
     () =>
       services.items.map((item) => ({
         key: item._id || item.id || item.name,
-        name: item.name || item.title || "Nomsiz xizmat",
-        agent: item.agent?.name || "Ijrochi ma'lum emas",
-        image: item.image || item.banner || "/placeholder.png",
-        rating: item.rating ?? 0,
-        likes: item.likes ?? 0,
-        views: item.views ?? 0,
-        orders: item.orders ?? 0,
+        name:
+          item.name ||
+          item.title ||
+          t({ en: "Untitled service", uz: "Nomsiz xizmat", ru: "Без названия", ko: "이름 없는 서비스" }),
+        agent:
+          item.agent?.name ||
+          item.createdBy?.name ||
+          t({ en: "Unknown provider", uz: "Ijrochi ma'lum emas", ru: "Исполнитель неизвестен", ko: "제공자 정보 없음" }),
+        image: extractImage(item),
+        rating: extractRating(item),
+        likes: item.likes ?? item.stats?.likes ?? 0,
+        views: item.views ?? item.stats?.views ?? 0,
+        orders: item.orders ?? item.stats?.orders ?? (item.stats as any)?.purchases ?? 0,
         description: item.description,
         href: item._id || item.id ? `/services/${item._id || item.id}` : "#"
       })),
@@ -124,7 +183,9 @@ export function TrendingShowcase() {
   ) => (
     <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {loading && (
-        <p className="text-sm text-slate-400">Yuklanmoqda...</p>
+        <p className="text-sm text-slate-400">
+          {t({ en: "Loading...", uz: "Yuklanmoqda...", ru: "Загрузка...", ko: "로딩 중..." })}
+        </p>
       )}
       {error && (
         <p className="text-sm text-red-400">{error}</p>
@@ -159,9 +220,9 @@ export function TrendingShowcase() {
           </div>
           <div className="mt-3 flex flex-wrap gap-2 text-[12px] md:text-sm text-slate-300">
             <span className="rounded-full bg-slate-900/70 px-2 py-0.5">* {item.rating.toFixed(1)}</span>
-            <span>Like {item.likes}</span>
-            <span>Views {item.views}</span>
-            <span>Orders {item.orders}</span>
+            <span>{t({ en: "Likes", uz: "Layk", ru: "Лайки", ko: "좋아요" })} {item.likes}</span>
+            <span>{t({ en: "Views", uz: "Ko'rishlar", ru: "Просмотры", ko: "조회" })} {item.views}</span>
+            <span>{t({ en: "Orders", uz: "Buyurtmalar", ru: "Заказы", ko: "주문" })} {item.orders}</span>
           </div>
         </Link>
       ))}
@@ -183,7 +244,7 @@ export function TrendingShowcase() {
           disabled={!canPrev}
           className="rounded-lg border border-slate-800 px-3 py-1 disabled:opacity-40"
         >
-          Oldingi
+          {t({ en: "Prev", uz: "Oldingi", ru: "Назад", ko: "이전" })}
         </button>
         <span>
           {page} / {total}
@@ -194,7 +255,7 @@ export function TrendingShowcase() {
           disabled={!canNext}
           className="rounded-lg border border-slate-800 px-3 py-1 disabled:opacity-40"
         >
-          Keyingi
+          {t({ en: "Next", uz: "Keyingi", ru: "Далее", ko: "다음" })}
         </button>
       </div>
     );
@@ -204,13 +265,23 @@ export function TrendingShowcase() {
     <section className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6 shadow-xl shadow-black/30">
       <div className="mb-6 space-y-2">
         <p className="inline-flex items-center gap-2 rounded-full bg-sky-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-200 ring-1 ring-sky-500/40">
-          Trend
+          {t({ en: "Trend", uz: "Trend", ru: "Тренд", ko: "트렌드" })}
         </p>
         <h2 className="text-2xl font-bold text-slate-100">
-          Trenddagi mahsulot va xizmatlar
+          {t({
+            en: "Trending products and services",
+            uz: "Trenddagi mahsulot va xizmatlar",
+            ru: "Трендовые товары и услуги",
+            ko: "트렌딩 상품과 서비스"
+          })}
         </h2>
         <p className="text-sm text-slate-400">
-          Reyting, layklar, xarid va ko'rishlar soniga ko'ra saralangan.
+          {t({
+            en: "Sorted by ratings, likes, orders, and views.",
+            uz: "Reyting, layklar, xarid va ko'rishlar soniga ko'ra saralangan.",
+            ru: "Отсортировано по рейтингу, лайкам, заказам и просмотрам.",
+            ko: "평점, 좋아요, 주문, 조회 수를 기준으로 정렬됩니다."
+          })}
         </p>
       </div>
 
@@ -218,21 +289,31 @@ export function TrendingShowcase() {
         <div>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-100">
-              Trend Products
+              {t({ en: "Trending Products", uz: "Trend mahsulotlar", ru: "Трендовые товары", ko: "트렌딩 상품" })}
             </h3>
             {renderPagination(products.totalPages, products.page, (val) => void loadItems("products", val))}
           </div>
-          {renderGrid(productGrid, products.loading, products.error, "Mahsulotlar topilmadi.")}
+          {renderGrid(
+            productGrid,
+            products.loading,
+            products.error,
+            t({ en: "No products found.", uz: "Mahsulotlar topilmadi.", ru: "Товары не найдены.", ko: "상품이 없습니다." })
+          )}
         </div>
 
         <div className="border-t border-slate-800 pt-6">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-100">
-              Trend Services
+              {t({ en: "Trending Services", uz: "Trend xizmatlar", ru: "Трендовые услуги", ko: "트렌딩 서비스" })}
             </h3>
             {renderPagination(services.totalPages, services.page, (val) => void loadItems("services", val))}
           </div>
-          {renderGrid(serviceGrid, services.loading, services.error, "Xizmatlar topilmadi.")}
+          {renderGrid(
+            serviceGrid,
+            services.loading,
+            services.error,
+            t({ en: "No services found.", uz: "Xizmatlar topilmadi.", ru: "Услуги не найдены.", ko: "서비스가 없습니다." })
+          )}
         </div>
       </div>
     </section>

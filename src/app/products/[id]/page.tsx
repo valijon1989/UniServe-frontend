@@ -7,6 +7,7 @@ import { Spinner } from "@/components/shared/Spinner";
 import { useAuthStore } from "@/store/auth";
 
 const PRODUCT_IMAGE_POOL_SIZE = 36;
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
 
 const hashString = (value: string) => {
   let hash = 0;
@@ -95,18 +96,41 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    const isObjectId = OBJECT_ID_RE.test(id);
     const cached = loadCachedProduct(id);
     if (cached) {
       setData((prev) => mergeProductData(cached, prev));
     }
     let active = true;
     setLoading(true);
-    void addProductView(id);
+    if (!isObjectId) {
+      if (active) {
+        setData((prev) => prev ?? cached ?? null);
+        setLoading(false);
+      }
+      return () => {
+        active = false;
+      };
+    }
+    if (isObjectId) {
+      void addProductView(id).catch((err) => {
+        console.warn("Product view increment skipped", { id, error: err?.message || err });
+      });
+    }
     getProductDetail(id)
       .then((res) => {
         if (active) setData((prev) => mergeProductData(cached, res ?? prev ?? undefined));
       })
       .catch((err) => {
+        if ((err as any)?.code === "SKIP_DETAIL_FETCH") {
+          if (active) setData((prev) => prev ?? cached ?? null);
+          return;
+        }
+        if (cached) {
+          console.warn("Product detail API failed; using cached preview", { id, error: err?.message || err });
+          if (active) setData((prev) => prev ?? cached);
+          return;
+        }
         console.error("Product detail load error", err);
         if (active) setData(null);
       })
@@ -677,27 +701,45 @@ function mergeProductData(base?: Product | null, next?: Product | null): Product
   combined.price = next?.price ?? base?.price;
   combined.oldPrice = next?.oldPrice ?? base?.oldPrice;
   combined.category = next?.category || base?.category;
-  const pool = resolveProductPool(combined);
-  const key = (combined.id || combined._id || combined.name || "").toString();
-  if (key) {
-    const images = makeProductImages(pool, key, resolveProductImageCount(combined));
-    combined.images = images;
-    combined.thumbnail = images[0];
+  const realImages = collectRealProductImages(next || combined).length
+    ? collectRealProductImages(next || combined)
+    : collectRealProductImages(base || combined);
+  if (realImages.length > 0) {
+    combined.images = realImages;
+    combined.thumbnail = realImages[0];
+  } else {
+    const pool = resolveProductPool(combined);
+    const key = (combined.id || combined._id || combined.name || "").toString();
+    if (key) {
+      const images = makeProductImages(pool, key, resolveProductImageCount(combined));
+      combined.images = images;
+      combined.thumbnail = images[0];
+    }
   }
   return combined;
 }
 
 function normalizeImagesList(images?: string[]) {
-  const base = (images ?? []).filter(Boolean);
-  const prepared = base.length ? base.slice(0, 20) : ["/placeholder.png"];
-  const result = [...prepared];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  (images || []).forEach((value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    result.push(normalized);
+  });
+  return result.length ? result : ["/placeholder.png"];
+}
 
-  while (result.length < 5) {
-    const next = prepared[result.length % prepared.length] || "/placeholder.png";
-    result.push(next);
-  }
-
-  return result.slice(0, 20);
+function collectRealProductImages(product?: Product | null) {
+  if (!product) return [];
+  const candidates = [
+    (product as any)?.coverImageUrl,
+    ...((product.images || []) as string[]),
+    product.thumbnail,
+    (product as any)?.imageUrl
+  ].filter(Boolean);
+  return normalizeImagesList(candidates as string[]).filter((img) => img !== "/placeholder.png");
 }
 
 function getCategoryHighlights(category?: string) {

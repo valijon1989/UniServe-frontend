@@ -1,5 +1,8 @@
 export async function fetcher<T = any>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  const shouldPrefix = apiBase && url.startsWith("/api/");
+  const finalUrl = shouldPrefix ? `${apiBase}${url.replace(/^\/api/, "")}` : url;
+  const res = await fetch(finalUrl);
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status}`);
   }

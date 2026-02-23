@@ -11,6 +11,8 @@ import {
   type ServiceItem
 } from "@/data/serviceCatalog";
 import { useAuthStore } from "@/store/auth";
+import { getServiceById, type TrendService } from "@/api/services";
+import { normalizeImageUrl } from "@/lib/imageUrl";
 
 type ServiceRecord = {
   service: ServiceItem;
@@ -73,6 +75,33 @@ const renderStars = (rating: number) => {
   const filled = Math.min(5, Math.max(1, Math.round(rating)));
   return Array.from({ length: 5 }, (_, idx) => (idx < filled ? "★" : "☆")).join("");
 };
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+const FALLBACK_CATEGORY_BY_SERVICE_ID: Record<string, string> = {
+  "build-brick-1": "construction",
+  "build-brick-2": "construction",
+  "build-brick-3": "construction"
+};
+
+const normalizeCatalogImageSrc = (
+  src: string | undefined,
+  serviceId: string,
+  imageIndex: number,
+  fallbackCategory: string
+) => {
+  const raw = (src || "").trim();
+  if (!raw) {
+    const pool = getCategoryImagePool(fallbackCategory);
+    return pool[imageIndex % pool.length]?.src || "/placeholder.png";
+  }
+  if (!raw.startsWith("/images/remote/remote-")) return raw;
+
+  const match = raw.match(/remote-(\d{4})\.jpg$/i);
+  if (!match) return "/placeholder.png";
+  const pool = getCategoryImagePool(fallbackCategory);
+  const remoteNumber = Number(match[1]);
+  const safeIndex = Number.isFinite(remoteNumber) ? remoteNumber % pool.length : imageIndex % pool.length;
+  return pool[safeIndex]?.src || "/placeholder.png";
+};
 
 const findServiceById = (rawId: string): ServiceRecord | null => {
   if (!rawId) return null;
@@ -94,6 +123,10 @@ export default function ServiceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const routeId = useMemo(() => String(params?.id || ""), [params]);
+  const [apiService, setApiService] = useState<TrendService | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "success">("idle");
   const [showChat, setShowChat] = useState(false);
@@ -152,14 +185,12 @@ export default function ServiceDetailPage() {
     }
   }, [searchParams]);
 
-  const record = useMemo(() => findServiceById(String(params?.id || "")), [params]);
+  const record = useMemo(() => findServiceById(routeId), [routeId]);
 
   const service = record?.service;
   const agent = record?.agent;
   const category = record?.category;
   const groupTitle = record?.groupTitle ?? "";
-  const exteriorImages = service?.images.slice(0, 2) ?? [];
-  const interiorImages = service?.images.slice(2) ?? [];
   const isConstruction = category?.id === "construction";
   const isMoving = category?.id === "moving";
   const isCleaning = category?.id === "cleaning";
@@ -170,14 +201,15 @@ export default function ServiceDetailPage() {
   const isPsychology = category?.id === "psychology";
   const isLegal = category?.id === "legal";
   const isSport = category?.id === "sport";
-  const nannyTypeLabels: Record<string, string> = {
-    "nanny-child": "Bolalar enagasi",
-    "nanny-elderly": "Qariyalar parvarishi",
-    "nanny-hospital": "Shifoxona bemorlari",
-    "nanny-homecare": "Uy sharoitidagi kasallar",
-    "nanny-pet": "Uy hayvonlari enagasi"
-  };
-  const nannyTypeLabel = nannyTypeLabels[service.subCategory || "nanny-child"] || "Enaga";
+  const fallbackCategoryId = category?.id || FALLBACK_CATEGORY_BY_SERVICE_ID[service?.id || ""] || "construction";
+  const serviceImages = useMemo(
+    () =>
+      (service?.images || []).map((image, idx) => ({
+        ...image,
+        src: normalizeCatalogImageSrc(image?.src, service?.id || routeId, idx, fallbackCategoryId)
+      })),
+    [fallbackCategoryId, routeId, service?.id, service?.images]
+  );
   const constructionFallbacks = Array.from(
     { length: 36 },
     (_, idx) => `/services/construction/${String(idx + 1).padStart(2, "0")}.jpg`
@@ -227,7 +259,7 @@ export default function ServiceDetailPage() {
   const marketingPool = getCategoryImagePool("marketing");
   const marketingPosts = useMemo(() => {
     if (!isMarketing) return [];
-    const images = service?.images ?? [];
+    const images = serviceImages ?? [];
     const base = images.length > 0 ? images : marketingPool;
     const posts = [...base];
     let hash = 0;
@@ -240,7 +272,7 @@ export default function ServiceDetailPage() {
       posts.push(marketingPool[(start + i) % marketingPool.length]);
     }
     return posts.slice(0, 9);
-  }, [isMarketing, marketingPool, service?.id, service?.images]);
+  }, [isMarketing, marketingPool, service?.id, serviceImages]);
 
   const [postStats, setPostStats] = useState(() =>
     marketingPosts.map((_, idx) => ({
@@ -271,13 +303,121 @@ export default function ServiceDetailPage() {
     setCommentDrafts({});
   }, [isMarketing, marketingPosts, service?.niceCount, service?.reviewCount, service?.shareCount]);
 
-  if (!record || !service || !agent || !category) {
+  useEffect(() => {
+    if (!routeId) return;
+    if (!OBJECT_ID_RE.test(routeId)) {
+      setApiService(null);
+      setApiError(null);
+      setApiLoading(false);
+      return;
+    }
+    let active = true;
+    setApiLoading(true);
+    setApiError(null);
+    getServiceById(routeId)
+      .then((data) => {
+        if (!active) return;
+        setApiService(data);
+      })
+      .catch(() => {
+        if (!active) return;
+        setApiService(null);
+        setApiError("Xizmat topilmadi.");
+      })
+      .finally(() => {
+        if (active) setApiLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [routeId]);
+
+  if (apiLoading && !apiService && !record) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 py-10">
-        <p className="text-sm text-red-400/70">Xizmat topilmadi.</p>
+        <p className="text-sm text-slate-400">Yuklanmoqda...</p>
       </div>
     );
   }
+
+  if (apiService) {
+    const agentName = apiService.createdBy?.name || "Agent";
+    const agentId = apiService.createdBy?._id;
+    const apiImage =
+      normalizeImageUrl((apiService as any)?.coverImageUrl)
+      || normalizeImageUrl((apiService as any)?.images?.[0])
+      || "/fallback/service.png";
+    return (
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10">
+        <Link href="/services" className="text-xs text-sky-400">
+          Xizmatlar ro'yxatiga qaytish
+        </Link>
+        <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
+          <h1 className="text-2xl font-semibold text-slate-50">{apiService.title}</h1>
+          <p className="mt-2 text-sm text-slate-400">{apiService.description || "Tavsif mavjud emas."}</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
+            <span className="rounded-full bg-slate-900 px-3 py-1">
+              Kategoriya: {apiService.category || "—"}
+            </span>
+            <span className="rounded-full bg-slate-900 px-3 py-1">
+              Lokatsiya: {apiService.location || "—"}
+            </span>
+            <span className="rounded-full bg-slate-900 px-3 py-1">
+              {apiService.hourlyRate ?? "—"} {apiService.currency || ""} / soat
+            </span>
+            {agentId && (
+              <span className="rounded-full bg-slate-900 px-3 py-1">
+                Agent: {agentName}
+              </span>
+            )}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button className="rounded-full bg-emerald-500/20 px-4 py-2 text-xs text-emerald-100 ring-1 ring-emerald-400/40">
+              Buyurtma berish
+            </button>
+            <button className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-200">
+              Chat boshlash
+            </button>
+            {agentId && (
+              <Link
+                href={`/agents/${agentId}`}
+                className="rounded-full border border-slate-700 px-4 py-2 text-xs text-slate-200"
+              >
+                Agent profiliga o‘tish
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">
+          <h2 className="text-lg font-semibold text-slate-100">Xizmat rasmi</h2>
+          <img
+            src={apiImage}
+            alt={apiService.title}
+            className="mt-3 h-56 w-full rounded-2xl object-cover"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (!record || !service || !agent || !category) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 py-10">
+        <p className="text-sm text-red-400/70">{apiError || "Xizmat topilmadi."}</p>
+      </div>
+    );
+  }
+
+  const exteriorImages = serviceImages.slice(0, 2);
+  const interiorImages = serviceImages.slice(2);
+  const nannyTypeLabels: Record<string, string> = {
+    "nanny-child": "Bolalar enagasi",
+    "nanny-elderly": "Qariyalar parvarishi",
+    "nanny-hospital": "Shifoxona bemorlari",
+    "nanny-homecare": "Uy sharoitidagi kasallar",
+    "nanny-pet": "Uy hayvonlari enagasi"
+  };
+  const nannyTypeLabel = nannyTypeLabels[service.subCategory || "nanny-child"] || "Enaga";
 
   const getCertificateImage = (serviceId: string, cert: string, idx: number) => {
     let hash = 0;
@@ -286,7 +426,7 @@ export default function ServiceDetailPage() {
       hash = (hash * 47 + token.charCodeAt(i)) % 2147483647;
     }
     const seed = (hash % 900) + 1;
-    return `/images/remote/remote-0104.jpg
+    return `/placeholder.png`;
   };
 
   const handleOrder = () => {
@@ -411,8 +551,8 @@ export default function ServiceDetailPage() {
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-slate-800">
                 <img
-                  src={service.images[0]?.src || getConstructionFallback(service.id, 0)}
-                  alt={service.images[0]?.alt || service.title}
+                  src={serviceImages[0]?.src || getConstructionFallback(service.id, 0)}
+                  alt={serviceImages[0]?.alt || service.title}
                   className="h-52 w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.src = getConstructionFallback(service.id, 0);
@@ -442,11 +582,11 @@ export default function ServiceDetailPage() {
                 <p className="mt-2 text-xs text-slate-400">{service.description}</p>
               </div>
 
-              {service.images.length > 1 && (
+              {serviceImages.length > 1 && (
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                   <p className="text-sm font-semibold text-slate-100">Ish jarayoni</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    {service.images.slice(1).map((image, idx) => (
+                    {serviceImages.slice(1).map((image, idx) => (
                       <img
                         key={`${service.id}-work-${idx}`}
                         src={image.src}
@@ -585,8 +725,8 @@ export default function ServiceDetailPage() {
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-slate-800">
                 <img
-                  src={service.images[0]?.src || getMovingFallback(service.id, 0)}
-                  alt={service.images[0]?.alt || service.title}
+                  src={serviceImages[0]?.src || getMovingFallback(service.id, 0)}
+                  alt={serviceImages[0]?.alt || service.title}
                   className="h-52 w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.src = getMovingFallback(service.id, 0);
@@ -616,11 +756,11 @@ export default function ServiceDetailPage() {
                 <p className="mt-2 text-xs text-slate-400">{service.description}</p>
               </div>
 
-              {service.images.length > 1 && (
+              {serviceImages.length > 1 && (
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                   <p className="text-sm font-semibold text-slate-100">Ko'chirish jarayoni</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    {service.images.slice(1).map((image, idx) => (
+                    {serviceImages.slice(1).map((image, idx) => (
                       <img
                         key={`${service.id}-move-${idx}`}
                         src={image.src}
@@ -765,8 +905,8 @@ export default function ServiceDetailPage() {
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-slate-800">
                 <img
-                  src={service.images[0]?.src || getCleaningFallback(service.id, 0)}
-                  alt={service.images[0]?.alt || service.title}
+                  src={serviceImages[0]?.src || getCleaningFallback(service.id, 0)}
+                  alt={serviceImages[0]?.alt || service.title}
                   className="h-52 w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.src = getCleaningFallback(service.id, 0);
@@ -796,11 +936,11 @@ export default function ServiceDetailPage() {
                 <p className="mt-2 text-xs text-slate-400">{service.description}</p>
               </div>
 
-              {service.images.length > 1 && (
+              {serviceImages.length > 1 && (
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                   <p className="text-sm font-semibold text-slate-100">Tozalash jarayoni</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    {service.images.slice(1).map((image, idx) => (
+                    {serviceImages.slice(1).map((image, idx) => (
                       <img
                         key={`${service.id}-clean-${idx}`}
                         src={image.src}
@@ -939,8 +1079,8 @@ export default function ServiceDetailPage() {
             <div className="space-y-4">
               <div className="overflow-hidden rounded-2xl border border-slate-800">
                 <img
-                  src={service.images[0]?.src || getNannyFallback(service.id, 0)}
-                  alt={service.images[0]?.alt || service.title}
+                  src={serviceImages[0]?.src || getNannyFallback(service.id, 0)}
+                  alt={serviceImages[0]?.alt || service.title}
                   className="h-52 w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.src = getNannyFallback(service.id, 0);
@@ -970,11 +1110,11 @@ export default function ServiceDetailPage() {
                 <p className="mt-2 text-xs text-slate-400">{service.description}</p>
               </div>
 
-              {service.images.length > 1 && (
+              {serviceImages.length > 1 && (
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                   <p className="text-sm font-semibold text-slate-100">Parvarish jarayoni</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    {service.images.slice(1).map((image, idx) => (
+                    {serviceImages.slice(1).map((image, idx) => (
                       <img
                         key={`${service.id}-nanny-${idx}`}
                         src={image.src}
@@ -1447,7 +1587,7 @@ export default function ServiceDetailPage() {
 
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
-              <ServiceImageGrid images={service.images} />
+              <ServiceImageGrid images={serviceImages} />
             </div>
 
             <div className="card space-y-3 p-5">
@@ -1785,7 +1925,7 @@ export default function ServiceDetailPage() {
 
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
-              <ServiceImageGrid images={service.images} />
+              <ServiceImageGrid images={serviceImages} />
             </div>
 
             <div className="card space-y-3 p-5">
@@ -2019,7 +2159,7 @@ export default function ServiceDetailPage() {
           <section className="space-y-4">
             <div className="card space-y-3 p-5">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {service.images.map((image) => (
+                {serviceImages.map((image) => (
                   <img
                     key={`sport-img-${image.src}`}
                     src={image.src}
@@ -2247,7 +2387,7 @@ export default function ServiceDetailPage() {
 
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
-              <ServiceImageGrid images={service.images} />
+              <ServiceImageGrid images={serviceImages} />
             </div>
 
             <div className="card space-y-3 p-5">
@@ -2452,7 +2592,7 @@ export default function ServiceDetailPage() {
 
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Xizmat rasmlari</p>
-              <ServiceImageGrid images={service.images} />
+              <ServiceImageGrid images={serviceImages} />
             </div>
 
             <div className="card space-y-3 p-5">
@@ -2802,7 +2942,7 @@ export default function ServiceDetailPage() {
             <p className="mt-2 leading-relaxed">{service.description}</p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {service.images.map((image) => (
+            {serviceImages.map((image) => (
               <img
                 key={`service-img-${image.src}`}
                 src={image.src}
@@ -2839,7 +2979,7 @@ export default function ServiceDetailPage() {
               <div>
                 <p className="text-xs uppercase tracking-wide text-sky-900">Ish jarayoni</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {service.images.map((image, idx) => (
+                  {serviceImages.map((image, idx) => (
                     <img
                       key={`${service.id}-work-${idx}`}
                       src={image.src}

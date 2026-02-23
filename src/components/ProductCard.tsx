@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/api/products";
+import { useI18n } from "@/context/i18n";
 
 interface ProductCardProps {
   data: Product;
@@ -23,6 +24,7 @@ const hashValue = (value: string) => {
 
 export default function ProductCard({ data, disableNavigation = false, onCardClick }: ProductCardProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const productId = data._id || data.id || "";
   const seed = (productId || data.name || data.title || "").toString();
   const hash = useMemo(() => hashValue(seed), [seed]);
@@ -56,9 +58,9 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const stats = data.stats || { views: data.views ?? 0, likes: data.likes ?? 0, purchases: data.orders ?? 0 };
   const imageSrc = data.thumbnail || data.images?.[0] || "/placeholder.png";
   const deliveryOptions = [
-    { key: "fast", label: "Tez yetkazish" },
-    { key: "tomorrow", label: "Ertaga" },
-    { key: "standard", label: "Oddiy" }
+    { key: "fast", label: t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" }) },
+    { key: "tomorrow", label: t({ en: "Tomorrow", uz: "Ertaga", ru: "Завтра", ko: "내일" }) },
+    { key: "standard", label: t({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "표준" }) }
   ];
   const delivery = deliveryOptions[hash % deliveryOptions.length];
   const isFreeDelivery = (data.price ?? 0) >= 100 || hash % 2 === 0;
@@ -75,7 +77,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
       <div className="relative h-56 w-full overflow-hidden bg-gradient-to-b from-slate-50 to-slate-100">
         <img
           src={imageSrc}
-          alt={data.name || data.title || "Mahsulot"}
+          alt={data.name || data.title || t({ en: "Product", uz: "Mahsulot", ru: "Товар", ko: "상품" })}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
@@ -100,13 +102,30 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
           </div>
         </div>
         <p className="line-clamp-2 text-sm text-slate-600">
-          {data.description || "Qisqacha tavsif hozircha mavjud emas."}
+          {data.description || t({
+            en: "No short description available yet.",
+            uz: "Qisqacha tavsif hozircha mavjud emas.",
+            ru: "Краткое описание пока недоступно.",
+            ko: "간단한 설명이 아직 없습니다."
+          })}
         </p>
         <div className="flex flex-wrap gap-2 text-[11px] text-slate-600">
           <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">{delivery.label}</span>
-          {isFreeDelivery && <span className="rounded-full bg-slate-100 px-2 py-1">Bepul yetkazish</span>}
-          {isBestSeller && <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">Best seller</span>}
-          {isVerified && <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-700">Verified seller</span>}
+          {isFreeDelivery && (
+            <span className="rounded-full bg-slate-100 px-2 py-1">
+              {t({ en: "Free delivery", uz: "Bepul yetkazish", ru: "Бесплатная доставка", ko: "무료 배송" })}
+            </span>
+          )}
+          {isBestSeller && (
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">
+              {t({ en: "Best seller", uz: "Eng ko'p sotilgan", ru: "Хит продаж", ko: "베스트셀러" })}
+            </span>
+          )}
+          {isVerified && (
+            <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-700">
+              {t({ en: "Verified seller", uz: "Tasdiqlangan sotuvchi", ru: "Проверенный продавец", ko: "검증된 판매자" })}
+            </span>
+          )}
         </div>
         {variantDots > 0 && (
           <div className="flex items-center gap-1 text-[11px] text-slate-500">
@@ -127,7 +146,9 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
           <div className="space-y-1">
             <p className="text-xl font-bold text-slate-900">${price}</p>
             {oldPrice && <p className="text-sm text-slate-400 line-through">${oldPrice}</p>}
-            <p className="text-xs text-slate-500">{ratingCount} ta baho</p>
+            <p className="text-xs text-slate-500">
+              {ratingCount} {t({ en: "reviews", uz: "ta baho", ru: "отзывов", ko: "개 리뷰" })}
+            </p>
           </div>
           <div className="flex gap-2 text-xs text-slate-600">
             <span className="rounded-full bg-slate-100 px-2 py-1">👁 {stats.views ?? 0}</span>
@@ -140,31 +161,46 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              alert("Savatga qo'shildi (demo)");
+              alert(t({
+                en: "Added to cart (demo)",
+                uz: "Savatga qo'shildi (demo)",
+                ru: "Добавлено в корзину (демо)",
+                ko: "장바구니에 담겼습니다 (데모)"
+              }));
             }}
             className="flex-1 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white shadow"
           >
-            Savatga
+            {t({ en: "Add to cart", uz: "Savatga", ru: "В корзину", ko: "장바구니" })}
           </button>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              alert("Saqlab qo'yildi (demo)");
+              alert(t({
+                en: "Saved (demo)",
+                uz: "Saqlab qo'yildi (demo)",
+                ru: "Сохранено (демо)",
+                ko: "저장됨 (데모)"
+              }));
             }}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
           >
-            ❤️ Saqlash
+            ❤️ {t({ en: "Save", uz: "Saqlash", ru: "Сохранить", ko: "저장" })}
           </button>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              alert("Tez sotib olish (demo)");
+              alert(t({
+                en: "Quick buy (demo)",
+                uz: "Tez sotib olish (demo)",
+                ru: "Быстрая покупка (демо)",
+                ko: "빠른 구매 (데모)"
+              }));
             }}
             className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
           >
-            Tez sotib olish
+            {t({ en: "Quick buy", uz: "Tez sotib olish", ru: "Быстрая покупка", ko: "빠른 구매" })}
           </button>
         </div>
       </div>

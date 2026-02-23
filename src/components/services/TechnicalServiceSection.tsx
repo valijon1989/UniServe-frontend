@@ -610,15 +610,15 @@ export function TechnicalServiceSection() {
                   key={agent.id}
                   type="button"
                   onClick={() => handleOpenAgent(agent)}
-                  className="group rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-left transition hover:border-sky-400/60"
+                  className="group flex h-[280px] flex-col rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-left transition hover:border-sky-400/60"
                 >
                   <div className="overflow-hidden rounded-2xl border border-slate-800">
-                    <img src={agent.image} alt={agent.name} className="h-36 w-full object-cover transition group-hover:scale-[1.02]" />
+                    <img src={agent.image} alt={agent.name} className="h-32 w-full object-cover transition group-hover:scale-[1.02]" />
                   </div>
                   <div className="mt-3 space-y-1">
-                    <p className="text-sm font-semibold text-slate-100">{agent.name}</p>
-                    <p className="text-xs text-slate-400">{agent.role}</p>
-                    <p className="text-[11px] text-slate-500">{agent.subCategoryTitle}</p>
+                    <p className="line-clamp-1 text-sm font-semibold text-slate-100">{agent.name}</p>
+                    <p className="line-clamp-1 text-xs text-slate-400">🧰 {agent.role}</p>
+                    <p className="line-clamp-1 text-[11px] text-slate-500">🏷 {agent.subCategoryTitle}</p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-300">
                     {agent.tags.slice(0, 3).map((tag) => (
@@ -627,10 +627,10 @@ export function TechnicalServiceSection() {
                       </span>
                     ))}
                   </div>
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                    <span>* {agent.rating}</span>
-                    <span>{agent.jobs} xizmat</span>
-                    <span className="text-sky-200">{agent.price}</span>
+                  <div className="mt-auto flex items-center justify-between pt-3 text-xs text-slate-400">
+                    <span>⭐ {agent.rating}</span>
+                    <span>🧾 {agent.jobs}</span>
+                    <span className="text-sky-200">💰 {agent.price}</span>
                   </div>
                 </button>
               ))}

@@ -9,6 +9,7 @@ export interface ProductStats {
   views: number;
   likes: number;
   purchases: number;
+  orders?: number;
 }
 
 export interface ProductVendor {
@@ -34,6 +35,7 @@ export interface Product {
   likes?: number;
   views?: number;
   orders?: number;
+  purchases?: number;
   category?: string;
   createdAt?: string;
   createdBy?: {
@@ -69,6 +71,8 @@ export interface TrendResponse<T> {
   totalPages: number;
   items: T[];
 }
+
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
 
 const extractItems = (data: any): any[] => {
   if (!data) return [];
@@ -113,7 +117,7 @@ const normalizeProduct = (product: any, idx = 0): Product => {
 };
 
 // Bazani ikki marta takrorlamaslik uchun dinamik endpoint prefiksi
-const PRODUCTS_PATH = process.env.NEXT_PUBLIC_API_URL?.includes("/api")
+const PRODUCTS_PATH = api.defaults.baseURL?.includes("/api")
   ? "/products"
   : "/api/products";
 
@@ -134,6 +138,11 @@ export async function getProducts(params: Record<string, any> = {}): Promise<Pro
 }
 
 export async function getProductDetail(id: string): Promise<Product> {
+  if (!OBJECT_ID_RE.test(id)) {
+    const skipError = new Error("Skipped product detail API fetch for non-ObjectId");
+    (skipError as any).code = "SKIP_DETAIL_FETCH";
+    throw skipError;
+  }
   const res = await api.get(`${PRODUCTS_PATH}/${id}`);
   return normalizeProduct(res.data, 0);
 }

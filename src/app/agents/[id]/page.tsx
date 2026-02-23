@@ -26,6 +26,37 @@ const resolveListingHref = (type: string, id: string) => {
   return "#";
 };
 
+const getListingFallback = (type: string) => {
+  if (type === "service") return "/fallback/service.png";
+  if (type === "product") return "/fallback/product.png";
+  return "/placeholder.png";
+};
+
+const normalizeAvatar = (value?: string) => {
+  if (!value) return "";
+  if (value.startsWith("/avatars/")) {
+    const filename = value.split("/").pop() || "";
+    const match = filename.match(/^agent(\d+)\.(jpg|jpeg|png|webp)$/i);
+    if (match) {
+      const num = Number(match[1]);
+      const padded = Number.isFinite(num) ? String(num).padStart(2, "0") : match[1];
+      return `/avatars/agent-${padded}.jpg`;
+    }
+    return value;
+  }
+  if (value.startsWith("/static/avatars/")) {
+    const filename = value.split("/").pop() || "";
+    const match = filename.match(/^agent(\d+)\.(jpg|jpeg|png|webp)$/i);
+    if (match) {
+      const num = Number(match[1]);
+      const padded = Number.isFinite(num) ? String(num).padStart(2, "0") : match[1];
+      return `/avatars/agent-${padded}.jpg`;
+    }
+    return value.replace("/static/avatars/", "/avatars/");
+  }
+  return value;
+};
+
 export default function AgentDetailPage({ params }: PageProps) {
   const { isAuthenticated, hydrateFromStorage } = useAuthStore();
   const [agent, setAgent] = useState<AgentDetail | null>(null);
@@ -108,7 +139,7 @@ export default function AgentDetailPage({ params }: PageProps) {
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
         <div className="flex flex-wrap items-start gap-4">
           <img
-            src={agent.avatarUrl || "/avatars/agent-01.jpg"}
+            src={normalizeAvatar(agent.avatarUrl) || "/avatars/agent-01.jpg"}
             alt={agent.name || "Agent"}
             className="h-16 w-16 rounded-full object-cover"
           />
@@ -118,6 +149,11 @@ export default function AgentDetailPage({ params }: PageProps) {
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-200">
                 Active
               </span>
+              {(agent.verifiedByAdmin || agent.isVerified) && (
+                <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[11px] text-sky-100">
+                  Verified
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400">@{agent.nickname || agent.username || "agent"}</p>
             <p className="mt-2 text-sm text-slate-300">{agent.bio || "Biografiya mavjud emas."}</p>
@@ -129,6 +165,7 @@ export default function AgentDetailPage({ params }: PageProps) {
             <p>Reyting: {agent.rating?.toFixed?.(1) ?? agent.rating ?? "—"}</p>
             <p>Ko'rishlar: {formatCount(agent.views ?? 0)}</p>
             <p>Layklar: {formatCount(agent.likes ?? 0)}</p>
+            <p>Elonlar: {formatCount(agent.listingsCount ?? listingCards.length)}</p>
           </div>
         </div>
       </section>
@@ -148,12 +185,12 @@ export default function AgentDetailPage({ params }: PageProps) {
             {listingCards.map((card) => (
               <Link
                 key={`${card.type}-${card.id}`}
-                href={resolveListingHref(card.type, card.id)}
+                href={resolveListingHref(card.type, String(card.id))}
                 className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition hover:-translate-y-0.5 hover:border-emerald-400/60"
               >
                 <div className="flex items-center gap-3">
                   <img
-                    src={card.imageUrl || "/placeholder.png"}
+                    src={card.imageUrl || getListingFallback(card.type)}
                     alt={card.title || "Listing"}
                     className="h-12 w-16 rounded-lg object-cover"
                   />

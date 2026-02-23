@@ -1,4 +1,5 @@
 import { FeedItem } from "@/api/feed";
+import { useI18n } from "@/context/i18n";
 import dayjs from "@/lib/dayjs";
 
 interface Props {
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function FeedCard({ item }: Props) {
+  const { t } = useI18n();
   const created = dayjs(item.createdAt).fromNow();
   const category = (item?.type || item?.category || "").toLowerCase();
   const content = item.content || item.text || "";
@@ -24,8 +26,12 @@ export function FeedCard({ item }: Props) {
   };
 
   const mediaUrl = resolveMedia(rawMedia);
-  const authorName = item.author?.name || "Foydalanuvchi";
+  const authorName = item.author?.name || t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" });
   const authorRole = (item.author?.role || "USER").toString().toLowerCase();
+  const roleLabel =
+    authorRole === "user"
+      ? t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" })
+      : authorRole;
 
   return (
     <article className="gradient-border relative overflow-hidden rounded-2xl bg-slate-950/70 p-[1px]">
@@ -39,7 +45,7 @@ export function FeedCard({ item }: Props) {
               {authorName}
             </span>
             <span className="text-xs text-slate-400">
-              {authorRole} - {created}
+              {roleLabel} - {created}
             </span>
           </div>
         </header>
@@ -52,7 +58,7 @@ export function FeedCard({ item }: Props) {
           <div className="mb-3 overflow-hidden rounded-xl border border-slate-800/80 bg-slate-900/80">
             <img
               src={mediaUrl}
-              alt="post media"
+              alt={t({ en: "Post media", uz: "Post media", ru: "Медиа поста", ko: "게시물 미디어" })}
               className="h-64 w-full object-cover"
               onError={(e) => {
                 e.currentTarget.onerror = null;
@@ -63,8 +69,8 @@ export function FeedCard({ item }: Props) {
         )}
 
         <footer className="flex items-center gap-4 text-xs text-slate-400">
-          <span>Love {item.likesCount}</span>
-          <span>Comments {item.commentsCount}</span>
+          <span>{t({ en: "Likes", uz: "Layk", ru: "Лайки", ko: "좋아요" })} {item.likesCount}</span>
+          <span>{t({ en: "Comments", uz: "Izohlar", ru: "Комментарии", ko: "댓글" })} {item.commentsCount}</span>
           <span className="ml-auto rounded-full bg-slate-900/80 px-2 py-0.5 text-[11px] uppercase tracking-wide text-slate-400">
             {category}
           </span>

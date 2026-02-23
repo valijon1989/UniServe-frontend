@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ServiceListItem } from "@/lib/servicesTypes";
 import { useI18n } from "@/context/i18n";
+import { getServiceImageUrl } from "@/lib/serviceImage";
 
 type Props = {
   service: ServiceListItem;
@@ -52,7 +53,14 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
         {service.coverType === "video" ? (
           <video src={service.coverUrl} className="h-full w-full object-cover" muted playsInline />
         ) : (
-          <img src={service.coverUrl || "/placeholder.png"} alt={service.title} className="h-full w-full object-cover" />
+          <img
+            src={
+              service.coverUrl ??
+              getServiceImageUrl(service.category || "consulting", service.id)
+            }
+            alt={service.title}
+            className="h-full w-full object-cover"
+          />
         )}
         <span className="absolute right-3 top-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs text-slate-100">
           {service.priceLabel}

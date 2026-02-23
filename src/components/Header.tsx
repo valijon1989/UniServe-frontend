@@ -114,7 +114,7 @@ export function Header() {
           <div className="relative h-9 w-9">
             <Image
               src="/logo.svg"
-              alt="UniServe logo"
+              alt={t({ en: "UniServe logo", uz: "UniServe logotipi", ru: "Логотип UniServe", ko: "UniServe 로고" })}
               fill
               sizes="36px"
               priority
@@ -122,7 +122,7 @@ export function Header() {
           </div>
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight text-slate-100">
-              UniServe
+              {t({ en: "UniServe", uz: "UniServe", ru: "UniServe", ko: "UniServe" })}
             </p>
             <p className="text-[11px] text-slate-400">
               {t("header.subtitle")}
@@ -155,10 +155,10 @@ export function Header() {
                 className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-1 text-xs text-slate-200 ring-1 ring-slate-700/80"
               >
                 <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/20 text-[11px] font-semibold text-sky-300">
-                  {profile?.name?.[0]?.toUpperCase() || "U"}
+                  {profile?.name?.[0]?.toUpperCase() || t({ en: "U", uz: "F", ru: "П", ko: "사" })}
                 </span>
                 <span className="hidden sm:inline">
-                  {profile?.name || "User"} - {role}
+                  {profile?.name || t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" })} - {role}
                 </span>
               </button>
               <button
