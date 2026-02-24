@@ -8,5 +8,29 @@ export const client = axios.create({
   }
 });
 
+client.interceptors.request.use((config) => {
+  if (typeof window === "undefined") return config;
+
+  const token = window.localStorage.getItem("uniserve_token");
+  if (!token) return config;
+
+  const headers: any = config.headers || {};
+  const existingAuth =
+    (typeof headers.get === "function" ? headers.get("Authorization") || headers.get("authorization") : undefined) ||
+    headers.Authorization ||
+    headers.authorization;
+
+  if (!existingAuth) {
+    if (typeof headers.set === "function") {
+      headers.set("Authorization", `Bearer ${token}`);
+    } else {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    config.headers = headers;
+  }
+
+  return config;
+});
+
 // Old name compatibility
 export const api = client;

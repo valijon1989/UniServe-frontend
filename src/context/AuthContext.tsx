@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { api, setAuthToken } from "../lib/api";
+import { api } from "../lib/api";
 import type { User, AuthResponse } from "../types/auth";
 
 interface AuthContextValue {
@@ -36,13 +36,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (storedToken) {
       setToken(storedToken);
-      setAuthToken(storedToken);
       api
         .get<User>("/auth/me")
         .then((res) => setUser(res.data))
         .catch(() => {
           window.localStorage.removeItem(TOKEN_KEY);
-          setAuthToken(null);
           setToken(null);
         })
         .finally(() => setLoading(false));
@@ -58,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     setUser(res.data.user);
     setToken(res.data.token);
-    setAuthToken(res.data.token);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(TOKEN_KEY, res.data.token);
       window.localStorage.setItem("uniserve_user", JSON.stringify(res.data.user));
@@ -74,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await api.post<AuthResponse>("/auth/register", data);
     setUser(res.data.user);
     setToken(res.data.token);
-    setAuthToken(res.data.token);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(TOKEN_KEY, res.data.token);
       window.localStorage.setItem("uniserve_user", JSON.stringify(res.data.user));
@@ -84,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     setUser(null);
     setToken(null);
-    setAuthToken(null);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(TOKEN_KEY);
       window.localStorage.removeItem("uniserve_user");

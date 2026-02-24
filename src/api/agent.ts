@@ -38,12 +38,25 @@ export interface TopAgent {
   avatarUrl?: string;
   rating?: number;
   score?: number;
+  weeklyScore?: number;
+  weeklyListingsCount?: number;
+  weeklyListingsOrders?: number;
+  weeklyListingsViews?: number;
+  listingsOrders?: number;
+  listingsViews?: number;
   posts?: number;
   verifiedByAdmin?: boolean;
   faceIdVerified?: boolean;
   kind?: "SELLER" | "SERVICE";
   serviceCategory?: string;
   snippet?: string;
+  stats?: {
+    orders?: number;
+    views?: number;
+    likes?: number;
+    listingsOrders?: number;
+    listingsViews?: number;
+  };
   user?: {
     _id?: string;
     name?: string;

@@ -1,181 +1,227 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getTopAgents, type TopAgent } from "@/api/agent";
 import { client } from "@/api/client";
-import { getProducts } from "@/api/products";
 import { TopPodium } from "@/components/TopPodium";
-import { EventsSection, type EventItem } from "@/components/EventsSection";
+import { EventsSection } from "@/components/EventsSection";
 import { useI18n } from "@/context/i18n";
+import { normalizeListing, type NormalizedListing } from "@/lib/normalizeListing";
 
 export default function HomePage() {
   const [agents, setAgents] = useState<TopAgent[]>([]);
-  const [saleProducts, setSaleProducts] = useState<EventItem[]>([]);
-  const [saleServices, setSaleServices] = useState<EventItem[]>([]);
+  const [saleProducts, setSaleProducts] = useState<NormalizedListing[]>([]);
+  const [saleServices, setSaleServices] = useState<NormalizedListing[]>([]);
+  const [dealsCount, setDealsCount] = useState(0);
+  const [agentsLoaded, setAgentsLoaded] = useState(false);
+  const salesLoadedRef = useRef(false);
   const { t } = useI18n();
 
-  const sampleSellerAgents = useMemo<TopAgent[]>(
-    () => [
-      { id: "s1", name: "Dilshod Karimov", rating: 4.9, score: 132, posts: 12, snippet: "Elektronika va texnika sotuvlari" },
-      { id: "s2", name: "Madina Omonova", rating: 4.8, score: 118, posts: 10, snippet: "Kiyim-kechak premium toifasi" },
-      { id: "s3", name: "Javohir Usmonov", rating: 4.7, score: 102, posts: 9, snippet: "Uy jihozlari va mebel" },
-      { id: "s4", name: "Saodat Ergasheva", rating: 4.6, score: 95, posts: 8, snippet: "Bolalar o'yinchoqlari" },
-      { id: "s5", name: "Otabek Rustamov", rating: 4.5, score: 88, posts: 7, snippet: "Foto/video uskunalar" },
-      { id: "s6", name: "Malika Rakhmatova", rating: 4.5, score: 84, posts: 7, snippet: "Sport anjomlari" },
-      { id: "s7", name: "Akmal Sobirov", rating: 4.4, score: 80, posts: 6, snippet: "Avto aksessuarlar" },
-      { id: "s8", name: "Kamola Karimova", rating: 4.4, score: 78, posts: 6, snippet: "Parfyumeriya va kosmetika" },
-      { id: "s9", name: "Rustam Xolmurodov", rating: 4.3, score: 72, posts: 6, snippet: "Qishloq xo'jaligi mahsulotlari" },
-      { id: "s10", name: "Sevinch Sattorova", rating: 4.3, score: 70, posts: 5, snippet: "Yengil sanoat tovarlari" }
-    ],
-    []
-  );
-
-  const sampleServiceAgents = useMemo<TopAgent[]>(
-    () => [
-      { id: "sv1", name: "Diyorbek Raximov", rating: 4.9, score: 140, posts: 14, snippet: "SMM va marketing xizmatlari" },
-      { id: "sv2", name: "Aziza Tursunova", rating: 4.8, score: 126, posts: 12, snippet: "Grafik dizayn va brending" },
-      { id: "sv3", name: "Shahzod Aliyev", rating: 4.7, score: 110, posts: 11, snippet: "Veb va mobil dasturlash" },
-      { id: "sv4", name: "Muslima Bozorova", rating: 4.6, score: 98, posts: 9, snippet: "Konsalting va audit" },
-      { id: "sv5", name: "Zafarbek Rahmatov", rating: 4.6, score: 95, posts: 9, snippet: "Ta'lim va mentorlik" },
-      { id: "sv6", name: "Sabina Ahmedova", rating: 4.5, score: 90, posts: 8, snippet: "HR va kadrlar boshqaruvi" },
-      { id: "sv7", name: "Shuhrat Ergashev", rating: 4.4, score: 85, posts: 7, snippet: "Foto/video xizmatlari" },
-      { id: "sv8", name: "Nilufar Abdullayeva", rating: 4.4, score: 80, posts: 7, snippet: "UX/UI dizayn" },
-      { id: "sv9", name: "Elyor Po'latov", rating: 4.3, score: 76, posts: 6, snippet: "Qurilish va ta'mirlash" },
-      { id: "sv10", name: "Gulnoza Umarova", rating: 4.3, score: 72, posts: 5, snippet: "Tibbiy konsultatsiya" }
-    ],
-    []
-  );
-
-  const parseNumber = (value: unknown) => {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      const cleaned = value.replace(/[^0-9.-]+/g, "");
-      const parsed = Number(cleaned);
-      return Number.isFinite(parsed) ? parsed : null;
+  const debugHome = (
+    label:
+      | "HOME_RAW"
+      | "HOME_NORMALIZED"
+      | "HOME_RENDER_IDS"
+      | "HOME_DEALS_COUNT"
+      | "HOME_DEALS_SALE_COUNT",
+    payload: unknown
+  ) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(label, payload);
     }
-    return null;
   };
 
-  const pickNumber = (...values: unknown[]) => {
-    for (const value of values) {
-      const parsed = parseNumber(value);
-      if (parsed !== null) return parsed;
-    }
-    return null;
+  const isOnSale = (item: NormalizedListing) =>
+    item.isOnSale === true ||
+    item.isSale === true ||
+    (item.salePrice != null &&
+      item.price != null &&
+      Number(item.salePrice) < Number(item.price)) ||
+    (item.discountPercent != null && Number(item.discountPercent) > 0);
+
+  const toTimestamp = (value?: string) => {
+    if (!value) return 0;
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const getCategoryLabel = (value: any) => {
-    if (!value) return "Kategoriya yo'q";
-    if (typeof value === "string") return value;
-    if (typeof value?.name === "string") return value.name;
-    if (Array.isArray(value)) {
-      const first = value[0];
-      if (typeof first === "string") return first;
-      if (typeof first?.name === "string") return first.name;
+  const toDebugSample = (items: NormalizedListing[]) =>
+    items.slice(0, 3).map((item) => ({
+      id: item.id ?? item._id,
+      title: item.title,
+      price: item.price,
+      salePrice: item.salePrice,
+      discountPercent: item.discountPercent,
+      isOnSale: item.isOnSale,
+      isSale: item.isSale,
+      type: item.type
+    }));
+
+  const pickVisibleCards = (items: NormalizedListing[]) => {
+    const saleItems = items.filter(isOnSale);
+    if (saleItems.length > 0) {
+      return saleItems.slice(0, 3);
     }
-    return "Kategoriya yo'q";
+
+    const latest = [...items]
+      .sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt))
+      .slice(0, 3)
+      .map((item) => {
+        const normalizedPrice = item.salePrice > 0 ? item.salePrice : item.price;
+        return {
+          ...item,
+          price: normalizedPrice,
+          salePrice: normalizedPrice,
+          discountPercent: 0,
+          isOnSale: false,
+          isSale: false
+        };
+      });
+    return latest;
   };
 
-  const buildSaleItem = (item: any, idx: number, kind: "product" | "service", allowSynthetic = false): EventItem | null => {
-    const price = pickNumber(item.salePrice, item.discountPrice, item.price, item.cost, item.amount, item.hourlyRate);
-    let oldPrice = pickNumber(
-      item.oldPrice,
-      item.old_price,
-      item.originalPrice,
-      item.basePrice,
-      item.listPrice,
-      item.priceBeforeDiscount,
-      item.preDiscountPrice,
-      item.priceOld
-    );
-    let off = pickNumber(item.discountPercent, item.discount, item.off, item.percentOff);
+  const asArray = (value: unknown): any[] => (Array.isArray(value) ? value : []);
+  const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
 
-    if (price !== null && oldPrice === null && off !== null && off > 0 && off < 100) {
-      oldPrice = Math.round((price * 100) / (100 - off));
-    }
+  const pickCanonicalId = (
+    item: any,
+    kind: "product" | "service",
+    fallback: string
+  ) => {
+    const candidates =
+      kind === "product"
+        ? [
+            item?.productId,
+            item?.listingId,
+            item?.targetId,
+            item?.refId,
+            item?._id,
+            item?.id
+          ]
+        : [
+            item?.serviceId,
+            item?.listingId,
+            item?.targetId,
+            item?.refId,
+            item?._id,
+            item?.id
+          ];
 
-    if (allowSynthetic && price !== null && (oldPrice === null || oldPrice <= price)) {
-      oldPrice = Math.round(price * 1.25);
-      off = Math.round(((oldPrice - price) / oldPrice) * 100);
-    }
+    const normalized = candidates
+      .map((value) => (value === undefined || value === null ? "" : String(value).trim()))
+      .filter(Boolean);
 
-    if (price === null || oldPrice === null || oldPrice <= price) return null;
-
-    if (off === null || off <= 0 || off >= 100) {
-      off = Math.round(((oldPrice - price) / oldPrice) * 100);
-    }
-
-    return {
-      id: item.id || item._id || `${kind}-${idx}`,
-      title: item.title || item.name || (kind === "product" ? "Mahsulot" : "Xizmat"),
-      category: getCategoryLabel(item.category),
-      price,
-      oldPrice,
-      off,
-      tag: item.tag || item.label || item.badge || "Chegirma",
-      kind,
-      href: kind === "service"
-        ? `/services/${item.slug || item._id || item.id || `${kind}-${idx}`}`
-        : `/products/${item.slug || item._id || item.id || `${kind}-${idx}`}`,
-      image: typeof item.coverImageUrl === "string" && item.coverImageUrl.trim() ? item.coverImageUrl.trim() : undefined
-    };
-  };
-
-  const buildLatestFallbackItem = (item: any, idx: number, kind: "product" | "service"): EventItem | null => {
-    const price = pickNumber(item.price, item.cost, item.amount, item.hourlyRate);
-    if (price === null) return null;
-    return {
-      id: item.id || item._id || `${kind}-latest-${idx}`,
-      title: item.title || item.name || (kind === "product" ? "Mahsulot" : "Xizmat"),
-      category: getCategoryLabel(item.category),
-      price,
-      oldPrice: price,
-      off: 0,
-      tag: "Yangi",
-      kind,
-      href: kind === "service"
-        ? `/services/${item.slug || item._id || item.id || `${kind}-${idx}`}`
-        : `/products/${item.slug || item._id || item.id || `${kind}-${idx}`}`,
-      image: typeof item.coverImageUrl === "string" && item.coverImageUrl.trim() ? item.coverImageUrl.trim() : undefined
-    };
+    const objectIdCandidate = normalized.find((value) => OBJECT_ID_RE.test(value));
+    if (objectIdCandidate) return objectIdCandidate;
+    return normalized[0] || fallback;
   };
 
   useEffect(() => {
+    if (salesLoadedRef.current) return;
+    salesLoadedRef.current = true;
+
     let active = true;
 
     const loadSales = async () => {
-      try {
-        const productsResponse = await getProducts({ limit: 50 });
-        const discountedProductsRaw = productsResponse.products
-          .map((item, idx) => buildSaleItem(item, idx, "product"))
-          .filter((item): item is EventItem => Boolean(item))
-          .slice(0, 3);
-        const fallbackLatestProducts = productsResponse.products
-          .map((item, idx) => buildLatestFallbackItem(item, idx, "product"))
-          .filter((item): item is EventItem => Boolean(item))
-          .slice(0, 3);
-        if (active) setSaleProducts(discountedProductsRaw.length > 0 ? discountedProductsRaw : fallbackLatestProducts);
-      } catch (err) {
-        console.error("Sale products load error", err);
-        if (active) setSaleProducts([]);
-      }
+      let rawProducts: any[] = [];
+      let rawServices: any[] = [];
 
       try {
-        const res = await client.get("/services", { params: { limit: 50 } });
-        const raw = res.data?.services || res.data?.items || res.data || [];
-        const discountedServicesRaw = raw
-          .map((item: any, idx: number) => buildSaleItem(item, idx, "service"))
-          .filter((item: EventItem | null): item is EventItem => Boolean(item))
-          .slice(0, 3);
-        const fallbackLatestServices = raw
-          .map((item: any, idx: number) => buildLatestFallbackItem(item, idx, "service"))
-          .filter((item: EventItem | null): item is EventItem => Boolean(item))
-          .slice(0, 3);
-        if (active) setSaleServices(discountedServicesRaw.length > 0 ? discountedServicesRaw : fallbackLatestServices);
-      } catch (err) {
-        console.error("Sale services load error", err);
-        if (active) setSaleServices([]);
+        const dealsRes = await client.get("/home/deals", { params: { limit: 24 } });
+        const payload = dealsRes.data || {};
+        rawProducts = asArray(payload?.products ?? payload?.data?.products);
+        rawServices = asArray(payload?.services ?? payload?.data?.services);
+      } catch (dealsErr) {
+        const status = (dealsErr as any)?.response?.status;
+        if (status === 401) {
+          if (process.env.NODE_ENV !== "production") {
+            console.info("Home deals endpoint unauthorized (401)");
+          }
+        } else {
+          console.error("Home deals load error", dealsErr);
+        }
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("DEALS_PRODUCTS_COUNT", rawProducts.length);
+        console.log("DEALS_SERVICES_COUNT", rawServices.length);
+      }
+
+      debugHome("HOME_RAW", {
+        source: "home-deals",
+        products: rawProducts,
+        services: rawServices
+      });
+
+      const normalizedProducts = rawProducts.map((item, idx) => {
+        const normalized = normalizeListing(item, "product", idx);
+        const id = pickCanonicalId(item, "product", normalized.id);
+        return {
+          ...normalized,
+          id,
+          _id: normalized._id ?? (item?._id ? String(item._id) : undefined),
+          type: "product" as const,
+          href: `/products/${id}`
+        };
+      });
+      const normalizedServices = rawServices.map((item, idx) => {
+        const normalized = normalizeListing(item, "service", idx);
+        const id = pickCanonicalId(item, "service", normalized.id);
+        return {
+          ...normalized,
+          id,
+          _id: normalized._id ?? (item?._id ? String(item._id) : undefined),
+          type: "service" as const,
+          href: `/services/${id}`
+        };
+      });
+      const normalizedDeals = [...normalizedProducts, ...normalizedServices];
+
+      debugHome("HOME_NORMALIZED", {
+        deals: normalizedDeals,
+        products: normalizedProducts,
+        services: normalizedServices
+      });
+
+      if (active) {
+        setDealsCount(normalizedDeals.length);
+      }
+
+      debugHome("HOME_DEALS_COUNT", {
+        deals: normalizedDeals.length,
+        products: normalizedProducts.length,
+        services: normalizedServices.length,
+        total: normalizedProducts.length + normalizedServices.length,
+        sample: toDebugSample(normalizedDeals)
+      });
+
+      const saleProductsOnly = normalizedProducts.filter(isOnSale);
+      const saleServicesOnly = normalizedServices.filter(isOnSale);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("SALE_PRODUCTS_COUNT", saleProductsOnly.length);
+        console.log("SALE_SERVICES_COUNT", saleServicesOnly.length);
+      }
+
+      debugHome("HOME_DEALS_SALE_COUNT", {
+        products: saleProductsOnly.length,
+        services: saleServicesOnly.length,
+        total: saleProductsOnly.length + saleServicesOnly.length,
+        sample: toDebugSample([...saleProductsOnly, ...saleServicesOnly])
+      });
+
+      const visibleProducts = pickVisibleCards(normalizedProducts);
+      const visibleServices = pickVisibleCards(normalizedServices);
+
+      debugHome("HOME_RENDER_IDS", {
+        products: visibleProducts.map(({ id, _id, type, href }) => ({ id: id ?? _id, type, href })),
+        services: visibleServices.map(({ id, _id, type, href }) => ({ id: id ?? _id, type, href }))
+      });
+
+      if (active) {
+        setSaleProducts(normalizedProducts);
+        setSaleServices(normalizedServices);
       }
     };
 
@@ -193,9 +239,20 @@ export default function HomePage() {
         setAgents(data || []);
       } catch (err) {
         console.error("Top agents load error", err);
+      } finally {
+        setAgentsLoaded(true);
       }
     })();
   }, []);
+
+  const toNumberOrZero = (value: unknown) => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
 
   const resolveKind = (agent: TopAgent) => {
     if (agent.kind) return agent.kind.toUpperCase();
@@ -234,45 +291,75 @@ export default function HomePage() {
     return value ? String(value) : null;
   };
 
-  const getSortedAgents = () => {
-    return [...(agents || [])].sort((a, b) => {
-      const ra = a.rating || 0;
-      const rb = b.rating || 0;
-      if (rb !== ra) return rb - ra;
-      const sa = a.score || 0;
-      const sb = b.score || 0;
-      if (sb !== sa) return sb - sa;
-      const pa = a.posts || a.user?.postsCount || 0;
-      const pb = b.posts || b.user?.postsCount || 0;
-      if (pb !== pa) return pb - pa;
-      return (b.user?.name || "").localeCompare(a.user?.name || "");
-    });
+  const resolveWeeklyScore = (agent: TopAgent) =>
+    toNumberOrZero(agent.weeklyScore ?? agent.score ?? (agent as any)?.stats?.weeklyScore);
+
+  const resolveWeeklyListingsCount = (agent: TopAgent) =>
+    toNumberOrZero(
+      agent.weeklyListingsCount ??
+      (agent as any)?.weeklyListings ??
+      (agent as any)?.stats?.weeklyListingsCount
+    );
+
+  const resolveListingsOrders = (agent: TopAgent) =>
+    toNumberOrZero(
+      agent.listingsOrders ??
+      agent.weeklyListingsOrders ??
+      agent.stats?.orders ??
+      agent.stats?.listingsOrders ??
+      (agent as any)?.weeklyStats?.orders
+    );
+
+  const resolveListingsViews = (agent: TopAgent) =>
+    toNumberOrZero(
+      agent.listingsViews ??
+      agent.weeklyListingsViews ??
+      agent.stats?.views ??
+      agent.stats?.listingsViews ??
+      (agent as any)?.weeklyStats?.views
+    );
+
+  const sortWeeklyAgents = (a: TopAgent, b: TopAgent) => {
+    const weeklyA = resolveWeeklyScore(a);
+    const weeklyB = resolveWeeklyScore(b);
+    if (weeklyB !== weeklyA) return weeklyB - weeklyA;
+    const ratingA = toNumberOrZero(a.rating);
+    const ratingB = toNumberOrZero(b.rating);
+    if (ratingB !== ratingA) return ratingB - ratingA;
+    return resolveAgentId(a).localeCompare(resolveAgentId(b));
   };
 
-  const computeTopAgentsByCategory = (kind: "SELLER" | "SERVICE") => {
-    const source = (agents || []).filter((a) => resolveKind(a) === kind);
-    const sorted = [...source].sort((a, b) => {
-      const ra = a.rating || 0;
-      const rb = b.rating || 0;
-      if (rb !== ra) return rb - ra;
-      const sa = a.score || 0;
-      const sb = b.score || 0;
-      if (sb !== sa) return sb - sa;
-      const pa = a.posts || a.user?.postsCount || 0;
-      const pb = b.posts || b.user?.postsCount || 0;
-      if (pb !== pa) return pb - pa;
-      return (b.user?.name || "").localeCompare(a.user?.name || "");
+  const weeklyQualifiedAgents = useMemo(() => {
+    return (agents || []).filter((agent) => {
+      const verified = agent.verifiedByAdmin === true;
+      const activeWeekly = resolveWeeklyScore(agent) > 0 || resolveWeeklyListingsCount(agent) > 0;
+      return verified && activeWeekly;
     });
+  }, [agents]);
 
-    if (sorted.length >= 10) return sorted.slice(0, 10);
+  const topSellerAgents = useMemo(
+    () =>
+      weeklyQualifiedAgents
+        .filter((agent) => resolveKind(agent) === "SELLER")
+        .sort(sortWeeklyAgents)
+        .slice(0, 10),
+    [weeklyQualifiedAgents]
+  );
 
-    const used = new Set(sorted.map((a) => a.id || a._id));
-    const filler = getSortedAgents().filter((a) => !used.has(a.id || a._id));
-    return [...sorted, ...filler].slice(0, 10);
-  };
+  const topServiceAgents = useMemo(
+    () =>
+      weeklyQualifiedAgents
+        .filter((agent) => resolveKind(agent) === "SERVICE")
+        .sort(sortWeeklyAgents)
+        .slice(0, 10),
+    [weeklyQualifiedAgents]
+  );
 
-  const topSellerAgents = useMemo(() => computeTopAgentsByCategory("SELLER"), [agents]);
-  const topServiceAgents = useMemo(() => computeTopAgentsByCategory("SERVICE"), [agents]);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || !agentsLoaded) return;
+    console.log("SELLER_AGENTS_COUNT", topSellerAgents.length);
+    console.log("SERVICE_AGENTS_COUNT", topServiceAgents.length);
+  }, [agentsLoaded, topSellerAgents.length, topServiceAgents.length]);
 
   return (
     <div className="space-y-8">
@@ -438,7 +525,7 @@ export default function HomePage() {
 
       
 
-      <EventsSection saleProducts={saleProducts} saleServices={saleServices} />
+      <EventsSection saleProducts={saleProducts} saleServices={saleServices} dealsCount={dealsCount} />
 
       <TopPodium />
 
@@ -502,14 +589,14 @@ export default function HomePage() {
                     const agent = podium[idx];
                     const agentId = resolveAgentId(agent);
                     const routeId = resolveAgentRouteId(agent);
-                    const displayName = agent?.name || agent?.user?.name || t("home.top.agentLabel");
-                    const stableId = agentId || `${block.title}-${displayName}`.replace(/\s+/g, "-").toLowerCase();
-                    const cardKey = `agent-top-${block.tone}-${idx}-${stableId}`;
+                    const displayName = agent?.user?.name || agent?.name || t("home.top.agentLabel");
+                    const cardKey = agentId || `${block.tone}-empty-${idx + 1}`;
                     const snippet =
                       agent?.snippet || agent?.user?.bio || agent?.user?.region || t("home.top.activeAgent");
-                    const rating = (agent?.rating ?? 0).toFixed(1);
-                    const score = agent?.score ?? 0;
-                    const posts = agent?.posts ?? agent?.user?.postsCount ?? 0;
+                    const rating = toNumberOrZero(agent?.rating).toFixed(1);
+                    const weeklyScore = resolveWeeklyScore(agent || {});
+                    const listingsOrders = resolveListingsOrders(agent || {});
+                    const listingsViews = resolveListingsViews(agent || {});
                     return (
                       <Link
                         key={cardKey}
@@ -526,7 +613,6 @@ export default function HomePage() {
                             <div className="flex items-center gap-2">
                               {resolveAvatar(agent) ? (
                                 <img
-                                  key={`${cardKey}-img`}
                                   src={resolveAvatar(agent)}
                                   alt={displayName}
                                   className="h-10 w-10 rounded-full object-cover"
@@ -547,8 +633,9 @@ export default function HomePage() {
                             </div>
                             <div className="flex flex-wrap gap-2 text-[11px] text-slate-200">
                               <span className="rounded-full bg-slate-900/70 px-2 py-0.5">⭐ {rating}</span>
-                              <span className="rounded-full bg-slate-900/70 px-2 py-0.5">👍 {score}</span>
-                              <span className="rounded-full bg-slate-900/70 px-2 py-0.5">🧾 {posts}</span>
+                              <span className="rounded-full bg-slate-900/70 px-2 py-0.5">W {weeklyScore}</span>
+                              <span className="rounded-full bg-slate-900/70 px-2 py-0.5">🧾 {listingsOrders}</span>
+                              <span className="rounded-full bg-slate-900/70 px-2 py-0.5">👁 {listingsViews}</span>
                             </div>
                           </div>
                         ) : (
@@ -560,16 +647,17 @@ export default function HomePage() {
                 </div>
 
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {rest.map((agent, idx) => {
+                  {rest.map((agent) => {
                     const agentId = resolveAgentId(agent);
                     const routeId = resolveAgentRouteId(agent);
-                    const displayName = agent.name || agent.user?.name || t("home.top.agentLabel");
-                    const stableId = agentId || `${block.title}-${displayName}`.replace(/\s+/g, "-").toLowerCase();
-                    const cardKey = `agent-rest-${block.tone}-${idx}-${stableId}`;
+                    const displayName = agent.user?.name || agent.name || t("home.top.agentLabel");
+                    const cardKey = agentId || `${block.tone}-rest-${displayName}`;
                     const snippet =
                       agent.snippet || agent.user?.bio || agent.user?.region || t("home.top.activeAgent");
-                    const rating = (agent.rating ?? 0).toFixed(1);
-                    const score = agent.score ?? 0;
+                    const rating = toNumberOrZero(agent.rating).toFixed(1);
+                    const weeklyScore = resolveWeeklyScore(agent);
+                    const listingsOrders = resolveListingsOrders(agent);
+                    const listingsViews = resolveListingsViews(agent);
                     return (
                       <Link
                         key={cardKey}
@@ -579,7 +667,6 @@ export default function HomePage() {
                         <div className="flex items-center gap-2 min-w-0">
                           {resolveAvatar(agent) ? (
                             <img
-                              key={`${cardKey}-img`}
                               src={resolveAvatar(agent)}
                               alt={displayName}
                               className="h-9 w-9 rounded-full object-cover"
@@ -598,7 +685,9 @@ export default function HomePage() {
                         </div>
                         <div className="flex flex-wrap justify-end gap-2 text-[11px] text-slate-200">
                           <span className="rounded-full bg-slate-800 px-2 py-0.5">⭐ {rating}</span>
-                          <span className="rounded-full bg-slate-800 px-2 py-0.5">👍 {score}</span>
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5">W {weeklyScore}</span>
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5">🧾 {listingsOrders}</span>
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5">👁 {listingsViews}</span>
                         </div>
                       </Link>
                     );

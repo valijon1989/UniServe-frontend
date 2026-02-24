@@ -2,13 +2,8 @@ import { client } from "../api/client";
 
 export const api = client;
 
-export const setAuthToken = (token: string | null) => {
-  if (token) {
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common.Authorization;
-  }
-};
+// Kept for compatibility. Auth header is now managed by src/api/client.ts interceptor.
+export const setAuthToken = (_token: string | null) => undefined;
 
 export const API = {
   login: "/auth/login",
