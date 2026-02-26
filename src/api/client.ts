@@ -9,12 +9,25 @@ export const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
+  const headers: any = config.headers || {};
+
+  // Do not force JSON content type for FormData requests (avatar/media uploads).
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    if (typeof headers.delete === "function") {
+      headers.delete("Content-Type");
+      headers.delete("content-type");
+    } else {
+      delete headers["Content-Type"];
+      delete headers["content-type"];
+    }
+    config.headers = headers;
+  }
+
   if (typeof window === "undefined") return config;
 
-  const token = window.localStorage.getItem("uniserve_token");
+  const token = window.localStorage.getItem("uniserve_token") || window.sessionStorage.getItem("uniserve_token");
   if (!token) return config;
 
-  const headers: any = config.headers || {};
   const existingAuth =
     (typeof headers.get === "function" ? headers.get("Authorization") || headers.get("authorization") : undefined) ||
     headers.Authorization ||

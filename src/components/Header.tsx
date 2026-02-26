@@ -1,25 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AxiosError } from "axios";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
+import { getMe } from "@/api/auth";
+import { Avatar } from "@/components/ui/Avatar";
+
+const LOCAL_PROFILE_OVERRIDES_KEY = "profile-local-overrides-v1";
 
 export function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { t } = useI18n();
-  const { role, profile, isAuthenticated, hydrateFromStorage, logout } = useAuthStore();
+  const { role, profile, userId, isAuthenticated, hydrateFromStorage, logout, updateProfile } = useAuthStore();
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState("");
+  const hasFetchedMeRef = useRef(false);
   const isNewsPage = pathname?.startsWith("/news");
   const isProductsPage = pathname?.startsWith("/products");
   const headerBg = isProductsPage
     ? "linear-gradient(90deg, rgba(12,12,12,0.78), rgba(0,0,0,0.55)), url('/images/products/bosh.png'), url('/header-bg.png')"
     : isNewsPage
-      ? "url('/images/news/news1.jpg')"
+      ? "linear-gradient(120deg, rgba(2,6,23,0.8), rgba(14,116,144,0.45)), url('/images/news-header.jpg')"
       : "url('/header-bg.png')";
 
   const baseNav = useMemo(
@@ -38,9 +45,52 @@ export function Header() {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasFetchedMeRef.current = false;
+      return;
+    }
+    if (hasFetchedMeRef.current) return;
+    hasFetchedMeRef.current = true;
+
+    let active = true;
+    getMe()
+      .then((me) => {
+        if (!active || !me) return;
+        updateProfile({
+          name: me.name,
+          username: (me as { username?: string }).username,
+          avatarUrl: (me as { avatarUrl?: string }).avatarUrl
+        });
+      })
+      .catch((error: unknown) => {
+        const status = error instanceof AxiosError ? error.response?.status : undefined;
+        if (status === 401 || status === 403) {
+          logout();
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, logout, updateProfile]);
+
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  const handleAccountClick = () => {
+    const shouldLogout = window.confirm(
+      t({
+        en: "Do you want to log out?",
+        uz: "Haqiqatan ham tizimdan chiqmoqchimisiz?",
+        ru: "Вы действительно хотите выйти?",
+        ko: "정말 로그아웃하시겠습니까?"
+      })
+    );
+    if (!shouldLogout) return;
+    handleLogout();
   };
 
   const extraNav = useMemo(() => {
@@ -97,13 +147,86 @@ export function Header() {
     return true;
   };
 
+  const displayNickname =
+    profile?.username?.trim() ||
+    profile?.name?.trim() ||
+    t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" });
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setResolvedAvatarUrl("");
+      return;
+    }
+
+    const fromSession = profile?.avatarUrl?.trim();
+    if (fromSession) {
+      setResolvedAvatarUrl(fromSession);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      setResolvedAvatarUrl("");
+      return;
+    }
+
+    let localAvatar = "";
+    let legacyUserId = "";
+    let legacyUsername = "";
+
+    try {
+      const rawLegacyUser = window.localStorage.getItem("uniserve_user");
+      if (rawLegacyUser) {
+        const parsedLegacyUser = JSON.parse(rawLegacyUser) as { _id?: string; id?: string; username?: string };
+        legacyUserId = String(parsedLegacyUser?._id || parsedLegacyUser?.id || "").trim();
+        legacyUsername = String(parsedLegacyUser?.username || "").trim();
+      }
+    } catch {
+      // ignore local parsing errors
+    }
+
+    try {
+      const rawOverrides = window.localStorage.getItem(LOCAL_PROFILE_OVERRIDES_KEY);
+      if (rawOverrides) {
+        const parsed = JSON.parse(rawOverrides) as Record<string, unknown>;
+        const candidateKeys = [userId, profile?.username, legacyUserId, legacyUsername, "me"].filter(Boolean) as string[];
+        for (const key of candidateKeys) {
+          const scoped = parsed?.[key] as { avatarUrl?: string } | undefined;
+          const value = scoped?.avatarUrl?.trim();
+          if (value) {
+            localAvatar = value;
+            break;
+          }
+        }
+      }
+    } catch {
+      // ignore local parsing errors
+    }
+
+    if (!localAvatar) {
+      try {
+        const rawProfile = window.localStorage.getItem("uniserve_user_profile");
+        if (rawProfile) {
+          const parsedProfile = JSON.parse(rawProfile) as { avatarUrl?: string };
+          const value = parsedProfile?.avatarUrl?.trim();
+          if (value) {
+            localAvatar = value;
+          }
+        }
+      } catch {
+        // ignore local parsing errors
+      }
+    }
+
+    setResolvedAvatarUrl(localAvatar);
+  }, [isAuthenticated, pathname, profile?.avatarUrl, profile?.username, userId]);
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm relative overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-60"
         style={{
           backgroundImage: headerBg,
-          backgroundSize: isProductsPage ? "cover, cover, cover" : isNewsPage ? "contain" : "cover",
+          backgroundSize: isProductsPage ? "cover, cover, cover" : isNewsPage ? "cover" : "cover",
           backgroundRepeat: isProductsPage ? "no-repeat, no-repeat, no-repeat" : isNewsPage ? "no-repeat" : undefined,
           backgroundPosition: "center"
         }}
@@ -151,21 +274,19 @@ export function Header() {
           {isAuthenticated ? (
             <>
               <button
-                onClick={() => router.push("/profile")}
+                onClick={handleAccountClick}
                 className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-1 text-xs text-slate-200 ring-1 ring-slate-700/80"
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/20 text-[11px] font-semibold text-sky-300">
-                  {profile?.name?.[0]?.toUpperCase() || t({ en: "U", uz: "F", ru: "П", ko: "사" })}
+                <Avatar
+                  src={resolvedAvatarUrl}
+                  alt={profile?.name || t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" })}
+                  fallbackText={displayNickname}
+                  size={24}
+                  className="ring-1 ring-slate-700/70"
+                />
+                <span className="inline">
+                  {displayNickname}
                 </span>
-                <span className="hidden sm:inline">
-                  {profile?.name || t({ en: "User", uz: "Foydalanuvchi", ru: "Пользователь", ko: "사용자" })} - {role}
-                </span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="rounded-full bg-slate-900/80 px-3 py-1 text-xs text-slate-300 ring-1 ring-slate-700/80 hover:bg-red-500/10 hover:text-red-300 hover:ring-red-500/60"
-              >
-                {t("auth.logout")}
               </button>
             </>
           ) : (

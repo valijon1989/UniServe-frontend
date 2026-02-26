@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ordersMock, type OrderItem, type OrderStatus } from "@/data/ordersMock";
 import { useI18n } from "@/context/i18n";
+import { Avatar } from "@/components/ui/Avatar";
 
 const statusTone: Record<OrderStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -90,14 +91,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{t("myOrders.agentLabel")}</p>
             <div className="mt-3 flex items-center gap-3">
               <Link href={`/agents/${order.agent.id}`} className="h-12 w-12 overflow-hidden rounded-full bg-slate-200">
-                {order.agent.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={order.agent.avatar} alt={order.agent.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-600">
-                    {order.agent.name.charAt(0)}
-                  </div>
-                )}
+                <Avatar
+                  src={order.agent.avatar}
+                  alt={order.agent.name}
+                  fallbackText={order.agent.name}
+                  size={48}
+                  className="h-full w-full border border-slate-300/60"
+                />
               </Link>
               <div>
                 <Link href={`/agents/${order.agent.id}`} className="text-sm font-semibold text-slate-900 hover:underline">

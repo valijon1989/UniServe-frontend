@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from "@/store/auth";
 import { getServiceById, type TrendService } from "@/api/services";
 import { normalizeImageUrl } from "@/lib/imageUrl";
+import { Avatar } from "@/components/ui/Avatar";
 
 type ServiceRecord = {
   service: ServiceItem;
@@ -607,7 +608,13 @@ export default function ServiceDetailPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                 <p className="text-sm font-semibold text-slate-100">Usta haqida</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                  <Avatar
+                    src={agent.avatar.src}
+                    alt={agent.avatar.alt}
+                    fallbackText={agent.name}
+                    size={48}
+                    className="border border-slate-700/60"
+                  />
                   <div>
                     <p className="text-sm font-semibold text-slate-100">{agent.name}</p>
                     <p className="text-xs text-slate-400">@{agent.nickname}</p>
@@ -781,7 +788,13 @@ export default function ServiceDetailPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                 <p className="text-sm font-semibold text-slate-100">Ko'chiruvchi haqida</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                  <Avatar
+                    src={agent.avatar.src}
+                    alt={agent.avatar.alt}
+                    fallbackText={agent.name}
+                    size={48}
+                    className="border border-slate-700/60"
+                  />
                   <div>
                     <p className="text-sm font-semibold text-slate-100">{agent.name}</p>
                     <p className="text-xs text-slate-400">@{agent.nickname}</p>
@@ -961,7 +974,13 @@ export default function ServiceDetailPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                 <p className="text-sm font-semibold text-slate-100">Tozalovchi haqida</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                  <Avatar
+                    src={agent.avatar.src}
+                    alt={agent.avatar.alt}
+                    fallbackText={agent.name}
+                    size={48}
+                    className="border border-slate-700/60"
+                  />
                   <div>
                     <p className="text-sm font-semibold text-slate-100">{agent.name}</p>
                     <p className="text-xs text-slate-400">@{agent.nickname}</p>
@@ -1142,7 +1161,13 @@ export default function ServiceDetailPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
                 <p className="text-sm font-semibold text-slate-100">Enaga haqida</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                  <Avatar
+                    src={agent.avatar.src}
+                    alt={agent.avatar.alt}
+                    fallbackText={agent.name}
+                    size={48}
+                    className="border border-slate-700/60"
+                  />
                   <div>
                     <p className="text-sm font-semibold text-slate-100">{agent.name}</p>
                     <p className="text-xs text-slate-400">@{agent.nickname}</p>
@@ -1415,10 +1440,12 @@ export default function ServiceDetailPage() {
 
           <aside className="card space-y-4 p-5">
             <div className="flex items-center gap-3">
-              <img
+              <Avatar
                 src={agent.avatar.src}
                 alt={agent.avatar.alt}
-                className="h-12 w-12 rounded-full object-cover"
+                fallbackText={agent.name}
+                size={48}
+                className="border border-slate-300/70"
               />
               <div>
                 <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
@@ -1593,7 +1620,13 @@ export default function ServiceDetailPage() {
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Konsultant haqida</p>
               <div className="flex items-center gap-3">
-                <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                <Avatar
+                  src={agent.avatar.src}
+                  alt={agent.avatar.alt}
+                  fallbackText={agent.name}
+                  size={48}
+                  className="border border-slate-300/70"
+                />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
                   <p className="text-xs text-slate-600">{agent.specialty}</p>
@@ -2192,10 +2225,12 @@ export default function ServiceDetailPage() {
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Murabbiy profili</p>
               <div className="flex items-center gap-3">
-                <img
+                <Avatar
                   src={agent.avatar.src}
                   alt={agent.avatar.alt}
-                  className="h-12 w-12 rounded-full object-cover"
+                  fallbackText={agent.name}
+                  size={48}
+                  className="border border-slate-300/70"
                 />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
@@ -2598,7 +2633,13 @@ export default function ServiceDetailPage() {
             <div className="card space-y-3 p-5">
               <p className="text-sm font-semibold text-slate-900">Tarjimon ishonchliligi</p>
               <div className="flex items-center gap-3">
-                <img src={agent.avatar.src} alt={agent.avatar.alt} className="h-12 w-12 rounded-full object-cover" />
+                <Avatar
+                  src={agent.avatar.src}
+                  alt={agent.avatar.alt}
+                  fallbackText={agent.name}
+                  size={48}
+                  className="border border-slate-300/70"
+                />
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
                   <p className="text-[11px] text-slate-600">{agent.region || agent.location}</p>
@@ -3031,10 +3072,12 @@ export default function ServiceDetailPage() {
 
         <aside className="card p-5">
           <div className="flex items-center gap-3">
-            <img
+            <Avatar
               src={agent.avatar.src}
               alt={agent.avatar.alt}
-              className="h-12 w-12 rounded-full object-cover"
+              fallbackText={agent.name}
+              size={48}
+              className="border border-slate-300/70"
             />
             <div>
               <p className="text-sm font-semibold text-slate-900">{agent.name}</p>

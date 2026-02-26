@@ -5,6 +5,7 @@ import Link from "next/link";
 import { serviceCatalog } from "@/data/serviceCatalog";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
+import { Avatar } from "@/components/ui/Avatar";
 
 type TranslatedText = { en: string; uz: string; ru: string; ko: string };
 
@@ -586,7 +587,13 @@ export function ConstructionServiceSection({ selectedSection, onSectionChange }:
                         <span className="text-amber-300">⭐ {card.rating.toFixed(1)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <img src={card.agent.avatar} alt={card.agent.name} className="h-6 w-6 rounded-full object-cover" />
+                        <Avatar
+                          src={card.agent.avatar}
+                          alt={card.agent.name}
+                          fallbackText={card.agent.name}
+                          size={24}
+                          className="border border-slate-700/70"
+                        />
                         <span className="truncate">👤 {card.agent.name}</span>
                       </div>
                     </div>
@@ -702,10 +709,12 @@ export function ConstructionServiceSection({ selectedSection, onSectionChange }:
                     {t({ en: "About the master", uz: "Usta haqida", ru: "О мастере", ko: "마스터 정보" })}
                   </p>
                   <div className="mt-3 flex items-center gap-3">
-                    <img
+                    <Avatar
                       src={selectedCard.agent.avatar}
                       alt={selectedCard.agent.name}
-                      className="h-12 w-12 rounded-full object-cover"
+                      fallbackText={selectedCard.agent.name}
+                      size={48}
+                      className="border border-slate-700/70"
                     />
                     <div>
                       <p className="text-sm font-semibold text-slate-100">{selectedCard.agent.name}</p>

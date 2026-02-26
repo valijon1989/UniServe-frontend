@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ServicesHub } from "@/components/ServicesHub";
 import { getAgents, type AgentListItem } from "@/api/agent";
+import { Avatar } from "@/components/ui/Avatar";
+import { toAbsoluteMediaUrl } from "@/lib/mediaUrl";
 
 const DEFAULT_PAGE_SIZE = 24;
 const PAGE_SIZES = [12, 24, 48];
@@ -45,7 +47,7 @@ const normalizeAvatar = (value?: string) => {
     }
     return value.replace("/static/avatars/", "/avatars/");
   }
-  return value;
+  return toAbsoluteMediaUrl(value) || value;
 };
 
 const getAvatar = (agent: AgentListItem) => {
@@ -53,14 +55,7 @@ const getAvatar = (agent: AgentListItem) => {
     normalizeAvatar(agent.avatarUrl) ||
     normalizeAvatar(agent.user?.avatarUrl) ||
     "";
-  if (normalized) return normalized;
-  const seed = String(agent.user?._id || agent.id || agent._id || agent.username || agent.user?.username || agent.name || "agent");
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) % 30;
-  }
-  const index = String(hash + 1).padStart(2, "0");
-  return `/avatars/agent-${index}.jpg`;
+  return normalized;
 };
 
 const getDisplayName = (agent: AgentListItem) => {
@@ -460,16 +455,13 @@ export function AgentsClient() {
                         className="flex h-[260px] items-stretch gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-400/60"
                       >
                         <div className="flex w-[40%] items-center justify-center rounded-2xl bg-slate-950/60 p-3">
-                          <div className="aspect-[4/5] w-full overflow-hidden rounded-2xl">
-                            <img
-                              src={getAvatar(agent)}
-                              alt={name}
-                              className="h-full w-full object-cover"
-                              onError={(event) => {
-                                event.currentTarget.src = "/avatars/agent-01.jpg";
-                              }}
-                            />
-                          </div>
+                          <Avatar
+                            src={getAvatar(agent)}
+                            alt={name}
+                            fallbackText={name}
+                            size={112}
+                            className="border border-slate-700/70 shadow-lg shadow-black/30"
+                          />
                         </div>
 
                         <div className="flex w-[60%] min-w-0 flex-col">

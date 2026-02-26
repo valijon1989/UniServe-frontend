@@ -22,6 +22,7 @@ import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSec
 import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
 import { EmploymentServiceSection } from "@/components/services/EmploymentServiceSection";
 import { EducationServiceSection } from "@/components/services/EducationServiceSection";
+import { Avatar } from "@/components/ui/Avatar";
 
 type ServiceFormState = {
   type: "material" | "spiritual";
@@ -1672,18 +1673,13 @@ export function ServicesHub() {
       >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
-          {isPsychologyCategory ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-slate-200">
-              {getInitials(service.agent.name)}
-            </div>
-          ) : (
-            <img
-              src={service.agent.avatar.src}
-              alt={service.agent.avatar.alt}
-              className="h-10 w-10 rounded-full object-cover"
-              loading="lazy"
-            />
-          )}
+          <Avatar
+            src={isPsychologyCategory ? "" : service.agent.avatar.src}
+            alt={service.agent.avatar.alt}
+            fallbackText={service.agent.name || getInitials(service.agent.name)}
+            size={40}
+            className="border border-slate-700/70"
+          />
           <div>
             <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
             <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>

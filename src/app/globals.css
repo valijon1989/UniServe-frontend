@@ -34,6 +34,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
+  pointer-events: none;
   background: linear-gradient(135deg, #38bdf8, #a855f7, #f97316);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,

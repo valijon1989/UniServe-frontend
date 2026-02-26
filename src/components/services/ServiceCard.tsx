@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ServiceListItem } from "@/lib/servicesTypes";
 import { useI18n } from "@/context/i18n";
 import { getServiceImageUrl } from "@/lib/serviceImage";
+import { Avatar } from "@/components/ui/Avatar";
 
 type Props = {
   service: ServiceListItem;
@@ -72,10 +73,12 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
           <div>
             <p className="text-sm font-semibold text-slate-100">{service.title}</p>
             <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
-              <img
-                src={service.provider.avatarUrl || "/placeholder.png"}
+              <Avatar
+                src={service.provider.avatarUrl}
                 alt={service.provider.name}
-                className="h-6 w-6 rounded-full object-cover"
+                fallbackText={service.provider.name}
+                size={24}
+                className="border border-slate-700/70"
               />
               <span className="font-semibold text-slate-200">{service.provider.name}</span>
               {service.provider.verified && (

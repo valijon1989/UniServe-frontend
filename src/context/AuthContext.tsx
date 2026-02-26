@@ -22,6 +22,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const TOKEN_KEY = "uniserve_token";
 
+const readStoredToken = () => {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY) || window.sessionStorage.getItem(TOKEN_KEY);
+};
+
+const clearStoredToken = () => {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.sessionStorage.removeItem(TOKEN_KEY);
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -30,18 +41,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = typeof window !== "undefined"
-      ? window.localStorage.getItem(TOKEN_KEY)
-      : null;
+    const storedToken = readStoredToken();
 
     if (storedToken) {
       setToken(storedToken);
       api
         .get<User>("/auth/me")
         .then((res) => setUser(res.data))
-        .catch(() => {
-          window.localStorage.removeItem(TOKEN_KEY);
-          setToken(null);
+        .catch((error: unknown) => {
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 403) {
+            clearStoredToken();
+            setToken(null);
+          }
         })
         .finally(() => setLoading(false));
     } else {
@@ -81,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setToken(null);
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(TOKEN_KEY);
+      clearStoredToken();
       window.localStorage.removeItem("uniserve_user");
     }
   };

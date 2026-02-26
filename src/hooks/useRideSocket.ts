@@ -200,7 +200,10 @@ export const useRideSocket = ({ token, enabled = true }: RideSocketOptions = {})
     }
 
     const resolvedToken =
-      token ?? (typeof window !== "undefined" ? window.localStorage.getItem("uniserve_token") : null);
+      token ??
+      (typeof window !== "undefined"
+        ? window.localStorage.getItem("uniserve_token") || window.sessionStorage.getItem("uniserve_token")
+        : null);
     const wsUrl = buildWsUrl(resolvedToken);
     if (!wsUrl || typeof window === "undefined" || isWsBlocked()) {
       setState((prev) => ({ ...prev, status: "idle", error: null }));

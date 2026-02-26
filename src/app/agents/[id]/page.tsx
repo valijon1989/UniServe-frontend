@@ -10,6 +10,8 @@ import {
   type AgentDetail,
   type AgentReview
 } from "@/api/agent";
+import { Avatar } from "@/components/ui/Avatar";
+import { toAbsoluteMediaUrl } from "@/lib/mediaUrl";
 
 type PageProps = {
   params: { id: string };
@@ -54,7 +56,7 @@ const normalizeAvatar = (value?: string) => {
     }
     return value.replace("/static/avatars/", "/avatars/");
   }
-  return value;
+  return toAbsoluteMediaUrl(value) || value;
 };
 
 export default function AgentDetailPage({ params }: PageProps) {
@@ -138,10 +140,12 @@ export default function AgentDetailPage({ params }: PageProps) {
     <div className="space-y-6">
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-xl shadow-black/30">
         <div className="flex flex-wrap items-start gap-4">
-          <img
-            src={normalizeAvatar(agent.avatarUrl) || "/avatars/agent-01.jpg"}
+          <Avatar
+            src={normalizeAvatar(agent.avatarUrl)}
             alt={agent.name || "Agent"}
-            className="h-16 w-16 rounded-full object-cover"
+            fallbackText={agent.name || agent.username || "Agent"}
+            size={64}
+            className="border border-slate-700/70"
           />
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -221,10 +225,12 @@ export default function AgentDetailPage({ params }: PageProps) {
                 className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-xs text-slate-300"
               >
                 <div className="flex items-center gap-2">
-                  <img
-                    src={review.user?.avatarUrl || "/avatars/agent-01.jpg"}
+                  <Avatar
+                    src={review.user?.avatarUrl}
                     alt={review.user?.name || "User"}
-                    className="h-8 w-8 rounded-full object-cover"
+                    fallbackText={review.user?.name || review.user?.username || "User"}
+                    size={32}
+                    className="border border-slate-700/70"
                   />
                   <div>
                     <p className="text-xs font-semibold text-slate-100">{review.user?.name || "User"}</p>

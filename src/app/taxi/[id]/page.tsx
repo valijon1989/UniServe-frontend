@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createTaxiOrder, getTaxiListing, type TaxiListing } from "@/api/taxi";
 import { useAuthStore } from "@/store/auth";
+import { Avatar } from "@/components/ui/Avatar";
 
 type RideTimeMode = "now" | "schedule";
 
@@ -152,17 +153,13 @@ export default function TaxiDetailPage() {
           )}
           {listing.agent?.name && (
             <div className="taxi-detail-subcard mt-5 flex items-center gap-3 p-3">
-              {listing.agent.avatarUrl ? (
-                <img
-                  src={listing.agent.avatarUrl}
-                  alt={listing.agent.name || "Agent"}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-xs text-slate-600">
-                  {listing.agent.name?.slice(0, 1) || "A"}
-                </div>
-              )}
+              <Avatar
+                src={listing.agent.avatarUrl}
+                alt={listing.agent.name || "Agent"}
+                fallbackText={listing.agent.name || "Agent"}
+                size={40}
+                className="border border-slate-300/60"
+              />
               <div>
                 <p className="text-sm font-semibold taxi-detail-heading">{listing.agent.name}</p>
                 <p className="text-xs taxi-detail-muted">E'lon egasi</p>
