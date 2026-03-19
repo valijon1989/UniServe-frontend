@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useI18n } from "@/context/i18n";
 import ProductCard from "@/components/ProductCard";
 import { ServiceCard } from "@/components/services/ServiceCard";
@@ -29,50 +31,39 @@ export function EventsSection({ saleProducts, saleServices, dealsCount }: Props)
   }, []);
 
   useEffect(() => {
-    let ctx: { revert: () => void } | undefined;
-    let mounted = true;
+    const scope = ref.current;
+    if (!scope) {
+      return;
+    }
 
-    const setup = async () => {
-      const gsap = (await import("gsap")).default;
-      const ScrollTrigger = (await import("gsap/ScrollTrigger")).default;
-      const scope = ref.current;
+    gsap.registerPlugin(ScrollTrigger);
 
-      if (!mounted || !scope) {
-        return;
-      }
+    const ctx = gsap.context(() => {
+      const cards = scope.querySelectorAll<HTMLElement>("[data-lag]");
+      cards.forEach((card) => {
+        const lag = parseFloat(card.dataset.lag || "0");
+        const shift = Math.min(1, Math.abs(lag) / 0.2) * 60; // px chegarasi
+        const direction = Math.sign(lag) || 1;
 
-      gsap.registerPlugin(ScrollTrigger);
-
-      ctx = gsap.context(() => {
-        const cards = scope.querySelectorAll<HTMLElement>("[data-lag]");
-        cards.forEach((card) => {
-          const lag = parseFloat(card.dataset.lag || "0");
-          const shift = Math.min(1, Math.abs(lag) / 0.2) * 60; // px chegarasi
-          const direction = Math.sign(lag) || 1;
-
-          gsap.fromTo(
-            card,
-            { y: -shift * direction },
-            {
-              y: shift * direction,
-              ease: "none",
-              scrollTrigger: {
-                trigger: scope,
-                start: "top bottom",
-                end: "bottom top",
-                scrub: true
-              }
+        gsap.fromTo(
+          card,
+          { y: -shift * direction },
+          {
+            y: shift * direction,
+            ease: "none",
+            scrollTrigger: {
+              trigger: scope,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: true
             }
-          );
-        });
-      }, scope);
-    };
-
-    setup();
+          }
+        );
+      });
+    }, scope);
 
     return () => {
-      mounted = false;
-      ctx?.revert();
+      ctx.revert();
     };
   }, []);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AgentQuickPreviewModal } from "@/components/agent-preview/AgentQuickPreviewModal";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
 
@@ -571,6 +572,9 @@ export function DeliveryServiceSection() {
       ko: "제한되는 화물 종류가 있나요?"
     }
   ];
+  const selectedAgentProfileHref = selectedAgent
+    ? `/agents?view=services&search=${encodeURIComponent(selectedAgent.name)}`
+    : "/agents?view=services";
 
   return (
     <div className="flex w-full flex-col gap-10">
@@ -1107,174 +1111,110 @@ export function DeliveryServiceSection() {
       </section>
 
       {selectedAgent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
-          <div className="w-full max-w-3xl rounded-3xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-800 px-6 py-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                  {selectedAgent.kind === "local" ? "Mahalliy agent" : "Xalqaro agent"}
-                </p>
-                <h3 className="mt-2 text-xl font-semibold">{selectedAgent.name}</h3>
-                <p className="text-sm text-slate-400">{t(selectedAgent.role)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseAgent}
-                className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300"
-              >
-                Yopish
-              </button>
+        <AgentQuickPreviewModal
+          open={Boolean(selectedAgent)}
+          onClose={handleCloseAgent}
+          eyebrow={selectedAgent.kind === "local" ? "Mahalliy agent" : "Xalqaro agent"}
+          name={selectedAgent.name}
+          specialty={t(selectedAgent.role)}
+          subtitle="Kimligi, asosiy route/value proposition'i va hozir qilinadigan keyingi actionlar uchun compact conversion bridge."
+          image={selectedAgent.image}
+          stats={[
+            { label: "Yo'nalish", value: t(selectedAgent.route), tone: "sky" },
+            { label: "Narx", value: t(selectedAgent.price), tone: "emerald" },
+            { label: "Baho", value: selectedAgent.rating, tone: "amber" }
+          ]}
+          trustBadges={[
+            ...selectedAgent.details.verified.map((item) => t(item)),
+            t(selectedAgent.details.transport),
+            t(selectedAgent.details.capacity),
+            t(selectedAgent.details.deliveryType)
+          ]}
+          offers={[
+            {
+              title: t(selectedAgent.route),
+              description: t(selectedAgent.details.transport),
+              meta: `${t(selectedAgent.details.capacity)} · ${t(selectedAgent.details.deliveryType)}`,
+              priceLabel: t(selectedAgent.price),
+              badge: selectedAgent.kind === "local" ? "Local" : "International"
+            },
+            ...selectedAgent.tags.slice(0, 2).map((tag, index) => ({
+              title: `${t(tag)} offer ${index + 1}`,
+              description: `${selectedAgent.name} uchun trust / capability preview`,
+              meta: t(selectedAgent.role),
+              priceLabel: selectedAgent.jobs,
+              badge: "Feature"
+            }))
+          ]}
+          actions={[
+            { key: "use", label: "Xizmatdan foydalanish", onClick: handleUseService, tone: "primary" },
+            { key: "message", label: "Xabar yozish", onClick: handleOpenChat, tone: "secondary" },
+            { key: "profile", label: "To'liq profilni ochish", href: selectedAgentProfileHref, tone: "ghost" },
+            { key: "dispute", label: "Nizo ochish", onClick: handleOpenDispute, tone: "danger" }
+          ]}
+        >
+          {notice ? (
+            <div className="rounded-[1.4rem] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
+              {notice}
             </div>
-            <div className="grid gap-6 px-6 py-5 md:grid-cols-[1.1fr_0.9fr]">
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border border-slate-800">
-                  <img
-                    src={selectedAgent.image}
-                    alt={selectedAgent.name}
-                    className="h-48 w-full object-cover"
-                  />
-                </div>
-                <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <span>Yo'nalish</span>
-                    <span className="text-slate-100">{t(selectedAgent.route)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Narx</span>
-                    <span className="text-emerald-200">{t(selectedAgent.price)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Baho</span>
-                    <span className="text-slate-100">{selectedAgent.rating}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Xizmatlar</span>
-                    <span className="text-slate-100">{selectedAgent.jobs}</span>
-                  </div>
-                </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedAgent.tags.map((tag, idx) => (
-                  <span key={`${selectedAgent.name}-tag-${idx}`} className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-200">
-                    {t(tag)}
-                  </span>
+          ) : null}
+
+          {showChat ? (
+            <div className="rounded-[1.6rem] border border-white/10 bg-slate-950/45 p-4 text-xs text-slate-300">
+              <p className="text-sm font-semibold text-slate-100">Ilova ichidagi chat</p>
+              <p className="mt-2 text-xs text-slate-400">
+                Narx yoki xizmat tafsilotlarini aniqlashtirish uchun agentga yozing.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {chatTemplates.map((template) => (
+                  <button
+                    key={template.uz}
+                    type="button"
+                    onClick={() => setMessageDraft(t(template))}
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
+                  >
+                    {t(template)}
+                  </button>
                 ))}
               </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                  <p className="text-sm font-semibold text-slate-100">Agent tafsilotlari</p>
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>Transport</span>
-                      <span className="text-slate-100">{t(selectedAgent.details.transport)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Sig'im</span>
-                      <span className="text-slate-100">{t(selectedAgent.details.capacity)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Yetkazish turi</span>
-                      <span className="text-slate-100">{t(selectedAgent.details.deliveryType)}</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedAgent.details.verified.map((item, idx) => (
-                      <span key={`${selectedAgent.name}-${idx}`} className="rounded-full bg-slate-800 px-2 py-1 text-[11px] text-slate-200">
-                        {t(item)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {notice && (
-                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
-                    {notice}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleUseService}
-                    className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
-                  >
-                    Xizmatdan foydalanish
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenChat}
-                    className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/40"
-                  >
-                    Xabarlashish
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenDispute}
-                    className="rounded-full border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
-                  >
-                    Nizo ochish
-                  </button>
-                </div>
-
-                {showChat && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                    <p className="text-sm font-semibold text-slate-100">Ilova ichidagi chat</p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      Narx yoki xizmat tafsilotlarini aniqlashtirish uchun agentga yozing.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {chatTemplates.map((template) => (
-                        <button
-                          key={template.uz}
-                          type="button"
-                          onClick={() => setMessageDraft(t(template))}
-                          className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
-                        >
-                          {t(template)}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      className="mt-3 min-h-[90px] w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"
-                      placeholder="Savolingizni yozing..."
-                      value={messageDraft}
-                      onChange={(event) => setMessageDraft(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="mt-3 w-full rounded-xl bg-emerald-400/90 py-2 text-xs font-semibold text-slate-950"
-                    >
-                      Xabar yuborish
-                    </button>
-                  </div>
-                )}
-
-                {showDispute && (
-                  <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-xs text-rose-100">
-                    <p className="text-sm font-semibold text-rose-100">Nizo ochish</p>
-                    <p className="mt-2 text-xs text-rose-100/80">
-                      Admin tekshiruviga yuborish uchun muammoni qisqacha yozing.
-                    </p>
-                    <textarea
-                      className="mt-3 min-h-[90px] w-full rounded-xl border border-rose-400/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-100"
-                      placeholder="Muammo tafsilotlarini kiriting..."
-                    />
-                    <button
-                      type="button"
-                      className="mt-3 w-full rounded-xl bg-rose-500/80 py-2 text-xs font-semibold text-rose-50"
-                    >
-                      Nizoni yuborish
-                    </button>
-                  </div>
-                )}
-              </div>
+              <textarea
+                className="mt-3 min-h-[90px] w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100"
+                placeholder="Savolingizni yozing..."
+                value={messageDraft}
+                onChange={(event) => setMessageDraft(event.target.value)}
+              />
+              <button
+                type="button"
+                className="mt-3 w-full rounded-xl bg-emerald-400/90 py-2 text-xs font-semibold text-slate-950"
+              >
+                Xabar yuborish
+              </button>
             </div>
-            <div className="border-t border-slate-800 px-6 py-4 text-[11px] text-slate-400">
-              Eslatma: Telefon raqami yoki telegram faqat muammo bo'lganda alohida so'rov bilan beriladi.
+          ) : null}
+
+          {showDispute ? (
+            <div className="rounded-[1.6rem] border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-100">
+              <p className="text-sm font-semibold text-rose-100">Nizo ochish</p>
+              <p className="mt-2 text-xs text-rose-100/80">
+                Admin tekshiruviga yuborish uchun muammoni qisqacha yozing.
+              </p>
+              <textarea
+                className="mt-3 min-h-[90px] w-full rounded-xl border border-rose-400/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-100"
+                placeholder="Muammo tafsilotlarini kiriting..."
+              />
+              <button
+                type="button"
+                className="mt-3 w-full rounded-xl bg-rose-500/80 py-2 text-xs font-semibold text-rose-50"
+              >
+                Nizoni yuborish
+              </button>
             </div>
+          ) : null}
+
+          <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 text-[11px] leading-5 text-slate-400">
+            Eslatma: Telefon raqami yoki telegram faqat muammo bo'lganda alohida so'rov bilan beriladi.
           </div>
-        </div>
+        </AgentQuickPreviewModal>
       )}
     </div>
   );

@@ -132,6 +132,11 @@ const makeCategorySet = (categoryId: string, label: string): ServiceImage[] =>
     alt: `${label} ${idx + 1}`
   }));
 
+const pickCategoryImages = (categoryId: string, label: string, start: number, count = 3): ServiceImage[] => {
+  const pool = makeCategorySet(categoryId, label);
+  return Array.from({ length: count }, (_, idx) => pool[(start + idx) % pool.length]);
+};
+
 const categoryImages: Record<string, ServiceImage[]> = {
   taxi: makeCategorySet("taxi", "Taxi xizmati"),
   delivery: makeCategorySet("delivery", "Yetkazib berish xizmati"),
@@ -169,10 +174,7 @@ const makeConsultingImages = (index: number): ServiceImage[] =>
   }));
 
 const makeTranslationImages = (index: number): ServiceImage[] =>
-  Array.from({ length: 3 }, (_, idx) => ({
-    src: `/services/translation/${String(index).padStart(2, "0")}-${idx + 1}.jpg`,
-    alt: `Tarjimonlik ${index} (${idx + 1})`
-  }));
+  pickCategoryImages("translation", `Tarjimonlik ${index}`, Math.max(0, (index - 1) * 3), 3);
 
 const makePsychologyImages = (index: number): ServiceImage[] => [
   {
@@ -201,8 +203,16 @@ const makeSportImages = (serviceId: string, label: string, count = 3): ServiceIm
     alt: `${label} ${idx + 1}`
   }));
 
+const AVATAR_POOL_SIZE = 30;
+
+const normalizeAvatarIndex = (value: number) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 1;
+  return ((Math.trunc(numeric) - 1) % AVATAR_POOL_SIZE) + 1;
+};
+
 const makeAvatar = (index: number, name: string): ServiceImage => ({
-  src: `/avatars/agent-${String(index).padStart(2, "0")}.jpg`,
+  src: `/avatars/agent-${String(normalizeAvatarIndex(index)).padStart(2, "0")}.jpg`,
   alt: `${name} avatar`
 });
 
@@ -327,156 +337,17 @@ const makeAgent = (
 let constructionImageCursor = 0;
 
 const constructionImageMap: Record<string, ServiceImage[]> = {
-  "construction-general": [
-    {
-      src: "/images/remote/remote-0106.jpg",
-      alt: "Qurilish umumiy 1"
-    },
-    {
-      src: "/images/remote/remote-0107.jpg",
-      alt: "Qurilish umumiy 2"
-    }
-  ],
-  "exterior-facade": [
-    {
-      src: "/images/remote/remote-0108.jpg",
-      alt: "Fasad ishlari 1"
-    },
-    {
-      src: "/images/remote/remote-0109.jpg",
-      alt: "Fasad ishlari 2"
-    },
-    {
-      src: "/images/remote/remote-0110.jpg",
-      alt: "Fasad ishlari 3"
-    }
-  ],
-  "exterior-concrete": [
-    {
-      src: "/images/remote/remote-0111.jpg",
-      alt: "Beton ishlari 1"
-    },
-    {
-      src: "/images/remote/remote-0112.jpg",
-      alt: "Beton ishlari 2"
-    },
-    {
-      src: "/images/remote/remote-0113.jpg",
-      alt: "Beton ishlari 3"
-    }
-  ],
-  "exterior-brick": [
-    {
-      src: "/images/remote/remote-0114.jpg",
-      alt: "G'isht terish 1"
-    },
-    {
-      src: "/images/remote/remote-0115.jpg",
-      alt: "G'isht terish 2"
-    },
-    {
-      src: "/images/remote/remote-0116.jpg",
-      alt: "G'isht terish 3"
-    }
-  ],
-  "exterior-roofing": [
-    {
-      src: "/images/remote/remote-0117.jpg",
-      alt: "Tom yopish 1"
-    },
-    {
-      src: "/images/remote/remote-0118.jpg",
-      alt: "Tom yopish 2"
-    },
-    {
-      src: "/images/remote/remote-0119.jpg",
-      alt: "Tom yopish 3"
-    }
-  ],
-  "exterior-roof-repair": [
-    {
-      src: "/images/remote/remote-0120.jpg",
-      alt: "Tom ta'mirlash 1"
-    },
-    {
-      src: "/images/remote/remote-0121.jpg",
-      alt: "Tom ta'mirlash 2"
-    },
-    {
-      src: "/images/remote/remote-0122.jpg",
-      alt: "Tom ta'mirlash 3"
-    }
-  ],
-  "interior-paint": [
-    {
-      src: "/images/remote/remote-0123.jpg",
-      alt: "Bo'yoqchilik 1"
-    },
-    {
-      src: "/images/remote/remote-0124.jpg",
-      alt: "Bo'yoqchilik 2"
-    },
-    {
-      src: "/images/remote/remote-0125.jpg",
-      alt: "Bo'yoqchilik 3"
-    }
-  ],
-  "interior-wallpaper": [
-    {
-      src: "/images/remote/remote-0126.jpg",
-      alt: "Gul qog'oz 1"
-    },
-    {
-      src: "/images/remote/remote-0127.jpg",
-      alt: "Gul qog'oz 2"
-    },
-    {
-      src: "/images/remote/remote-0128.jpg",
-      alt: "Gul qog'oz 3"
-    }
-  ],
-  "interior-design": [
-    {
-      src: "/images/remote/remote-0129.jpg",
-      alt: "Dizayner xizmati 1"
-    },
-    {
-      src: "/images/remote/remote-0130.jpg",
-      alt: "Dizayner xizmati 2"
-    },
-    {
-      src: "/images/remote/remote-0131.jpg",
-      alt: "Dizayner xizmati 3"
-    }
-  ],
-  "interior-doors-windows": [
-    {
-      src: "/images/remote/remote-0132.jpg",
-      alt: "Eshik va deraza romlari 1"
-    },
-    {
-      src: "/images/remote/remote-0133.jpg",
-      alt: "Eshik va deraza romlari 2"
-    },
-    {
-      src: "/images/remote/remote-0134.jpg",
-      alt: "Eshik va deraza romlari 3"
-    }
-  ],
-  "interior-ceiling": [
-    {
-      src: "/images/remote/remote-0135.jpg",
-      alt: "Shift ta'mirlash 1"
-    },
-    {
-      src: "/images/remote/remote-0136.jpg",
-      alt: "Shift ta'mirlash 2"
-    },
-    {
-      src: "/images/remote/remote-0137.jpg",
-      alt: "Shift ta'mirlash 3"
-    }
-  ]
+  "construction-general": pickCategoryImages("construction", "Qurilish umumiy", 0, 2),
+  "exterior-facade": pickCategoryImages("construction", "Fasad ishlari", 2),
+  "exterior-concrete": pickCategoryImages("construction", "Beton ishlari", 5),
+  "exterior-brick": pickCategoryImages("construction", "G'isht terish", 8),
+  "exterior-roofing": pickCategoryImages("construction", "Tom yopish", 11),
+  "exterior-roof-repair": pickCategoryImages("construction", "Tom ta'mirlash", 14),
+  "interior-paint": pickCategoryImages("construction", "Bo'yoqchilik", 17),
+  "interior-wallpaper": pickCategoryImages("construction", "Gul qog'oz", 20),
+  "interior-design": pickCategoryImages("construction", "Dizayner xizmati", 23),
+  "interior-doors-windows": pickCategoryImages("construction", "Eshik va deraza romlari", 26),
+  "interior-ceiling": pickCategoryImages("construction", "Shift ta'mirlash", 29)
 };
 
 const constructionImageCursorMap: Record<string, number> = {};

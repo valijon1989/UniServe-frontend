@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Listing } from "@/api/agent";
 import { useI18n } from "@/context/i18n";
 
 interface Props {
   onSubmit: (values: Listing) => Promise<void>;
   initial?: Listing | null;
+  submitLabel?: string;
+  onCancel?: () => void;
 }
 
 const emptyListing: Listing = {
@@ -18,11 +20,26 @@ const emptyListing: Listing = {
   imageUrl: ""
 };
 
-export function AgentListingForm({ onSubmit, initial }: Props) {
-  const [values, setValues] = useState<Listing>(initial || emptyListing);
+export function AgentListingForm({ onSubmit, initial, submitLabel, onCancel }: Props) {
+  const normalizedInitial = useMemo<Listing>(() => {
+    if (!initial) return emptyListing;
+    return {
+      ...emptyListing,
+      ...initial,
+      price: typeof initial.price === "number" ? initial.price : Number(initial.price || 0) || 0,
+      imageUrl: initial.imageUrl || initial.images?.[0]?.url || ""
+    };
+  }, [initial]);
+  const syncKey = initial?._id || initial?.id || "__new__";
+  const [values, setValues] = useState<Listing>(normalizedInitial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
+
+  useEffect(() => {
+    setValues(normalizedInitial);
+    setError(null);
+  }, [normalizedInitial, syncKey]);
 
   const handleChange = (field: keyof Listing, value: string | number) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -135,13 +152,25 @@ export function AgentListingForm({ onSubmit, initial }: Props) {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-2 w-full rounded-lg bg-sky-500 py-2 text-sm font-medium text-slate-950 shadow-lg shadow-sky-500/30 hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-600"
-      >
-        {loading ? t("form.saving") : t("form.save")}
-      </button>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex-1 rounded-lg bg-sky-500 py-2 text-sm font-medium text-slate-950 shadow-lg shadow-sky-500/30 hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-600"
+        >
+          {loading ? t("form.saving") : submitLabel || t("form.save")}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t({ en: "Cancel", uz: "Bekor qilish", ru: "Отмена", ko: "취소" })}
+          </button>
+        )}
+      </div>
     </form>
   );
 }

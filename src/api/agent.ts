@@ -22,13 +22,40 @@ const normalizeUserAvatar = <T extends { avatarUrl?: string } | undefined>(user:
 
 export interface Listing {
   _id?: string;
+  id?: string;
+  ownerId?: string;
   title: string;
   description: string;
   price: number;
   currency: string;
   category: string;
+  type?: string;
   imageUrl?: string;
-  status?: "ACTIVE" | "SOLD" | "ARCHIVED";
+  images?: Array<{ id?: string; url: string }>;
+  tags?: string[];
+  location?: string;
+  status?: ListingStatus;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+export type ListingStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED" | "SOLD";
+export type MyListingsSort = "updated" | "newest";
+
+export interface MyListingsParams {
+  status?: ListingStatus;
+  q?: string;
+  page?: number;
+  limit?: number;
+  sort?: MyListingsSort;
+}
+
+export interface MyListingsResponse {
+  items: Listing[];
+  page: number;
+  limit: number;
+  total: number;
 }
 
 export interface TopAgent {
@@ -252,19 +279,115 @@ export async function createAgentReview(
   return res.data;
 }
 
-export async function getMyListings(): Promise<Listing[]> {
-  const res = await api.get("/agent/listings");
-  return res.data.items || res.data;
+const normalizeListingStatus = (value: unknown): ListingStatus => {
+  if (typeof value !== "string") return "DRAFT";
+  const status = value.toUpperCase();
+  if (status === "ACTIVE" || status === "PAUSED" || status === "ARCHIVED" || status === "SOLD") {
+    return status;
+  }
+  return "DRAFT";
+};
+
+const normalizeListing = (item: any): Listing => {
+  const normalizedId = String(item?._id || item?.id || "");
+  const rawImages = Array.isArray(item?.images) ? item.images : [];
+  const normalizedImages = rawImages
+    .map((entry: any) => {
+      const rawUrl = typeof entry === "string" ? entry : entry?.url || entry?.src;
+      const normalizedUrl = normalizeMediaUrl(rawUrl);
+      if (!normalizedUrl) return null;
+      return {
+        id: typeof entry === "string" ? undefined : entry?.id || entry?._id,
+        url: normalizedUrl
+      };
+    })
+    .filter(Boolean) as Array<{ id?: string; url: string }>;
+  const fallbackImage = normalizeMediaUrl(
+    item?.imageUrl || item?.image || item?.coverImageUrl || item?.coverImage || rawImages[0]?.url || rawImages[0]
+  );
+  const imageUrl = fallbackImage || normalizedImages[0]?.url || "";
+
+  return {
+    ...item,
+    _id: normalizedId || undefined,
+    id: normalizedId || undefined,
+    title: typeof item?.title === "string" ? item.title : "",
+    description: typeof item?.description === "string" ? item.description : "",
+    price: typeof item?.price === "number" ? item.price : Number(item?.price || 0) || 0,
+    currency: typeof item?.currency === "string" && item.currency.trim() ? item.currency : "USD",
+    category:
+      (typeof item?.category === "string" && item.category.trim()) ||
+      (typeof item?.type === "string" && item.type.trim()) ||
+      "SERVICE",
+    imageUrl,
+    images: normalizedImages.length ? normalizedImages : imageUrl ? [{ url: imageUrl }] : [],
+    status: normalizeListingStatus(item?.status)
+  };
+};
+
+const extractListingsPayload = (payload: any) => {
+  if (!payload) {
+    return { rawItems: [], page: 1, limit: 12, total: 0 };
+  }
+  const rawItems =
+    payload.items ||
+    payload.listings?.items ||
+    payload.listings ||
+    payload.data?.items ||
+    payload.data?.listings ||
+    payload.data ||
+    [];
+  const page = Number(payload.page || payload.pagination?.page || payload.meta?.page || payload.data?.page || 1) || 1;
+  const limit =
+    Number(payload.limit || payload.pagination?.limit || payload.meta?.limit || payload.data?.limit || 12) || 12;
+  const total =
+    Number(payload.total || payload.pagination?.total || payload.meta?.total || payload.count || rawItems.length) || 0;
+  return {
+    rawItems: Array.isArray(rawItems) ? rawItems : [],
+    page,
+    limit,
+    total
+  };
+};
+
+const isHttpErrorWithStatus = (error: unknown, statuses: number[]) => {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return typeof status === "number" && statuses.includes(status);
+};
+
+export async function getMyListings(params: MyListingsParams = {}): Promise<MyListingsResponse> {
+  const res = await api.get("/agent/listings", { params });
+  const payload = extractListingsPayload(res.data || {});
+  const items = payload.rawItems.map((item: any) => normalizeListing(item));
+  return {
+    items,
+    page: payload.page,
+    limit: payload.limit,
+    total: payload.total
+  };
 }
 
 export async function createListing(input: Listing): Promise<Listing> {
   const res = await api.post("/agent/listings", input);
-  return res.data;
+  return normalizeListing(res.data?.item || res.data?.listing || res.data);
 }
 
 export async function updateListing(id: string, input: Partial<Listing>): Promise<Listing> {
-  const res = await api.put(`/agent/listings/${id}`, input);
-  return res.data;
+  try {
+    const res = await api.patch(`/agent/listings/${id}`, input);
+    return normalizeListing(res.data?.item || res.data?.listing || res.data);
+  } catch (error) {
+    if (!isHttpErrorWithStatus(error, [404, 405])) {
+      throw error;
+    }
+    const res = await api.put(`/agent/listings/${id}`, input);
+    return normalizeListing(res.data?.item || res.data?.listing || res.data);
+  }
+}
+
+export async function updateListingStatus(id: string, status: ListingStatus): Promise<Listing> {
+  const res = await api.patch(`/agent/listings/${id}/status`, { status });
+  return normalizeListing(res.data?.item || res.data?.listing || res.data);
 }
 
 export async function deleteListing(id: string): Promise<void> {

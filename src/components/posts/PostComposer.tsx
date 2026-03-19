@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { CreateFeedInput } from "@/api/feed";
+import { useI18n } from "@/context/i18n";
 
 const MAX_FILES = 4;
 const MAX_FILE_SIZE_MB = 20;
@@ -17,7 +18,7 @@ interface PostComposerProps {
   pending?: boolean;
 }
 
-const readApiErrorMessage = (error: any) => {
+const readApiErrorMessage = (error: any, fallbackMessage: string) => {
   const data = error?.response?.data;
   if (typeof data === "string" && data.trim()) return data.trim();
   if (data && typeof data.message === "string" && data.message.trim()) return data.message.trim();
@@ -26,7 +27,7 @@ const readApiErrorMessage = (error: any) => {
     if (typeof first === "string") return first.trim();
   }
   if (typeof error?.message === "string" && error.message.trim()) return error.message.trim();
-  return "Post joylashda xatolik yuz berdi.";
+  return fallbackMessage;
 };
 
 const filePreviewKind = (file: File) => {
@@ -35,6 +36,7 @@ const filePreviewKind = (file: File) => {
 };
 
 export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [text, setText] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -63,7 +65,14 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
     const incoming = Array.from(fileList);
     const oversized = incoming.find((item) => item.size > MAX_FILE_SIZE_MB * 1024 * 1024);
     if (oversized) {
-      setError(`Har bir fayl ${MAX_FILE_SIZE_MB}MB dan kichik bo'lishi kerak.`);
+      setError(
+        t({
+          en: `Each file must be smaller than ${MAX_FILE_SIZE_MB}MB.`,
+          uz: `Har bir fayl ${MAX_FILE_SIZE_MB}MB dan kichik bo'lishi kerak.`,
+          ru: `Каждый файл должен быть меньше ${MAX_FILE_SIZE_MB} МБ.`,
+          ko: `각 파일은 ${MAX_FILE_SIZE_MB}MB보다 작아야 합니다.`
+        })
+      );
       return;
     }
 
@@ -97,7 +106,14 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
     const cleanLink = linkUrl.trim();
 
     if (!cleanText && !cleanLink && files.length === 0) {
-      setError("Kamida matn, link yoki media qo'shing.");
+      setError(
+        t({
+          en: "Add at least text, a link, or media.",
+          uz: "Kamida matn, link yoki media qo'shing.",
+          ru: "Добавьте хотя бы текст, ссылку или медиа.",
+          ko: "텍스트, 링크 또는 미디어를 하나 이상 추가하세요."
+        })
+      );
       return;
     }
 
@@ -110,21 +126,50 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
       });
       clearComposer();
     } catch (submitError) {
-      setError(readApiErrorMessage(submitError));
+      setError(
+        readApiErrorMessage(
+          submitError,
+          t({
+            en: "Unable to publish the post.",
+            uz: "Post joylashda xatolik yuz berdi.",
+            ru: "Не удалось опубликовать пост.",
+            ko: "게시물을 업로드하지 못했습니다."
+          })
+        )
+      );
     }
   };
 
   return (
     <section className="space-y-3 rounded-3xl border border-slate-800 bg-slate-950/75 p-4 shadow-lg shadow-black/25">
       <div>
-        <p className="text-sm font-semibold text-slate-100">Yangi post</p>
-        <p className="text-xs text-slate-400">Matn, havola, rasm yoki video joylashingiz mumkin.</p>
+        <p className="text-sm font-semibold text-slate-100">
+          {t({
+            en: "New post",
+            uz: "Yangi post",
+            ru: "Новый пост",
+            ko: "새 게시물"
+          })}
+        </p>
+        <p className="text-xs text-slate-400">
+          {t({
+            en: "You can post text, a link, an image, or a video.",
+            uz: "Matn, havola, rasm yoki video joylashingiz mumkin.",
+            ru: "Вы можете опубликовать текст, ссылку, изображение или видео.",
+            ko: "텍스트, 링크, 이미지 또는 동영상을 게시할 수 있습니다."
+          })}
+        </p>
       </div>
 
       <textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
-        placeholder="Nima yangilik?"
+        placeholder={t({
+          en: "What's new?",
+          uz: "Nima yangilik?",
+          ru: "Что нового?",
+          ko: "무슨 소식이 있나요?"
+        })}
         className="h-28 w-full rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm text-slate-100 outline-none ring-1 ring-transparent transition focus:border-sky-500/70 focus:ring-sky-500/30"
       />
 
@@ -141,7 +186,12 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
           disabled={remainingSlots === 0 || pending}
           className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-500/60 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Media yuklash
+          {t({
+            en: "Upload media",
+            uz: "Media yuklash",
+            ru: "Загрузить медиа",
+            ko: "미디어 업로드"
+          })}
         </button>
         <input
           ref={fileInputRef}
@@ -154,7 +204,12 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
       </div>
 
       <p className="text-xs text-slate-400">
-        {usedSlots}/{MAX_FILES} media. Har bir fayl {MAX_FILE_SIZE_MB}MB gacha.
+        {t({
+          en: `${usedSlots}/${MAX_FILES} media. Up to ${MAX_FILE_SIZE_MB}MB per file.`,
+          uz: `${usedSlots}/${MAX_FILES} media. Har bir fayl ${MAX_FILE_SIZE_MB}MB gacha.`,
+          ru: `${usedSlots}/${MAX_FILES} медиа. До ${MAX_FILE_SIZE_MB} МБ на файл.`,
+          ko: `${usedSlots}/${MAX_FILES}개 미디어. 파일당 최대 ${MAX_FILE_SIZE_MB}MB.`
+        })}
       </p>
 
       {files.length > 0 && (
@@ -170,7 +225,12 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
                 type="button"
                 onClick={() => handleRemoveFile(item.id)}
                 className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] text-white"
-                aria-label="Remove media"
+                aria-label={t({
+                  en: "Remove media",
+                  uz: "Mediani olib tashlash",
+                  ru: "Удалить медиа",
+                  ko: "미디어 제거"
+                })}
               >
                 ✕
               </button>
@@ -189,7 +249,19 @@ export function PostComposer({ onSubmit, pending = false }: PostComposerProps) {
           disabled={!canPublish}
           className="rounded-xl bg-sky-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Joylanmoqda..." : "Post joylash"}
+          {pending
+            ? t({
+                en: "Publishing...",
+                uz: "Joylanmoqda...",
+                ru: "Публикуется...",
+                ko: "게시 중..."
+              })
+            : t({
+                en: "Publish post",
+                uz: "Post joylash",
+                ru: "Опубликовать пост",
+                ko: "게시물 올리기"
+              })}
         </button>
       </div>
     </section>

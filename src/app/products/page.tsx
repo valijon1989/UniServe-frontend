@@ -1,12 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CatalogTopbar } from "@/components/CatalogTopbar";
 import Pagination from "@/components/Pagination";
 import ProductCard from "@/components/ProductCard";
-import { Spinner } from "@/components/shared/Spinner";
+import { ProductCardSkeleton } from "@/components/product-card/ProductCardSkeleton";
+import { ProductGrid } from "@/components/ProductGrid";
 import { useProducts } from "@/hooks/useProducts";
 import CategoriesSidebar from "@/components/CategoriesSidebar";
 import type { Product } from "@/api/products";
+import { getShopCategoryMeta, resolveShopCategorySlug } from "@/data/shopTaxonomy";
+import { useI18n } from "@/context/i18n";
+import { resolveLocalizedText } from "@/lib/localization";
 
 const PRODUCT_IMAGE_POOL_SIZE = 36;
 const DELIVERY_OPTIONS = [
@@ -14,6 +19,26 @@ const DELIVERY_OPTIONS = [
   { key: "tomorrow", label: "Ertaga" },
   { key: "standard", label: "Oddiy" }
 ];
+
+type QuickFiltersState = {
+  priceMin: string;
+  priceMax: string;
+  brand: string;
+  rating45: boolean;
+  delivery: "any" | "fast" | "tomorrow" | "standard";
+  inStock: boolean;
+  condition: "any" | "new" | "used";
+};
+
+const DEFAULT_QUICK_FILTERS: QuickFiltersState = {
+  priceMin: "",
+  priceMax: "",
+  brand: "",
+  rating45: false,
+  delivery: "any",
+  inStock: false,
+  condition: "any"
+};
 
 const hashString = (value: string) => {
   let hash = 0;
@@ -62,6 +87,7 @@ const withProductImages = (
   );
 
 export default function ProductsPage() {
+  const { t, language } = useI18n();
   const {
     items,
     loading,
@@ -77,15 +103,7 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState<
     "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest"
   >("relevance");
-  const [quickFilters, setQuickFilters] = useState({
-    priceMin: "",
-    priceMax: "",
-    brand: "",
-    rating45: false,
-    delivery: "any",
-    inStock: false,
-    condition: "any"
-  });
+  const [quickFilters, setQuickFilters] = useState<QuickFiltersState>({ ...DEFAULT_QUICK_FILTERS });
   const [fastOnly, setFastOnly] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
@@ -95,9 +113,40 @@ export default function ProductsPage() {
   };
 
   const handleCategorySelect = (slug: string) => {
-    setFilters({ ...filters, category: slug });
+    const nextCategory = resolveShopCategorySlug(slug);
+    setFilters({ ...filters, category: nextCategory === "all" ? "" : nextCategory });
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
+
+  const resetCategoryPanels = () => {
+    setFoodSubcategory(null);
+    setBeautySubcategory(null);
+    setBeautyFilters({ brand: "", audience: "any" });
+    setElectronicsSubcategory(null);
+    setElectronicsFilters({ brand: "", condition: "any" });
+    setAutoSubcategory(null);
+    setAutoFilters({ brand: "", condition: "any" });
+    setHomeSubcategory(null);
+    setHomeFilters({ brand: "", condition: "any" });
+    setClothingSubcategory(null);
+    setClothingFilters({ brand: "", size: "any", season: "any" });
+  };
+
+  const resetQuickFilterState = () => {
+    setQuickFilters({ ...DEFAULT_QUICK_FILTERS });
+    setFastOnly(false);
+    setSearchQuery("");
+  };
+
+  const clearAllListingFilters = () => {
+    resetQuickFilterState();
+    resetCategoryPanels();
+    setFilters((prev) => ({ ...prev, category: "" }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const activeCategory = resolveShopCategorySlug(filters.category);
+  const activeCategoryMeta = getShopCategoryMeta(activeCategory);
 
   const [foodSubcategory, setFoodSubcategory] = useState<string | null>(null);
   const [foodFilters, setFoodFilters] = useState<{
@@ -109,7 +158,7 @@ export default function ProductsPage() {
     brand: "",
     condition: "any"
   });
-  const isFoodCategory = filters.category === "oziq-ovqat";
+  const isFoodCategory = activeCategory === "food";
 
   const [beautySubcategory, setBeautySubcategory] = useState<string | null>(null);
   const [beautyFilters, setBeautyFilters] = useState<{
@@ -121,7 +170,7 @@ export default function ProductsPage() {
     brand: "",
     audience: "any"
   });
-  const isBeautyCategory = filters.category === "gozallik";
+  const isBeautyCategory = activeCategory === "beauty";
 
   const [electronicsSubcategory, setElectronicsSubcategory] = useState<string | null>(null);
   const [electronicsFilters, setElectronicsFilters] = useState<{
@@ -133,7 +182,7 @@ export default function ProductsPage() {
     brand: "",
     condition: "any"
   });
-  const isElectronicsCategory = filters.category === "elektronika";
+  const isElectronicsCategory = activeCategory === "electronics";
 
   const [autoSubcategory, setAutoSubcategory] = useState<string | null>(null);
   const [autoFilters, setAutoFilters] = useState<{
@@ -145,7 +194,7 @@ export default function ProductsPage() {
     brand: "",
     condition: "any"
   });
-  const isAutoCategory = filters.category === "avto-texnika";
+  const isAutoCategory = activeCategory === "auto-tech";
 
   const [homeSubcategory, setHomeSubcategory] = useState<string | null>(null);
   const [homeFilters, setHomeFilters] = useState<{
@@ -157,7 +206,7 @@ export default function ProductsPage() {
     brand: "",
     condition: "any"
   });
-  const isHomeCategory = filters.category === "maishiy-uskunalar";
+  const isHomeCategory = activeCategory === "home-appliances";
 
   const [clothingSubcategory, setClothingSubcategory] = useState<string | null>(null);
   const [clothingFilters, setClothingFilters] = useState<{
@@ -171,7 +220,7 @@ export default function ProductsPage() {
     size: "any",
     season: "any"
   });
-  const isClothingCategory = filters.category === "kiyim-kechak";
+  const isClothingCategory = activeCategory === "fashion";
 
   const foodSubcategories = [
     { key: "tayyor", label: "Tayyor mahsulotlar" },
@@ -1891,60 +1940,191 @@ export default function ProductsPage() {
           : isClothingCategory
             ? false
             : showElectronicsStub
-              ? false
-              : loading;
-  const headerBgOverride = isElectronicsCategory
-    ? "linear-gradient(90deg, rgba(18,46,89,0.85), rgba(29,78,216,0.7)), url('/images/products/all-products-banner.svg')"
-    : "linear-gradient(90deg, rgba(12,12,12,0.70), rgba(0,0,0,0.45)), url('/images/products/all-products-banner.svg')";
+        ? false
+        : loading;
+
+  const sortOptions: Array<{
+    value: "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest";
+    label: string;
+  }> = [
+    { value: "relevance", label: t({ en: "Best match", uz: "Eng mos", ru: "Лучшее совпадение", ko: "가장 관련도 높음" }) },
+    { value: "bestseller", label: t({ en: "Best seller", uz: "Eng ko'p sotilgan", ru: "Хиты продаж", ko: "베스트셀러" }) },
+    { value: "toprated", label: t({ en: "Top rated", uz: "Eng yuqori baholangan", ru: "С высоким рейтингом", ko: "평점 높은 순" }) },
+    { value: "priceLow", label: t({ en: "Price: low to high", uz: "Arzon → qimmat", ru: "Цена: по возрастанию", ko: "가격 낮은 순" }) },
+    { value: "priceHigh", label: t({ en: "Price: high to low", uz: "Qimmat → arzon", ru: "Цена: по убыванию", ko: "가격 높은 순" }) },
+    { value: "newest", label: t({ en: "Newest", uz: "Yangi kelgan", ru: "Новые", ko: "최신순" }) }
+  ];
+
+  const formatVisibleCount = (value: number) => new Intl.NumberFormat(language === "ko" ? "ko-KR" : language).format(value);
+  const visibleCount = sortedDisplayItems.length;
+  const resultCountText = t({
+    en: `${formatVisibleCount(visibleCount)} products`,
+    uz: `${formatVisibleCount(visibleCount)} ta mahsulot`,
+    ru: `${formatVisibleCount(visibleCount)} товаров`,
+    ko: `${formatVisibleCount(visibleCount)}개 상품`
+  });
+
+  const deliveryFilterLabel =
+    quickFilters.delivery === "fast"
+      ? t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })
+      : quickFilters.delivery === "tomorrow"
+        ? t({ en: "Tomorrow delivery", uz: "Ertaga yetkazish", ru: "Доставка завтра", ko: "내일 배송" })
+        : quickFilters.delivery === "standard"
+          ? t({ en: "Standard delivery", uz: "Standart yetkazish", ru: "Стандартная доставка", ko: "일반 배송" })
+          : "";
+
+  const conditionFilterLabel =
+    quickFilters.condition === "new"
+      ? t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })
+      : quickFilters.condition === "used"
+        ? t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })
+        : "";
+
+  const activeFilters = [
+    activeCategory !== "all"
+      ? {
+          key: "category",
+          label: `${t({ en: "Category", uz: "Kategoriya", ru: "Категория", ko: "카테고리" })}: ${resolveLocalizedText(activeCategoryMeta.label, language)}`
+        }
+      : null,
+    searchQuery.trim()
+      ? {
+          key: "search",
+          label: `${t({ en: "Search", uz: "Qidiruv", ru: "Поиск", ko: "검색" })}: ${searchQuery.trim()}`
+        }
+      : null,
+    fastOnly
+      ? {
+          key: "fast-only",
+          label: t({ en: "Fast shipping only", uz: "Faqat tez yetkazish", ru: "Только быстрая доставка", ko: "빠른 배송만" })
+        }
+      : null,
+    quickFilters.priceMin || quickFilters.priceMax
+      ? {
+          key: "price",
+          label: t({
+            en: `Price: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Any"}`,
+            uz: `Narx: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Ixtiyoriy"}`,
+            ru: `Цена: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Любая"}`,
+            ko: `가격: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "전체"}`
+          })
+        }
+      : null,
+    quickFilters.brand
+      ? {
+          key: "brand",
+          label: `${t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}: ${quickFilters.brand}`
+        }
+      : null,
+    quickFilters.rating45
+      ? {
+          key: "rating",
+          label: t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })
+        }
+      : null,
+    quickFilters.inStock
+      ? {
+          key: "stock",
+          label: t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })
+        }
+      : null,
+    deliveryFilterLabel
+      ? {
+          key: "delivery",
+          label: deliveryFilterLabel
+        }
+      : null,
+    conditionFilterLabel
+      ? {
+          key: "condition",
+          label: `${t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}: ${conditionFilterLabel}`
+        }
+      : null
+  ].filter((chip): chip is { key: string; label: string } => Boolean(chip));
+
+  const headerBgOverride = useMemo(() => {
+    switch (activeCategory) {
+      case "electronics":
+        return "linear-gradient(135deg, rgba(8,47,73,0.96), rgba(14,116,144,0.92) 52%, rgba(59,130,246,0.82))";
+      case "food":
+        return "linear-gradient(135deg, rgba(17,94,89,0.96), rgba(22,163,74,0.88) 50%, rgba(163,230,53,0.7))";
+      case "beauty":
+        return "linear-gradient(135deg, rgba(131,24,67,0.95), rgba(225,29,72,0.84) 50%, rgba(251,113,133,0.72))";
+      case "auto-tech":
+        return "linear-gradient(135deg, rgba(30,41,59,0.96), rgba(71,85,105,0.9) 48%, rgba(245,158,11,0.72))";
+      case "home-appliances":
+        return "linear-gradient(135deg, rgba(88,28,135,0.95), rgba(147,51,234,0.82) 48%, rgba(236,72,153,0.72))";
+      case "fashion":
+        return "linear-gradient(135deg, rgba(76,5,25,0.96), rgba(190,24,93,0.84) 48%, rgba(251,146,60,0.72))";
+      default:
+        return "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92) 48%, rgba(16,185,129,0.76))";
+    }
+  }, [activeCategory]);
 
   const surfaceBg = useMemo(() => {
-    switch (filters.category) {
-      case "oziq-ovqat":
+    switch (activeCategory) {
+      case "food":
         return "linear-gradient(180deg, #e8f7ec 0%, #f6fff9 100%)";
-      case "elektronika":
+      case "electronics":
         return "linear-gradient(180deg, #e8f2ff 0%, #f6fbff 100%)";
-      case "gozallik":
+      case "beauty":
         return "linear-gradient(180deg, #fde7f3 0%, #fff5fb 100%)";
-      case "avto-texnika":
+      case "auto-tech":
         return "linear-gradient(180deg, #e8ecf3 0%, #f7f9fc 100%)";
-      case "maishiy-uskunalar":
+      case "home-appliances":
         return "linear-gradient(180deg, #f4fbda 0%, #fcfff0 100%)";
-      case "kiyim-kechak":
+      case "fashion":
         return "linear-gradient(180deg, #fff0f5 0%, #fff8fb 100%)";
       default:
         return "linear-gradient(180deg, #f9fafb 0%, #ffffff 100%)";
     }
-  }, [filters.category]);
+  }, [activeCategory]);
   const topSearchTags = ["CarPlay", "SSD", "HDMI", "Powerbank", "iPhone case", "Adapter"];
-  const categoryQuick = [
-    { key: "elektronika", label: "IT/Elektronika", icon: "💻" },
-    { key: "avto-texnika", label: "Avto aksessuar", icon: "🚗" },
-    { key: "elektronika", label: "Telefon aksessuar", icon: "📱" },
-    { key: "elektronika", label: "Kompyuter", icon: "🖥️" },
-    { key: "elektronika", label: "Audio", icon: "🎧" },
-    { key: "maishiy-uskunalar", label: "Home tech", icon: "🏠" }
-  ];
+  const categoryQuick = useMemo(
+    () => [
+      { key: "electronics", icon: "💻", label: resolveLocalizedText(getShopCategoryMeta("electronics").label, language) },
+      { key: "auto-tech", icon: "🚗", label: resolveLocalizedText(getShopCategoryMeta("auto-tech").label, language) },
+      { key: "home-appliances", icon: "🏠", label: resolveLocalizedText(getShopCategoryMeta("home-appliances").label, language) },
+      { key: "fashion", icon: "👟", label: resolveLocalizedText(getShopCategoryMeta("fashion").label, language) },
+      { key: "beauty", icon: "✨", label: resolveLocalizedText(getShopCategoryMeta("beauty").label, language) },
+      { key: "food", icon: "🥗", label: resolveLocalizedText(getShopCategoryMeta("food").label, language) }
+    ],
+    [language]
+  );
 
   return (
-    <div className="space-y-5" style={{ backgroundImage: surfaceBg, borderRadius: "24px", padding: "12px" }}>
+    <div className="mx-auto max-w-[1440px] space-y-6" style={{ backgroundImage: surfaceBg, borderRadius: "28px", padding: "16px" }}>
       <div className="sticky top-0 z-40 rounded-2xl border border-slate-200 bg-white/90 px-4 py-4 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1">
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Mahsulot qidiring (adapter, SSD, iPhone case...)"
+              placeholder={t({
+                en: "Search products (adapter, SSD, iPhone case...)",
+                uz: "Mahsulot qidiring (adapter, SSD, iPhone case...)",
+                ru: "Ищите товары (adapter, SSD, iPhone case...)",
+                ko: "상품 검색 (adapter, SSD, iPhone case...)"
+              })}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
             />
           </div>
           <div className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Xavfsiz to‘lov</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">Qaytarish oson</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1">Tez yetkazish</span>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
+              {t({ en: "Secure payment", uz: "Xavfsiz to'lov", ru: "Безопасная оплата", ko: "안전 결제" })}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1">
+              {t({ en: "Easy returns", uz: "Qaytarish oson", ru: "Легкий возврат", ko: "쉬운 반품" })}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1">
+              {t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })}
+            </span>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-          <span className="text-slate-400">Top search:</span>
+          <span className="text-slate-400">
+            {t({ en: "Top search:", uz: "Top qidiruv:", ru: "Популярный поиск:", ko: "인기 검색:" })}
+          </span>
           {topSearchTags.map((tag) => (
             <button
               key={tag}
@@ -1960,7 +2140,7 @@ export default function ProductsPage() {
             onClick={() => setFastOnly((prev) => !prev)}
             className={`rounded-full px-3 py-1 ${fastOnly ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
           >
-            Tez yetkazish
+            {t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })}
           </button>
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -1981,41 +2161,49 @@ export default function ProductsPage() {
       </div>
 
       <header
-        className="rounded-3xl px-6 py-8 text-white shadow-lg"
+        className="rounded-[2rem] px-7 py-9 text-white shadow-lg"
         style={{
           backgroundImage: headerBgOverride,
           backgroundSize: "cover",
           backgroundPosition: "center"
         }}
       >
-        <p className="text-sm uppercase tracking-[0.15em]">UniServe · Marketplace</p>
-        <h1 className="mt-2 text-3xl font-extrabold">Mahsulotlar</h1>
-        <p className="mt-1 max-w-2xl text-sm text-emerald-50">
-          Narx + reyting + yetkazish signalini bir qarashda ko‘rsatadigan Coupang uslubidagi katalog.
+        <p className="text-sm uppercase tracking-[0.15em]">
+          {t({ en: "UniServe · Marketplace", uz: "UniServe · Marketplace", ru: "UniServe · Marketplace", ko: "UniServe · Marketplace" })}
+        </p>
+        <h1 className="mt-2 text-3xl font-extrabold">
+          {resolveLocalizedText(activeCategoryMeta.heroTitle, language)}
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-100/90">
+          {resolveLocalizedText(activeCategoryMeta.heroSubtitle, language)}
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-emerald-50/90">
-          <span className="rounded-full bg-white/20 px-3 py-1">Xavfsiz to‘lov</span>
-          <span className="rounded-full bg-white/20 px-3 py-1">Qaytarish oson</span>
-          <span className="rounded-full bg-white/20 px-3 py-1">Tez yetkazish</span>
+          {activeCategoryMeta.filterTags.map((tag) => (
+            <span key={resolveLocalizedText(tag, language)} className="rounded-full bg-white/15 px-3 py-1">
+              {resolveLocalizedText(tag, language)}
+            </span>
+          ))}
         </div>
       </header>
 
       <div className="products-layout">
         <div className="sidebar-stack">
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-            <p className="text-sm font-semibold text-slate-900">Tezkor filtrlar</p>
+            <p className="text-sm font-semibold text-slate-900">
+              {t({ en: "Quick filters", uz: "Tezkor filtrlar", ru: "Быстрые фильтры", ko: "빠른 필터" })}
+            </p>
             <div className="mt-3 grid gap-3 text-xs text-slate-600">
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  placeholder="Min narx"
+                  placeholder={t({ en: "Min price", uz: "Min narx", ru: "Мин цена", ko: "최소 가격" })}
                   value={quickFilters.priceMin}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 />
                 <input
                   type="number"
-                  placeholder="Max narx"
+                  placeholder={t({ en: "Max price", uz: "Max narx", ru: "Макс цена", ko: "최대 가격" })}
                   value={quickFilters.priceMax}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2023,7 +2211,7 @@ export default function ProductsPage() {
               </div>
               <input
                 type="text"
-                placeholder="Brend"
+                placeholder={t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}
                 value={quickFilters.brand}
                 onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
                 className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2034,7 +2222,7 @@ export default function ProductsPage() {
                   checked={quickFilters.rating45}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
                 />
-                4.5+ reyting
+                {t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -2042,63 +2230,53 @@ export default function ProductsPage() {
                   checked={quickFilters.inStock}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
                 />
-                Omborda
+                {t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })}
               </label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <select
                   value={quickFilters.delivery}
-                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, delivery: e.target.value }))}
+                  onChange={(e) =>
+                    setQuickFilters((prev) => ({
+                      ...prev,
+                      delivery: e.target.value as QuickFiltersState["delivery"]
+                    }))
+                  }
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 >
-                  <option value="any">Yetkazish</option>
-                  <option value="fast">Tez</option>
-                  <option value="tomorrow">Ertaga</option>
-                  <option value="standard">Oddiy</option>
+                  <option value="any">{t({ en: "Delivery", uz: "Yetkazish", ru: "Доставка", ko: "배송" })}</option>
+                  <option value="fast">{t({ en: "Fast", uz: "Tez", ru: "Быстрая", ko: "빠름" })}</option>
+                  <option value="tomorrow">{t({ en: "Tomorrow", uz: "Ertaga", ru: "Завтра", ko: "내일" })}</option>
+                  <option value="standard">{t({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "표준" })}</option>
                 </select>
                 <select
                   value={quickFilters.condition}
-                  onChange={(e) => setQuickFilters((prev) => ({ ...prev, condition: e.target.value }))}
+                  onChange={(e) =>
+                    setQuickFilters((prev) => ({
+                      ...prev,
+                      condition: e.target.value as QuickFiltersState["condition"]
+                    }))
+                  }
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 >
-                  <option value="any">Condition</option>
-                  <option value="new">Yangi</option>
-                  <option value="used">Used</option>
+                  <option value="any">{t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}</option>
+                  <option value="new">{t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })}</option>
+                  <option value="used">{t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })}</option>
                 </select>
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setQuickFilters({
-                    priceMin: "",
-                    priceMax: "",
-                    brand: "",
-                    rating45: false,
-                    delivery: "any",
-                    inStock: false,
-                    condition: "any"
-                  })
-                }
+                onClick={resetQuickFilterState}
                 className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-600"
               >
-                Filtrlarni tiklash
+                {t({ en: "Clear filters", uz: "Filtrlarni tiklash", ru: "Сбросить фильтры", ko: "필터 초기화" })}
               </button>
             </div>
           </div>
           <CategoriesSidebar
-            selected={filters.category}
+            selected={activeCategory}
             onSelect={(slug) => {
               handleCategorySelect(slug);
-              setFoodSubcategory(null);
-              setBeautySubcategory(null);
-              setBeautyFilters({ brand: "", audience: "any" });
-              setElectronicsSubcategory(null);
-              setElectronicsFilters({ brand: "", condition: "any" });
-              setAutoSubcategory(null);
-              setAutoFilters({ brand: "", condition: "any" });
-              setHomeSubcategory(null);
-              setHomeFilters({ brand: "", condition: "any" });
-              setClothingSubcategory(null);
-              setClothingFilters({ brand: "", size: "any", season: "any" });
+              resetCategoryPanels();
             }}
           />
 
@@ -2717,73 +2895,116 @@ export default function ProductsPage() {
           )}
         </div>
 
-        <div className="products-main">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-xs text-slate-600">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-100 px-3 py-1">Sort</span>
-              <select
-                value={sortBy}
-                onChange={(e) =>
-                  setSortBy(
-                    e.target.value as "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest"
-                  )
-                }
-                className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
-              >
-                <option value="relevance">Eng mos</option>
-                <option value="bestseller">Eng ko‘p sotilgan</option>
-                <option value="toprated">Eng yuqori baholangan</option>
-                <option value="priceLow">Arzon → qimmat</option>
-                <option value="priceHigh">Qimmat → arzon</option>
-                <option value="newest">Yangi kelgan</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">
-                {sortedDisplayItems.length} ta mahsulot
-              </span>
-            </div>
-          </div>
+        <div className="products-main space-y-4">
+          <CatalogTopbar
+            resultCount={visibleCount}
+            resultLabel={
+              activeCategory === "all"
+                ? t({ en: "Products", uz: "Mahsulotlar", ru: "Товары", ko: "상품" })
+                : resolveLocalizedText(activeCategoryMeta.shortLabel, language)
+            }
+            resultCountText={resultCountText}
+            sortValue={sortBy}
+            sortOptions={sortOptions}
+            onSortChange={(value) => setSortBy(value)}
+            activeFilters={activeFilters}
+            onClearFilters={activeFilters.length > 0 ? clearAllListingFilters : undefined}
+            sortLabel={t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
+            emptyFiltersLabel={t({
+              en: "Refine this catalog with search, category, price, or delivery filters.",
+              uz: "Katalogni qidiruv, kategoriya, narx yoki yetkazish filtrlari bilan aniqlashtiring.",
+              ru: "Уточните каталог поиском, категорией, ценой или фильтрами доставки.",
+              ko: "검색, 카테고리, 가격, 배송 필터로 결과를 더 좁혀보세요."
+            })}
+            clearFiltersLabel={t({ en: "Clear filters", uz: "Filtrlarni tozalash", ru: "Очистить фильтры", ko: "필터 초기화" })}
+          />
 
-          {displayLoading ? (
-            <Spinner label="Mahsulotlar yuklanmoqda" />
-          ) : (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {sortedDisplayItems.map((p, idx) => (
-                <ProductCard
-                  key={resolveProductKey(p, idx)}
-                  data={p}
-                  disableNavigation={isAutoCategory || p.category === "avto-texnika"}
-                />
-              ))}
-              {sortedDisplayItems.length === 0 && (
-                <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 py-10 text-center text-slate-500">
-                  Hozircha mahsulot topilmadi.
+          <ProductGrid
+            empty={
+              !displayLoading && sortedDisplayItems.length === 0 ? (
+                <div className="mt-4 rounded-[1.7rem] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-12 text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-lg font-black text-slate-400 shadow-sm">
+                    0
+                  </div>
+                  <h3 className="mt-4 text-lg font-bold text-slate-900">
+                    {t({
+                      en: "Nothing matched these filters",
+                      uz: "Bu filtrlarga mos mahsulot topilmadi",
+                      ru: "По этим фильтрам ничего не найдено",
+                      ko: "이 필터에 맞는 상품이 없습니다"
+                    })}
+                  </h3>
+                  <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                    {t({
+                      en: "Try widening the price range, changing the category, or clearing a few filters to see more products.",
+                      uz: "Ko'proq mahsulot ko'rish uchun narx oralig'ini kengaytiring, kategoriyani o'zgartiring yoki bir nechta filtrni tozalang.",
+                      ru: "Попробуйте расширить диапазон цен, сменить категорию или очистить несколько фильтров, чтобы увидеть больше товаров.",
+                      ko: "더 많은 상품을 보려면 가격 범위를 넓히거나 카테고리를 바꾸거나 일부 필터를 해제하세요."
+                    })}
+                  </p>
+                  {activeFilters.length > 0 ? (
+                    <div className="mt-5">
+                      <button
+                        type="button"
+                        onClick={clearAllListingFilters}
+                        className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        {t({ en: "Reset all filters", uz: "Barcha filtrlarni tiklash", ru: "Сбросить все фильтры", ko: "모든 필터 초기화" })}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-              )}
-            </div>
-          )}
+              ) : undefined
+            }
+            footer={
+              !displayLoading && sortedDisplayItems.length > 0 ? (
+                <Pagination
+                  page={pagination.page}
+                  total={pagination.total ?? items.length}
+                  limit={pagination.limit}
+                  onPageChange={handlePageChange}
+                  labels={{
+                    previous: t({ en: "Previous", uz: "Oldingi", ru: "Назад", ko: "이전" }),
+                    next: t({ en: "Next", uz: "Keyingi", ru: "Далее", ko: "다음" }),
+                    summary: ({ total, totalPages }) =>
+                      t({
+                        en: `Total: ${formatVisibleCount(total)} products · ${formatVisibleCount(totalPages)} pages`,
+                        uz: `Jami: ${formatVisibleCount(total)} ta mahsulot · ${formatVisibleCount(totalPages)} sahifa`,
+                        ru: `Всего: ${formatVisibleCount(total)} товаров · ${formatVisibleCount(totalPages)} страниц`,
+                        ko: `총 ${formatVisibleCount(total)}개 상품 · ${formatVisibleCount(totalPages)}페이지`
+                      })
+                  }}
+                />
+              ) : undefined
+            }
+          >
+            {displayLoading
+              ? Array.from({ length: 8 }, (_, idx) => <ProductCardSkeleton key={`product-skeleton-${idx}`} />)
+              : sortedDisplayItems.map((p, idx) => <ProductCard key={resolveProductKey(p, idx)} data={p} />)}
+          </ProductGrid>
 
           {!displayLoading && sortedDisplayItems.length > 0 && (
-            <div className="mt-8 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">Recently viewed</p>
-                <span className="text-xs text-slate-500">Oxirgi ko‘rilganlar</span>
+            <div className="rounded-[1.9rem] border border-slate-200/85 bg-white/92 p-5 shadow-[0_20px_40px_rgba(15,23,42,0.06)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {t({ en: "Recently viewed", uz: "Yaqinda ko'rilganlar", ru: "Недавно просмотренные", ko: "최근 본 상품" })}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t({ en: "Quick revisit", uz: "Tez qaytish", ru: "Быстрый возврат", ko: "빠른 다시보기" })}
+                  </p>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+                  {t({ en: "Keep high-intent products visible", uz: "Qiziqish bildirgan mahsulotlarni oldinda saqlang", ru: "Держите интересные товары под рукой", ko: "관심 상품을 바로 다시 볼 수 있습니다" })}
+                </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="mt-4 grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {sortedDisplayItems.slice(0, 4).map((item, idx) => (
                   <ProductCard key={`recent-${resolveProductKey(item, idx)}`} data={item} />
                 ))}
               </div>
             </div>
           )}
-
-          <Pagination
-            page={pagination.page}
-            total={pagination.total ?? items.length}
-            limit={pagination.limit}
-            onPageChange={handlePageChange}
-          />
         </div>
       </div>
 
@@ -2793,14 +3014,14 @@ export default function ProductsPage() {
           onClick={() => setMobileFiltersOpen(true)}
           className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
         >
-          Filter
+          {t({ en: "Filter", uz: "Filtr", ru: "Фильтр", ko: "필터" })}
         </button>
         <button
           type="button"
           onClick={() => setMobileSortOpen(true)}
           className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
         >
-          Sort
+          {t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
         </button>
       </div>
 
@@ -2808,27 +3029,29 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-end bg-black/30 lg:hidden">
           <div className="w-full rounded-t-3xl bg-white p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">Filtrlar</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {t({ en: "Filters", uz: "Filtrlar", ru: "Фильтры", ko: "필터" })}
+              </p>
               <button
                 type="button"
                 onClick={() => setMobileFiltersOpen(false)}
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs"
               >
-                Yopish
+                {t({ en: "Close", uz: "Yopish", ru: "Закрыть", ko: "닫기" })}
               </button>
             </div>
             <div className="mt-4 grid gap-3 text-xs text-slate-600">
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  placeholder="Min narx"
+                  placeholder={t({ en: "Min price", uz: "Min narx", ru: "Мин цена", ko: "최소 가격" })}
                   value={quickFilters.priceMin}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 />
                 <input
                   type="number"
-                  placeholder="Max narx"
+                  placeholder={t({ en: "Max price", uz: "Max narx", ru: "Макс цена", ko: "최대 가격" })}
                   value={quickFilters.priceMax}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2836,7 +3059,7 @@ export default function ProductsPage() {
               </div>
               <input
                 type="text"
-                placeholder="Brend"
+                placeholder={t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}
                 value={quickFilters.brand}
                 onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
                 className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2847,7 +3070,7 @@ export default function ProductsPage() {
                   checked={quickFilters.rating45}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
                 />
-                4.5+ reyting
+                {t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -2855,26 +3078,36 @@ export default function ProductsPage() {
                   checked={quickFilters.inStock}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
                 />
-                Omborda
+                {t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })}
               </label>
               <select
                 value={quickFilters.delivery}
-                onChange={(e) => setQuickFilters((prev) => ({ ...prev, delivery: e.target.value }))}
+                onChange={(e) =>
+                  setQuickFilters((prev) => ({
+                    ...prev,
+                    delivery: e.target.value as QuickFiltersState["delivery"]
+                  }))
+                }
                 className="rounded-lg border border-slate-200 px-3 py-2"
               >
-                <option value="any">Yetkazish</option>
-                <option value="fast">Tez</option>
-                <option value="tomorrow">Ertaga</option>
-                <option value="standard">Oddiy</option>
+                <option value="any">{t({ en: "Delivery", uz: "Yetkazish", ru: "Доставка", ko: "배송" })}</option>
+                <option value="fast">{t({ en: "Fast", uz: "Tez", ru: "Быстрая", ko: "빠름" })}</option>
+                <option value="tomorrow">{t({ en: "Tomorrow", uz: "Ertaga", ru: "Завтра", ko: "내일" })}</option>
+                <option value="standard">{t({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "표준" })}</option>
               </select>
               <select
                 value={quickFilters.condition}
-                onChange={(e) => setQuickFilters((prev) => ({ ...prev, condition: e.target.value }))}
+                onChange={(e) =>
+                  setQuickFilters((prev) => ({
+                    ...prev,
+                    condition: e.target.value as QuickFiltersState["condition"]
+                  }))
+                }
                 className="rounded-lg border border-slate-200 px-3 py-2"
               >
-                <option value="any">Condition</option>
-                <option value="new">Yangi</option>
-                <option value="used">Used</option>
+                <option value="any">{t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}</option>
+                <option value="new">{t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })}</option>
+                <option value="used">{t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })}</option>
               </select>
             </div>
           </div>
@@ -2885,23 +3118,25 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-end bg-black/30 lg:hidden">
           <div className="w-full rounded-t-3xl bg-white p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">Sort</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
+              </p>
               <button
                 type="button"
                 onClick={() => setMobileSortOpen(false)}
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs"
               >
-                Yopish
+                {t({ en: "Close", uz: "Yopish", ru: "Закрыть", ko: "닫기" })}
               </button>
             </div>
             <div className="mt-3 grid gap-2 text-xs">
               {[
-                { id: "relevance", label: "Eng mos" },
-                { id: "bestseller", label: "Eng ko‘p sotilgan" },
-                { id: "toprated", label: "Eng yuqori baholangan" },
-                { id: "priceLow", label: "Arzon → qimmat" },
-                { id: "priceHigh", label: "Qimmat → arzon" },
-                { id: "newest", label: "Yangi kelgan" }
+                { id: "relevance", label: t({ en: "Best match", uz: "Eng mos", ru: "Лучшее совпадение", ko: "가장 관련도 높음" }) },
+                { id: "bestseller", label: t({ en: "Best seller", uz: "Eng ko'p sotilgan", ru: "Хиты продаж", ko: "베스트셀러" }) },
+                { id: "toprated", label: t({ en: "Top rated", uz: "Eng yuqori baholangan", ru: "С высоким рейтингом", ko: "평점 높은 순" }) },
+                { id: "priceLow", label: t({ en: "Price: low to high", uz: "Arzon → qimmat", ru: "Цена: по возрастанию", ko: "가격 낮은 순" }) },
+                { id: "priceHigh", label: t({ en: "Price: high to low", uz: "Qimmat → arzon", ru: "Цена: по убыванию", ko: "가격 높은 순" }) },
+                { id: "newest", label: t({ en: "Newest", uz: "Yangi kelgan", ru: "Новые", ko: "최신순" }) }
               ].map((item) => (
                 <button
                   key={item.id}

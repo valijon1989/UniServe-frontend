@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AgentQuickPreviewModal } from "@/components/agent-preview/AgentQuickPreviewModal";
 import { useAuthStore } from "@/store/auth";
 
 type AgentListing = {
@@ -447,6 +448,9 @@ export function TechnicalServiceSection() {
     "Ehtiyot qismlar originalmi?",
     "Joyida servis bormi?"
   ];
+  const selectedAgentProfileHref = selectedAgent
+    ? `/agents?view=services&search=${encodeURIComponent(selectedAgent.name)}`
+    : "/agents?view=services";
 
   return (
     <div className="flex w-full flex-col gap-10">
@@ -662,151 +666,72 @@ export function TechnicalServiceSection() {
       )}
 
       {selectedAgent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
-          <div className="w-full max-w-3xl rounded-3xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-800 px-6 py-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{selectedAgent.subCategoryTitle}</p>
-                <h3 className="mt-2 text-xl font-semibold">{selectedAgent.name}</h3>
-                <p className="text-sm text-slate-400">{selectedAgent.role}</p>
+        <AgentQuickPreviewModal
+          open={Boolean(selectedAgent)}
+          onClose={handleCloseAgent}
+          eyebrow={selectedAgent.subCategoryTitle}
+          name={selectedAgent.name}
+          specialty={selectedAgent.role}
+          subtitle="Agent kimligi, asosiy takliflari va tezkor keyingi qadamlarni bir joyda ko'rsatadigan quick preview."
+          image={selectedAgent.image}
+          stats={[
+            { label: "Narx", value: selectedAgent.price, tone: "sky" },
+            { label: "Baho", value: selectedAgent.rating, tone: "amber" },
+            { label: "Xizmatlar", value: selectedAgent.jobs, tone: "emerald" }
+          ]}
+          trustBadges={[...selectedAgent.details.verified, selectedAgent.details.responseTime, selectedAgent.details.warranty]}
+          offers={selectedAgent.listings.map((item) => ({
+            title: item.title,
+            description: item.description,
+            meta: item.unit,
+            priceLabel: item.price,
+            badge: selectedAgent.subCategoryTitle
+          }))}
+          actions={[
+            { key: "use", label: "Xizmatdan foydalanish", onClick: handleUseService, tone: "primary" },
+            { key: "message", label: "Xabar yozish", onClick: handleOpenChat, tone: "secondary" },
+            { key: "profile", label: "To'liq profilni ochish", href: selectedAgentProfileHref, tone: "ghost" }
+          ]}
+        >
+          {notice ? (
+            <div className="rounded-[1.4rem] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
+              {notice}
+            </div>
+          ) : null}
+
+          {showChat ? (
+            <div className="rounded-[1.6rem] border border-white/10 bg-slate-950/45 p-4 text-xs text-slate-300">
+              <p className="text-sm font-semibold text-slate-100">Ilova ichidagi chat</p>
+              <p className="mt-2 text-xs text-slate-400">
+                Xizmat tafsilotlarini aniqlashtirish uchun agentga yozing.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {chatTemplates.map((template) => (
+                  <button
+                    key={template}
+                    type="button"
+                    onClick={() => setMessageDraft(template)}
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
+                  >
+                    {template}
+                  </button>
+                ))}
               </div>
+              <textarea
+                value={messageDraft}
+                onChange={(event) => setMessageDraft(event.target.value)}
+                placeholder="Xabaringiz..."
+                className="mt-3 h-20 w-full rounded-2xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-200 focus:border-sky-500 focus:outline-none"
+              />
               <button
                 type="button"
-                onClick={handleCloseAgent}
-                className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300"
+                className="mt-3 rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200"
               >
-                Yopish
+                Xabar yuborish
               </button>
             </div>
-            <div className="grid gap-6 px-6 py-5 md:grid-cols-[1.1fr_0.9fr]">
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border border-slate-800">
-                  <img src={selectedAgent.image} alt={selectedAgent.name} className="h-48 w-full object-cover" />
-                </div>
-                <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                  <div className="flex items-center justify-between">
-                    <span>Narx</span>
-                    <span className="text-sky-200">{selectedAgent.price}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Baho</span>
-                    <span className="text-slate-100">{selectedAgent.rating}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Xizmatlar</span>
-                    <span className="text-slate-100">{selectedAgent.jobs}</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedAgent.tags.map((tag) => (
-                    <span key={tag} className="rounded-full bg-sky-500/10 px-3 py-1 text-[11px] text-sky-200">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                  <p className="text-sm font-semibold text-slate-100">Agent tafsilotlari</p>
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span>Tajriba</span>
-                      <span className="text-slate-100">{selectedAgent.details.experience}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Javob vaqti</span>
-                      <span className="text-slate-100">{selectedAgent.details.responseTime}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Kafolat</span>
-                      <span className="text-slate-100">{selectedAgent.details.warranty}</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedAgent.details.verified.map((item) => (
-                      <span key={item} className="rounded-full bg-slate-800 px-2 py-1 text-[11px] text-slate-200">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                  <p className="text-sm font-semibold text-slate-100">Agent e'lonlari</p>
-                  <div className="mt-3 space-y-2">
-                    {selectedAgent.listings.map((item) => (
-                      <div key={item.title} className="rounded-xl border border-slate-800/70 bg-slate-950/60 p-3">
-                        <p className="text-xs font-semibold text-slate-100">{item.title}</p>
-                        <p className="mt-1 text-[11px] text-slate-400">{item.description}</p>
-                        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                          <span>{item.unit}</span>
-                          <span className="text-sky-200">{item.price}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {notice && (
-                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
-                    {notice}
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleUseService}
-                    className="rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200"
-                  >
-                    Xizmatdan foydalanish
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenChat}
-                    className="rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200"
-                  >
-                    Xabarlashish
-                  </button>
-                </div>
-
-                {showChat && (
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-300">
-                    <p className="text-sm font-semibold text-slate-100">Ilova ichidagi chat</p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      Xizmat tafsilotlarini aniqlashtirish uchun agentga yozing.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {chatTemplates.map((template) => (
-                        <button
-                          key={template}
-                          type="button"
-                          onClick={() => setMessageDraft(template)}
-                          className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
-                        >
-                          {template}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={messageDraft}
-                      onChange={(event) => setMessageDraft(event.target.value)}
-                      placeholder="Xabaringiz..."
-                      className="mt-3 h-20 w-full rounded-2xl border border-slate-800 bg-slate-950 p-3 text-xs text-slate-200 focus:border-sky-500 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      className="mt-3 rounded-full border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200"
-                    >
-                      Xabar yuborish
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+          ) : null}
+        </AgentQuickPreviewModal>
       )}
     </div>
   );

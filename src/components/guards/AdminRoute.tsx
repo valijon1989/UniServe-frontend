@@ -15,9 +15,9 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace("/admin/login");
     } else if (role !== "ADMIN") {
-      router.replace("/");
+      router.replace("/admin/login");
     }
   }, [isAuthenticated, role, isHydrated, router]);
 

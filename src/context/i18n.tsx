@@ -1,6 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  DEFAULT_LOCALE,
+  FALLBACK_LOCALE,
+  LANGUAGE_STORAGE_KEY,
+  readStoredLanguage,
+  resolveLocalizedText,
+  type LocalizedText
+} from "@/lib/localization";
+import { getCatalogMessage } from "@/lib/i18nCatalog";
 
 export type Language = "en" | "uz" | "ru" | "ko";
 
@@ -195,33 +204,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "services.group.spiritual": "Spiritual services",
     "services.group.material.desc": "Transport, construction, and hands-on services. Each agent is verified in their field.",
     "services.group.spiritual.desc": "Education, consulting, and personal development services. Every agent is verified.",
-    "services.category.taxi": "Taxi / transportation",
-    "services.category.taxi.desc": "City rides, transfers, and scheduled trips.",
-    "services.category.delivery": "Delivery service",
-    "services.category.delivery.desc": "Courier and parcel delivery with tracking.",
-    "services.category.technical": "Technical service",
-    "services.category.technical.desc": "Repair and maintenance for devices and equipment.",
-    "services.category.construction": "Construction services",
-    "services.category.construction.desc": "Renovation, building, and contractor services.",
-    "services.category.moving": "Moving services",
-    "services.category.moving.desc": "Home and office relocation assistance.",
-    "services.category.cleaning": "Cleaning services",
-    "services.category.cleaning.desc": "Home, office, and industrial cleaning.",
-    "services.category.nanny": "Nanny services",
-    "services.category.nanny.desc": "Childcare and family support services.",
-    "services.category.marketing": "Marketing & blogging",
-    "services.category.marketing.desc": "Social media, influencer, and promotion services.",
-    "services.category.employment": "Employment services",
-    "services.category.employment.desc": "Recruitment and job placement services.",
+    "services.category.taxi": "Transport",
+    "services.category.taxi.desc": "City rides, transfers, and scheduled routes.",
+    "services.category.delivery": "Delivery",
+    "services.category.delivery.desc": "Courier, parcel, and same-day delivery with tracking.",
+    "services.category.technical": "Technical services",
+    "services.category.technical.desc": "Repair, maintenance, and on-site technical support.",
+    "services.category.construction": "Construction & repair",
+    "services.category.construction.desc": "Renovation, installation, and contractor-led work.",
+    "services.category.moving": "Moving & heavy transport",
+    "services.category.moving.desc": "Home, office, and cargo relocation support.",
+    "services.category.cleaning": "Cleaning",
+    "services.category.cleaning.desc": "Residential, office, and industrial cleaning.",
+    "services.category.nanny": "Childcare & caregiving",
+    "services.category.nanny.desc": "Trusted childcare and family support services.",
+    "services.category.marketing": "Creative & marketing",
+    "services.category.marketing.desc": "Content, social media, branding, and promotion services.",
+    "services.category.employment": "Jobs & recruitment",
+    "services.category.employment.desc": "Hiring, placement, and recruitment support.",
     "services.category.education": "Education & courses",
-    "services.category.education.desc": "Courses, mentoring, and tutoring services.",
+    "services.category.education.desc": "Courses, tutoring, and structured learning programs.",
     "services.category.consulting": "Consulting",
     "services.category.consulting.desc": "Business and strategy consulting.",
     "services.category.translation": "Translation",
     "services.category.translation.desc": "Document and interpretation services.",
-    "services.category.psychology": "Psychology services",
-    "services.category.psychology.desc": "Counseling and therapy sessions.",
-    "services.category.legal": "Legal services",
+    "services.category.psychology": "Psychology & therapy",
+    "services.category.psychology.desc": "Counseling, therapy, and support sessions.",
+    "services.category.legal": "Legal",
     "services.category.legal.desc": "Legal advice and documentation.",
     "services.category.sport": "Sports coaching",
     "services.category.sport.desc": "Personal training and coaching.",
@@ -748,33 +757,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "services.group.spiritual": "Manaviy xizmatlar",
     "services.group.material.desc": "Transport, qurilish va amaliy ishlar. Har bir agent tegishli mutaxassisligini tasdiqlagan.",
     "services.group.spiritual.desc": "Ta'lim, maslahat va rivojlanish xizmatlari. Har bir agent mutaxassisligini tasdiqlagan.",
-    "services.category.taxi": "Eltib qo'yish (taxi xizmati)",
-    "services.category.taxi.desc": "Shahar ichida va shaharlararo tezkor tashish.",
-    "services.category.delivery": "Yetkazib berish (pochta xizmati)",
-    "services.category.delivery.desc": "Hujjat, posilka va tezkor kur'er xizmati.",
-    "services.category.technical": "Texnik xizmat ko'rsatish",
-    "services.category.technical.desc": "Maishiy va sanoat uskunalarini ta'mirlash.",
-    "services.category.construction": "Qurilish va quruvchilar xizmati",
-    "services.category.construction.desc": "Remont, ustalik va obodonlashtirish.",
-    "services.category.moving": "Ko'chish va ko'chirish xizmati",
-    "services.category.moving.desc": "Uy va ofis ko'chirish, yuklash va tushirish.",
-    "services.category.cleaning": "Tozalik xizmati",
-    "services.category.cleaning.desc": "Uy, ofis va sanoat tozalash xizmati.",
-    "services.category.nanny": "Enagalik xizmati",
-    "services.category.nanny.desc": "Bolalar parvarishi va uyda yordam.",
-    "services.category.marketing": "Reklama (blogerlar)",
-    "services.category.marketing.desc": "Brend reklama va ijtimoiy tarmoqlar targ'iboti.",
-    "services.category.employment": "Ish topib berish xizmati",
-    "services.category.employment.desc": "Vakansiya topish va kadrlar tanlash.",
-    "services.category.education": "Ta'lim (o'quv kurslari)",
-    "services.category.education.desc": "Til, IT, biznes va shaxsiy rivojlanish kurslari.",
+    "services.category.taxi": "Transport",
+    "services.category.taxi.desc": "Shahar ichida, transfer va rejalashtirilgan yo'nalishlar.",
+    "services.category.delivery": "Yetkazib berish",
+    "services.category.delivery.desc": "Kur'er, posilka va kuzatuvli tezkor yetkazish.",
+    "services.category.technical": "Texnik xizmatlar",
+    "services.category.technical.desc": "Ta'mirlash, servis va joyiga borib texnik yordam.",
+    "services.category.construction": "Qurilish va remont",
+    "services.category.construction.desc": "Remont, montaj va pudratchi boshqaruvidagi ishlar.",
+    "services.category.moving": "Ko'chirish va og'ir transport",
+    "services.category.moving.desc": "Uy, ofis va yuk ko'chirish bo'yicha yordam.",
+    "services.category.cleaning": "Tozalik",
+    "services.category.cleaning.desc": "Uy, ofis va sanoat obyektlari uchun tozalash.",
+    "services.category.nanny": "Bolalar parvarishi va g'amxo'rlik",
+    "services.category.nanny.desc": "Ishonchli bolalar parvarishi va oilaviy yordam xizmatlari.",
+    "services.category.marketing": "Kreativ va marketing",
+    "services.category.marketing.desc": "Kontent, ijtimoiy tarmoq, branding va promo xizmatlari.",
+    "services.category.employment": "Ish va kadr tanlash",
+    "services.category.employment.desc": "Ishga joylashish va kadr tanlash bo'yicha yordam.",
+    "services.category.education": "Ta'lim va kurslar",
+    "services.category.education.desc": "Kurslar, ustozlik va strukturalangan o'quv dasturlari.",
     "services.category.consulting": "Konsalting xizmati",
     "services.category.consulting.desc": "Biznes va strategik maslahatlarga yo'naltirilgan.",
     "services.category.translation": "Tarjimonlik xizmati",
     "services.category.translation.desc": "Hujjat va sinxron tarjima xizmatlari.",
-    "services.category.psychology": "Ruhshunoslik xizmati",
-    "services.category.psychology.desc": "Psixologik maslahat va terapiya seanslari.",
-    "services.category.legal": "Huquqshunos xizmati",
+    "services.category.psychology": "Psixologiya va terapiya",
+    "services.category.psychology.desc": "Psixologik maslahat, terapiya va support seanslari.",
+    "services.category.legal": "Yuridik xizmatlar",
     "services.category.legal.desc": "Yuridik maslahat va hujjatlar tayyorlash.",
     "services.category.sport": "Sport bo'yicha trener xizmati",
     "services.category.sport.desc": "Individual va guruh mashg'ulotlari.",
@@ -1301,32 +1310,32 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "services.group.spiritual": "Духовные услуги",
     "services.group.material.desc": "Транспорт, строительство и практические услуги. Каждый агент подтвержден.",
     "services.group.spiritual.desc": "Обучение, консультации и развитие. Каждый агент подтвержден.",
-    "services.category.taxi": "Такси и перевозки",
-    "services.category.taxi.desc": "Городские поездки, трансферы и маршруты.",
+    "services.category.taxi": "Транспорт",
+    "services.category.taxi.desc": "Городские поездки, трансферы и запланированные маршруты.",
     "services.category.delivery": "Доставка",
-    "services.category.delivery.desc": "Курьерская доставка и посылки с отслеживанием.",
-    "services.category.technical": "Техническое обслуживание",
-    "services.category.technical.desc": "Ремонт и обслуживание техники и оборудования.",
-    "services.category.construction": "Строительные услуги",
-    "services.category.construction.desc": "Ремонт, строительство и подрядные работы.",
-    "services.category.moving": "Переезды",
-    "services.category.moving.desc": "Квартирные и офисные переезды.",
+    "services.category.delivery.desc": "Курьерская, посылочная и экспресс-доставка с отслеживанием.",
+    "services.category.technical": "Технические услуги",
+    "services.category.technical.desc": "Ремонт, сервис и выездная техническая поддержка.",
+    "services.category.construction": "Строительство и ремонт",
+    "services.category.construction.desc": "Ремонт, монтаж и работы с подрядчиком.",
+    "services.category.moving": "Переезды и тяжёлые перевозки",
+    "services.category.moving.desc": "Квартирные, офисные и грузовые переезды.",
     "services.category.cleaning": "Клининг",
-    "services.category.cleaning.desc": "Уборка дома, офиса и объектов.",
-    "services.category.nanny": "Няни и уход",
-    "services.category.nanny.desc": "Уход за детьми и помощь семье.",
-    "services.category.marketing": "Маркетинг и блогеры",
-    "services.category.marketing.desc": "SMM, реклама и продвижение.",
-    "services.category.employment": "Трудоустройство",
-    "services.category.employment.desc": "Рекрутинг и подбор персонала.",
+    "services.category.cleaning.desc": "Уборка для дома, офиса и коммерческих объектов.",
+    "services.category.nanny": "Уход за детьми и забота",
+    "services.category.nanny.desc": "Надёжный уход за детьми и поддержка семьи.",
+    "services.category.marketing": "Креатив и маркетинг",
+    "services.category.marketing.desc": "Контент, социальные сети, брендинг и продвижение.",
+    "services.category.employment": "Работа и рекрутинг",
+    "services.category.employment.desc": "Трудоустройство, подбор и поддержка найма.",
     "services.category.education": "Обучение и курсы",
-    "services.category.education.desc": "Курсы, наставничество и обучение.",
+    "services.category.education.desc": "Курсы, наставничество и структурированные программы обучения.",
     "services.category.consulting": "Консалтинг",
     "services.category.consulting.desc": "Бизнес и стратегические консультации.",
     "services.category.translation": "Переводы",
     "services.category.translation.desc": "Переводы документов и синхронные услуги.",
-    "services.category.psychology": "Психология",
-    "services.category.psychology.desc": "Консультации и терапевтические сессии.",
+    "services.category.psychology": "Психология и терапия",
+    "services.category.psychology.desc": "Консультации, терапия и поддерживающие сессии.",
     "services.category.legal": "Юридические услуги",
     "services.category.legal.desc": "Юридические консультации и документы.",
     "services.category.sport": "Спортивные тренеры",
@@ -1854,33 +1863,33 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     "services.group.spiritual": "정신 서비스",
     "services.group.material.desc": "교통, 건설, 실무형 서비스. 모든 에이전트는 검증됩니다.",
     "services.group.spiritual.desc": "교육, 컨설팅, 성장 서비스. 모든 에이전트는 검증됩니다.",
-    "services.category.taxi": "택시/이동 서비스",
-    "services.category.taxi.desc": "도시 이동, 공항 이동, 예약 서비스.",
-    "services.category.delivery": "배송 서비스",
-    "services.category.delivery.desc": "문서 및 소포 배송과 추적.",
-    "services.category.technical": "기술 서비스",
-    "services.category.technical.desc": "기기 및 장비 수리/점검.",
-    "services.category.construction": "건설 서비스",
-    "services.category.construction.desc": "리모델링 및 시공 서비스.",
-    "services.category.moving": "이사 서비스",
-    "services.category.moving.desc": "가정/사무실 이사 지원.",
-    "services.category.cleaning": "청소 서비스",
-    "services.category.cleaning.desc": "가정, 사무실, 시설 청소.",
-    "services.category.nanny": "베이비시터 서비스",
-    "services.category.nanny.desc": "육아 및 가정 돌봄.",
-    "services.category.marketing": "마케팅/블로거",
-    "services.category.marketing.desc": "SNS 홍보 및 마케팅.",
-    "services.category.employment": "취업 지원",
-    "services.category.employment.desc": "채용 및 취업 컨설팅.",
-    "services.category.education": "교육/코스",
-    "services.category.education.desc": "교육 과정과 튜터링.",
+    "services.category.taxi": "교통 서비스",
+    "services.category.taxi.desc": "도심 이동, 공항 픽업, 예약형 이동 서비스.",
+    "services.category.delivery": "배송",
+    "services.category.delivery.desc": "문서, 소포, 당일 배송과 추적 지원.",
+    "services.category.technical": "기술 지원",
+    "services.category.technical.desc": "수리, 유지보수, 현장 기술 지원.",
+    "services.category.construction": "건설 및 수리",
+    "services.category.construction.desc": "리모델링, 설치, 시공 중심 작업.",
+    "services.category.moving": "이사 및 대형 운송",
+    "services.category.moving.desc": "가정, 사무실, 화물 이사 지원.",
+    "services.category.cleaning": "청소",
+    "services.category.cleaning.desc": "주거, 사무실, 상업 공간 청소.",
+    "services.category.nanny": "육아 및 돌봄",
+    "services.category.nanny.desc": "신뢰할 수 있는 육아 및 가족 지원 서비스.",
+    "services.category.marketing": "크리에이티브 및 마케팅",
+    "services.category.marketing.desc": "콘텐츠, SNS, 브랜딩, 프로모션 서비스.",
+    "services.category.employment": "채용 및 취업",
+    "services.category.employment.desc": "채용, 취업 연결, 인재 매칭 지원.",
+    "services.category.education": "교육 및 코스",
+    "services.category.education.desc": "강의, 튜터링, 구조화된 학습 프로그램.",
     "services.category.consulting": "컨설팅",
     "services.category.consulting.desc": "비즈니스/전략 컨설팅.",
     "services.category.translation": "번역 서비스",
     "services.category.translation.desc": "문서 번역 및 통역.",
-    "services.category.psychology": "심리 상담",
-    "services.category.psychology.desc": "상담 및 치료 세션.",
-    "services.category.legal": "법률 서비스",
+    "services.category.psychology": "심리 및 치료",
+    "services.category.psychology.desc": "상담, 치료, 지원 세션.",
+    "services.category.legal": "법률",
     "services.category.legal.desc": "법률 상담 및 문서 작성.",
     "services.category.sport": "스포츠 코칭",
     "services.category.sport.desc": "개인/그룹 트레이닝.",
@@ -2224,41 +2233,63 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
 interface I18nContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: TranslationKey | Record<Language, string>) => string;
+  t: (key: TranslationKey | LocalizedText) => string;
 }
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "uniserve_language";
+const warnedMissingTranslations = new Set<string>();
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>("uz");
+  const [language, setLanguage] = useState<Language>(DEFAULT_LOCALE);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Language | null;
-    if (stored && ["en", "uz", "ru", "ko"].includes(stored)) {
-      setLanguage(stored);
-    }
+    setLanguage(readStoredLanguage());
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, language);
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     document.documentElement.lang = language;
   }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {
+    const warnMissingTranslation = (key: string, requestedLanguage: Language, resolvedValue: string) => {
+      if (process.env.NODE_ENV === "production") return;
+      const warningKey = `${requestedLanguage}:${key}`;
+      if (warnedMissingTranslations.has(warningKey)) return;
+      warnedMissingTranslations.add(warningKey);
+      console.warn(`[i18n] Missing translation for "${key}" in "${requestedLanguage}". Using fallback "${resolvedValue}".`);
+    };
+
     return {
       language,
       setLanguage,
-      t: (key: TranslationKey | Record<Language, string>) => {
+      t: (key: TranslationKey | LocalizedText) => {
         if (typeof key === "object") {
-          return key[language] ?? key.en ?? Object.values(key)[0] ?? "";
+          const resolved = resolveLocalizedText(key, language, DEFAULT_LOCALE);
+          if (!key[language] && resolved) {
+            warnMissingTranslation("[inline-localized-text]", language, resolved);
+          }
+          return resolved;
         }
-        return translations[language]?.[key] ??
-          translations.en[key] ??
-          key;
+        const requested = translations[language]?.[key];
+        const standard = getCatalogMessage(language, key);
+        if (standard) return standard;
+        if (requested) return requested;
+
+        const fallback =
+          getCatalogMessage(DEFAULT_LOCALE, key) ??
+          getCatalogMessage(FALLBACK_LOCALE, key) ??
+          translations[DEFAULT_LOCALE]?.[key] ??
+          translations[FALLBACK_LOCALE]?.[key] ??
+          "";
+        if (fallback) {
+          warnMissingTranslation(key, language, fallback);
+          return fallback;
+        }
+        warnMissingTranslation(key, language, key);
+        return process.env.NODE_ENV === "production" ? "" : key;
       }
     };
   }, [language]);

@@ -3,26 +3,35 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useI18n } from "@/context/i18n";
 import { useAuthStore } from "@/store/auth";
+import { useCartStore } from "@/store/cart";
 import { getMe } from "@/api/auth";
 import { Avatar } from "@/components/ui/Avatar";
+import { CartIconButton } from "@/components/cart/CartIconButton";
+import { useCartSync } from "@/hooks/useCartSync";
+import { useLogout } from "@/hooks/useLogout";
+import { triggerClientLogout } from "@/lib/authSession";
 
 const LOCAL_PROFILE_OVERRIDES_KEY = "profile-local-overrides-v1";
 
 export function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { t } = useI18n();
-  const { role, profile, userId, isAuthenticated, hydrateFromStorage, logout, updateProfile } = useAuthStore();
+  const { role, profile, userId, isAuthenticated, hydrateFromStorage, updateProfile } = useAuthStore();
+  const cartCount = useCartStore((state) => state.summary.totalItems);
+  const isCartSyncing = useCartStore((state) => state.isRefreshing);
+  const { logout: runLogout, isPending: isLoggingOut } = useLogout();
   const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState("");
+  const [adminMeta, setAdminMeta] = useState<{ adminLevel?: string; adminAccessStatus?: string }>({});
   const hasFetchedMeRef = useRef(false);
   const isNewsPage = pathname?.startsWith("/news");
   const isProductsPage = pathname?.startsWith("/products");
+  const cartLabel = t({ en: "Cart", uz: "Savatcha", ru: "Корзина", ko: "장바구니" });
   const headerBg = isProductsPage
     ? "linear-gradient(90deg, rgba(12,12,12,0.78), rgba(0,0,0,0.55)), url('/images/products/bosh.png'), url('/header-bg.png')"
     : isNewsPage
@@ -41,13 +50,16 @@ export function Header() {
     [t]
   );
 
+  useCartSync();
+
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || role !== "ADMIN") {
       hasFetchedMeRef.current = false;
+      setAdminMeta({});
       return;
     }
     if (hasFetchedMeRef.current) return;
@@ -57,6 +69,10 @@ export function Header() {
     getMe()
       .then((me) => {
         if (!active || !me) return;
+        setAdminMeta({
+          adminLevel: me.adminLevel,
+          adminAccessStatus: me.adminAccessStatus
+        });
         updateProfile({
           name: me.name,
           username: (me as { username?: string }).username,
@@ -66,18 +82,26 @@ export function Header() {
       .catch((error: unknown) => {
         const status = error instanceof AxiosError ? error.response?.status : undefined;
         if (status === 401 || status === 403) {
-          logout();
+          setAdminMeta({});
+          triggerClientLogout({
+            audience: role === "ADMIN" || role === "AGENT" || role === "USER" ? role : "USER",
+            reason: "session_rejected",
+            source: "forced"
+          });
         }
       });
 
     return () => {
       active = false;
     };
-  }, [isAuthenticated, logout, updateProfile]);
+  }, [isAuthenticated, role, updateProfile]);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const handleLogout = async () => {
+    await runLogout({
+      audience: role === "ADMIN" || role === "AGENT" || role === "USER" ? role : "USER",
+      redirectTo: role === "ADMIN" ? "/admin/login" : "/login",
+      reason: "manual"
+    });
   };
 
   const handleAccountClick = () => {
@@ -90,25 +114,31 @@ export function Header() {
       })
     );
     if (!shouldLogout) return;
-    handleLogout();
+    void handleLogout();
   };
 
   const extraNav = useMemo(() => {
     if (!isAuthenticated || !role) {
       return [];
     }
-    if (role === "ADMIN") {
+    const adminAccessStatus = String(adminMeta.adminAccessStatus || "").toUpperCase();
+    const adminLevel = String(adminMeta.adminLevel || "").toUpperCase();
+    if (role === "ADMIN" && (adminAccessStatus === "APPROVED" || adminLevel === "PRIMARY")) {
       return [
         { href: "/admin", label: t("nav.admin.dashboard") },
         { href: "/admin/users", label: t("nav.admin.users") },
         { href: "/admin/agents", label: t("nav.admin.agents") },
-        { href: "/admin/moderation", label: t("nav.admin.moderation") }
+        { href: "/admin/listings", label: t("nav.admin.moderation") },
+        {
+          href: "/admin/community",
+          label: t({ en: "Community", uz: "Hamjamiyat", ru: "Сообщество", ko: "커뮤니티" })
+        }
       ];
     }
     if (role === "AGENT") {
       return [
         { href: "/agent/listings", label: t("nav.agent.listings") },
-        { href: "/agent/listings/new", label: t("nav.agent.new") },
+        { href: "/agent/listings?create=1", label: t("nav.agent.new") },
         { href: "/profile", label: t("nav.profile") }
       ];
     }
@@ -116,7 +146,7 @@ export function Header() {
       { href: "/agents", label: t("nav.explore") },
       { href: "/profile", label: t("nav.profile") }
     ];
-  }, [isAuthenticated, role, t]);
+  }, [adminMeta.adminAccessStatus, adminMeta.adminLevel, isAuthenticated, role, t]);
 
   const navItems = useMemo(() => {
     const combined = isAuthenticated ? [...baseNav, ...extraNav] : baseNav;
@@ -247,7 +277,7 @@ export function Header() {
             <p className="text-sm font-semibold tracking-tight text-slate-100">
               {t({ en: "UniServe", uz: "UniServe", ru: "UniServe", ko: "UniServe" })}
             </p>
-            <p className="text-[11px] text-slate-400">
+            <p className="hidden text-[11px] text-slate-400 sm:block">
               {t("header.subtitle")}
             </p>
           </div>
@@ -269,13 +299,20 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <LanguageSwitcher />
+          <CartIconButton
+            count={cartCount}
+            label={cartLabel}
+            active={Boolean(pathname === "/cart" || pathname?.startsWith("/checkout"))}
+            syncing={isCartSyncing}
+          />
           {isAuthenticated ? (
             <>
               <button
                 onClick={handleAccountClick}
-                className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-1 text-xs text-slate-200 ring-1 ring-slate-700/80"
+                disabled={isLoggingOut}
+                className="flex items-center gap-2 rounded-full bg-slate-900/80 px-2.5 py-1 text-xs text-slate-200 ring-1 ring-slate-700/80 disabled:cursor-not-allowed disabled:opacity-70 sm:px-3"
               >
                 <Avatar
                   src={resolvedAvatarUrl}
@@ -284,22 +321,28 @@ export function Header() {
                   size={24}
                   className="ring-1 ring-slate-700/70"
                 />
-                <span className="inline">
-                  {displayNickname}
+                <span className="hidden sm:inline">
+                  {isLoggingOut ? t("auth.logout") : displayNickname}
                 </span>
               </button>
             </>
           ) : (
             <>
               <Link
+                href="/admin/login"
+                className="hidden rounded-full border border-slate-500/60 px-3 py-1 text-xs text-slate-100 hover:bg-slate-700/40 lg:inline-flex"
+              >
+                {t({ en: "Admin", uz: "Admin", ru: "Админ", ko: "관리자" })}
+              </Link>
+              <Link
                 href="/login"
-                className="rounded-full px-3 py-1 text-xs text-slate-700 hover:bg-slate-200"
+                className="rounded-full px-2 py-1 text-xs text-slate-700 hover:bg-slate-200 sm:px-3"
               >
                 {t("auth.loginLink")}
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-sky-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow-lg shadow-sky-500/30 hover:bg-sky-400"
+                className="rounded-full bg-sky-500 px-2.5 py-1 text-xs font-semibold text-slate-950 shadow-lg shadow-sky-500/30 hover:bg-sky-400 sm:px-3"
               >
                 {t("auth.signupLink")}
               </Link>

@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import type { User, AuthResponse } from "../types/auth";
+import { AUTH_LOGOUT_EVENT } from "@/lib/authSession";
+import { useAuthStore } from "@/store/auth";
 
 interface AuthContextValue {
   user: User | null;
@@ -36,29 +38,58 @@ const clearStoredToken = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const {
+    token: storeToken,
+    userId: storeUserId,
+    role: storeRole,
+    profile: storeProfile,
+    isAuthenticated: storeAuthenticated,
+    isHydrated: storeHydrated,
+    hydrateFromStorage,
+    setSession: setStoreSession,
+    logout: logoutStore
+  } = useAuthStore();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = readStoredToken();
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
 
-    if (storedToken) {
-      setToken(storedToken);
-      api
-        .get<User>("/auth/me")
-        .then((res) => setUser(res.data))
-        .catch((error: unknown) => {
-          const status = (error as { response?: { status?: number } })?.response?.status;
-          if (status === 401 || status === 403) {
-            clearStoredToken();
-            setToken(null);
-          }
-        })
-        .finally(() => setLoading(false));
+  useEffect(() => {
+    if (!storeHydrated) return;
+
+    setToken(storeToken);
+
+    if (storeAuthenticated && storeRole) {
+      setUser({
+        id: storeUserId || "",
+        name: storeProfile?.name || "",
+        email: "",
+        role: storeRole,
+        avatarUrl: storeProfile?.avatarUrl
+      });
     } else {
-      setLoading(false);
+      setUser(null);
     }
+
+    setLoading(false);
+  }, [storeAuthenticated, storeHydrated, storeProfile?.avatarUrl, storeProfile?.name, storeRole, storeToken, storeUserId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleLogoutSignal = () => {
+      setUser(null);
+      setToken(null);
+      setLoading(false);
+    };
+
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleLogoutSignal as EventListener);
+    return () => {
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleLogoutSignal as EventListener);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -68,10 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     setUser(res.data.user);
     setToken(res.data.token);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(TOKEN_KEY, res.data.token);
-      window.localStorage.setItem("uniserve_user", JSON.stringify(res.data.user));
-    }
+    setStoreSession(
+      res.data.token,
+      {
+        name: res.data.user.name,
+        avatarUrl: res.data.user.avatarUrl
+      },
+      res.data.user.role,
+      res.data.user.id || null
+    );
   };
 
   const signup = async (data: {
@@ -83,19 +119,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await api.post<AuthResponse>("/auth/register", data);
     setUser(res.data.user);
     setToken(res.data.token);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(TOKEN_KEY, res.data.token);
-      window.localStorage.setItem("uniserve_user", JSON.stringify(res.data.user));
-    }
+    setStoreSession(
+      res.data.token,
+      {
+        name: res.data.user.name,
+        avatarUrl: res.data.user.avatarUrl
+      },
+      res.data.user.role,
+      res.data.user.id || null
+    );
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    if (typeof window !== "undefined") {
-      clearStoredToken();
-      window.localStorage.removeItem("uniserve_user");
-    }
+    clearStoredToken();
+    logoutStore();
   };
 
   return (

@@ -27,6 +27,7 @@ import {
   updateMyProfile,
   uploadAvatar
 } from "@/api/profile";
+import { useLogout } from "@/hooks/useLogout";
 import { useAuthStore } from "@/store/auth";
 import { ProfileSidebar, type ProfileSectionKey } from "./components/ProfileSidebar";
 import { ProfileForm } from "./components/ProfileForm";
@@ -197,9 +198,9 @@ export default function ProfilePage() {
     profile: sessionProfile,
     hydrateFromStorage,
     setRole,
-    logout,
     updateProfile
   } = useAuthStore();
+  const { logout } = useLogout();
 
   const [activeSection, setActiveSection] = useState<ProfileSectionKey>("overview");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -371,8 +372,11 @@ export default function ProfilePage() {
   }, [localProfileOverrides, myProfile, role, sessionProfile?.avatarUrl, sessionProfile?.name]);
 
   const handleLogout = () => {
-    logout();
-    router.replace("/login");
+    void logout({
+      audience: role === "ADMIN" || role === "AGENT" || role === "USER" ? role : "USER",
+      redirectTo: role === "ADMIN" ? "/admin/login" : "/login",
+      reason: "manual"
+    });
   };
 
   const handleSaveProfile = async (payload: UpdateMyProfileInput) => {

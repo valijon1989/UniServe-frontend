@@ -15,6 +15,17 @@ const LOCAL_PUBLIC_PREFIXES = [
 ];
 
 const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value) || /^data:/i.test(value) || /^blob:/i.test(value);
+const AVATAR_POOL_SIZE = 30;
+
+const normalizeLocalAvatarPath = (value: string) => {
+  const match = value.match(/^\/(?:static\/)?avatars\/agent-?(\d+)\.(jpg|jpeg|png|webp)$/i);
+  if (!match) return value;
+  const numeric = Number(match[1]);
+  const normalized = Number.isFinite(numeric) && numeric > 0
+    ? ((Math.trunc(numeric) - 1) % AVATAR_POOL_SIZE) + 1
+    : 1;
+  return `/avatars/agent-${String(normalized).padStart(2, "0")}.jpg`;
+};
 
 const getConfiguredApiBase = () => {
   const base =
@@ -33,7 +44,7 @@ const isLocalPublicPath = (value: string) => LOCAL_PUBLIC_PREFIXES.some((prefix)
 
 export function toAbsoluteMediaUrl(input?: string | null) {
   if (!input) return "";
-  const trimmed = String(input).trim();
+  const trimmed = normalizeLocalAvatarPath(String(input).trim());
   if (!trimmed) return "";
   if (isAbsoluteUrl(trimmed)) return trimmed;
   if (trimmed.startsWith("//")) return `https:${trimmed}`;
@@ -45,4 +56,3 @@ export function toAbsoluteMediaUrl(input?: string | null) {
 
   return `${getConfiguredApiOrigin()}/${trimmed.replace(/^\/+/, "")}`;
 }
-

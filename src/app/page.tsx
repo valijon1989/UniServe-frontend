@@ -8,29 +8,17 @@ import { TopPodium } from "@/components/TopPodium";
 import { EventsSection } from "@/components/EventsSection";
 import { useI18n } from "@/context/i18n";
 import { normalizeListing, type NormalizedListing } from "@/lib/normalizeListing";
+import { useAuthStore } from "@/store/auth";
 
 export default function HomePage() {
   const [agents, setAgents] = useState<TopAgent[]>([]);
   const [saleProducts, setSaleProducts] = useState<NormalizedListing[]>([]);
   const [saleServices, setSaleServices] = useState<NormalizedListing[]>([]);
   const [dealsCount, setDealsCount] = useState(0);
-  const [agentsLoaded, setAgentsLoaded] = useState(false);
-  const salesLoadedRef = useRef(false);
+  const salesLoadedRef = useRef<string | null>(null);
   const { t } = useI18n();
-
-  const debugHome = (
-    label:
-      | "HOME_RAW"
-      | "HOME_NORMALIZED"
-      | "HOME_RENDER_IDS"
-      | "HOME_DEALS_COUNT"
-      | "HOME_DEALS_SALE_COUNT",
-    payload: unknown
-  ) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.log(label, payload);
-    }
-  };
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
 
   const isOnSale = (item: NormalizedListing) =>
     item.isOnSale === true ||
@@ -45,18 +33,6 @@ export default function HomePage() {
     const parsed = new Date(value).getTime();
     return Number.isFinite(parsed) ? parsed : 0;
   };
-
-  const toDebugSample = (items: NormalizedListing[]) =>
-    items.slice(0, 3).map((item) => ({
-      id: item.id ?? item._id,
-      title: item.title,
-      price: item.price,
-      salePrice: item.salePrice,
-      discountPercent: item.discountPercent,
-      isOnSale: item.isOnSale,
-      isSale: item.isSale,
-      type: item.type
-    }));
 
   const pickVisibleCards = (items: NormalizedListing[]) => {
     const saleItems = items.filter(isOnSale);
@@ -83,6 +59,23 @@ export default function HomePage() {
 
   const asArray = (value: unknown): any[] => (Array.isArray(value) ? value : []);
   const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+  const HOME_DEALS_MODE = (process.env.NEXT_PUBLIC_HOME_DEALS_SOURCE || "trending").toLowerCase();
+  const getStatus = (error: unknown) =>
+    (error as { response?: { status?: number } })?.response?.status;
+  const isProtectedStatus = (error: unknown) => {
+    const status = getStatus(error);
+    return status === 401 || status === 403;
+  };
+  const extractItems = (payload: any): any[] =>
+    asArray(
+      payload?.items
+      || payload?.products
+      || payload?.services
+      || payload?.data?.items
+      || payload?.data?.products
+      || payload?.data?.services
+      || payload
+    );
 
   const pickCanonicalId = (
     item: any,
@@ -118,41 +111,77 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    if (salesLoadedRef.current) return;
-    salesLoadedRef.current = true;
+    if (!isHydrated) return;
+
+    const salesMode = isAuthenticated ? "auth" : "public";
+    if (salesLoadedRef.current === salesMode) return;
+    salesLoadedRef.current = salesMode;
 
     let active = true;
 
     const loadSales = async () => {
       let rawProducts: any[] = [];
       let rawServices: any[] = [];
+      let source = salesMode === "auth" ? "products/trending+services/trending" : "products+services";
 
-      try {
-        const dealsRes = await client.get("/home/deals", { params: { limit: 24 } });
-        const payload = dealsRes.data || {};
-        rawProducts = asArray(payload?.products ?? payload?.data?.products);
-        rawServices = asArray(payload?.services ?? payload?.data?.services);
-      } catch (dealsErr) {
-        const status = (dealsErr as any)?.response?.status;
-        if (status === 401) {
+      const fetchPublicDeals = async () => {
+        const [productsRes, servicesRes] = await Promise.all([
+          client.get("/products", {
+            params: { limit: 24, order: "latest" },
+            headers: { "X-Skip-Auth": "1" }
+          }),
+          client.get("/services", {
+            params: { limit: 24, sort: "newest" },
+            headers: { "X-Skip-Auth": "1" }
+          })
+        ]);
+
+        rawProducts = extractItems(productsRes.data);
+        rawServices = extractItems(servicesRes.data);
+        source = "products+services";
+      };
+
+      if (!isAuthenticated && (HOME_DEALS_MODE === "home-deals" || HOME_DEALS_MODE === "auto")) {
+        try {
+          const dealsRes = await client.get("/home/deals", {
+            params: { limit: 24 },
+            headers: { "X-Skip-Auth": "1" }
+          });
+          const payload = dealsRes.data || {};
+          rawProducts = asArray(payload?.products ?? payload?.data?.products);
+          rawServices = asArray(payload?.services ?? payload?.data?.services);
+          source = "home/deals";
+        } catch (dealsErr) {
+          const status = getStatus(dealsErr);
           if (process.env.NODE_ENV !== "production") {
-            console.info("Home deals endpoint unauthorized (401)");
+            console.info("Home deals fallback to trending", status || "unknown");
           }
-        } else {
-          console.error("Home deals load error", dealsErr);
         }
       }
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("DEALS_PRODUCTS_COUNT", rawProducts.length);
-        console.log("DEALS_SERVICES_COUNT", rawServices.length);
+      if (rawProducts.length === 0 && rawServices.length === 0 && isAuthenticated) {
+        try {
+          const [productsRes, servicesRes] = await Promise.all([
+            client.get("/products/trending", { params: { limit: 24, page: 1 } }),
+            client.get("/services/trending", { params: { limit: 24, page: 1 } })
+          ]);
+          rawProducts = extractItems(productsRes.data);
+          rawServices = extractItems(servicesRes.data);
+          source = "products/trending+services/trending";
+        } catch (fallbackErr) {
+          if (!isProtectedStatus(fallbackErr)) {
+            console.error("Home deals fallback load error", fallbackErr);
+          }
+        }
       }
 
-      debugHome("HOME_RAW", {
-        source: "home-deals",
-        products: rawProducts,
-        services: rawServices
-      });
+      if (rawProducts.length === 0 && rawServices.length === 0) {
+        try {
+          await fetchPublicDeals();
+        } catch (publicErr) {
+          console.error("Home public deals load error", publicErr);
+        }
+      }
 
       const normalizedProducts = rawProducts.map((item, idx) => {
         const normalized = normalizeListing(item, "product", idx);
@@ -178,46 +207,15 @@ export default function HomePage() {
       });
       const normalizedDeals = [...normalizedProducts, ...normalizedServices];
 
-      debugHome("HOME_NORMALIZED", {
-        deals: normalizedDeals,
-        products: normalizedProducts,
-        services: normalizedServices
-      });
-
       if (active) {
         setDealsCount(normalizedDeals.length);
       }
 
-      debugHome("HOME_DEALS_COUNT", {
-        deals: normalizedDeals.length,
-        products: normalizedProducts.length,
-        services: normalizedServices.length,
-        total: normalizedProducts.length + normalizedServices.length,
-        sample: toDebugSample(normalizedDeals)
-      });
-
       const saleProductsOnly = normalizedProducts.filter(isOnSale);
       const saleServicesOnly = normalizedServices.filter(isOnSale);
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("SALE_PRODUCTS_COUNT", saleProductsOnly.length);
-        console.log("SALE_SERVICES_COUNT", saleServicesOnly.length);
-      }
-
-      debugHome("HOME_DEALS_SALE_COUNT", {
-        products: saleProductsOnly.length,
-        services: saleServicesOnly.length,
-        total: saleProductsOnly.length + saleServicesOnly.length,
-        sample: toDebugSample([...saleProductsOnly, ...saleServicesOnly])
-      });
-
       const visibleProducts = pickVisibleCards(normalizedProducts);
       const visibleServices = pickVisibleCards(normalizedServices);
-
-      debugHome("HOME_RENDER_IDS", {
-        products: visibleProducts.map(({ id, _id, type, href }) => ({ id: id ?? _id, type, href })),
-        services: visibleServices.map(({ id, _id, type, href }) => ({ id: id ?? _id, type, href }))
-      });
 
       if (active) {
         setSaleProducts(normalizedProducts);
@@ -230,7 +228,7 @@ export default function HomePage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAuthenticated, isHydrated]);
 
   useEffect(() => {
     (async () => {
@@ -239,8 +237,6 @@ export default function HomePage() {
         setAgents(data || []);
       } catch (err) {
         console.error("Top agents load error", err);
-      } finally {
-        setAgentsLoaded(true);
       }
     })();
   }, []);
@@ -354,13 +350,6 @@ export default function HomePage() {
         .slice(0, 10),
     [weeklyQualifiedAgents]
   );
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || !agentsLoaded) return;
-    console.log("SELLER_AGENTS_COUNT", topSellerAgents.length);
-    console.log("SERVICE_AGENTS_COUNT", topServiceAgents.length);
-  }, [agentsLoaded, topSellerAgents.length, topServiceAgents.length]);
-
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-2xl">

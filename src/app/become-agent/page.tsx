@@ -341,7 +341,7 @@ export default function BecomeAgentPage() {
     <div className="space-y-12">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-slate-50 shadow-2xl">
         <div className="absolute inset-0 opacity-70">
-          <div className="h-full w-full bg-[url('/images/agent-hero.jpg')] bg-cover bg-center" />
+          <div className="h-full w-full bg-[url('/header-bg.png')] bg-cover bg-center" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-900" />
         </div>
         <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -371,7 +371,7 @@ export default function BecomeAgentPage() {
             </div>
           </div>
           <div className="relative rounded-2xl border border-white/20 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-800 p-4">
-            <div className="aspect-[4/3] w-full rounded-xl bg-[url('/images/agent-overlay.jpg')] bg-cover bg-center" />
+            <div className="aspect-[4/3] w-full rounded-xl bg-[url('/footer-bg.png')] bg-cover bg-center" />
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-300">{t("become.hero.reviewLabel")}</p>

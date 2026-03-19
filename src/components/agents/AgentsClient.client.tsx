@@ -14,6 +14,12 @@ const SECTION_PAGE_SIZE = 6;
 
 type SortKey = "best_match" | "rating" | "likes" | "views" | "recent" | "oldest";
 
+const AVATAR_POOL_SIZE = 30;
+
+const normalizeLocalAvatarIndex = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  return ((Math.trunc(value) - 1) % AVATAR_POOL_SIZE) + 1;
+};
 
 const toNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -29,20 +35,20 @@ const normalizeAvatar = (value?: string) => {
   if (!value) return "";
   if (value.startsWith("/avatars/")) {
     const filename = value.split("/").pop() || "";
-    const match = filename.match(/^agent(\d+)\.(jpg|jpeg|png|webp)$/i);
+    const match = filename.match(/^agent-?(\d+)\.(jpg|jpeg|png|webp)$/i);
     if (match) {
-      const num = Number(match[1]);
-      const padded = Number.isFinite(num) ? String(num).padStart(2, "0") : match[1];
+      const num = normalizeLocalAvatarIndex(Number(match[1]));
+      const padded = String(num).padStart(2, "0");
       return `/avatars/agent-${padded}.jpg`;
     }
     return value;
   }
   if (value.startsWith("/static/avatars/")) {
     const filename = value.split("/").pop() || "";
-    const match = filename.match(/^agent(\d+)\.(jpg|jpeg|png|webp)$/i);
+    const match = filename.match(/^agent-?(\d+)\.(jpg|jpeg|png|webp)$/i);
     if (match) {
-      const num = Number(match[1]);
-      const padded = Number.isFinite(num) ? String(num).padStart(2, "0") : match[1];
+      const num = normalizeLocalAvatarIndex(Number(match[1]));
+      const padded = String(num).padStart(2, "0");
       return `/avatars/agent-${padded}.jpg`;
     }
     return value.replace("/static/avatars/", "/avatars/");

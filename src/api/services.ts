@@ -1,21 +1,51 @@
 import { api } from "./client";
 
+const normalizeServiceApiIdentifier = (value: string) => String(value || "").trim().replace(/-v\d+$/i, "");
+
 export interface TrendService {
   _id?: string;
   id?: string;
   title: string;
   description?: string;
+  kind?: string;
   category?: string;
+  price?: number | null;
+  salePrice?: number | null;
+  originalPrice?: number | null;
+  oldPrice?: number | null;
+  discountPercent?: number;
+  isOnSale?: boolean;
   hourlyRate?: number;
   currency?: string;
   location?: string;
+  ratingAvg?: number;
+  ratingCount?: number;
   likes?: number;
   views?: number;
   orders?: number;
+  stats?: {
+    likes?: number;
+    views?: number;
+    orders?: number;
+    purchases?: number;
+  };
+  images?: string[];
+  image?: string;
+  thumbnail?: string;
+  coverImage?: string;
+  coverImageUrl?: string;
+  imageUrl?: string;
+  agent?: {
+    id?: string;
+    name?: string;
+    avatarUrl?: string | null;
+    rating?: number;
+  };
   createdBy?: {
     _id?: string;
     name?: string;
     username?: string;
+    role?: string;
     avatarUrl?: string;
   };
   createdAt?: string;
@@ -61,11 +91,12 @@ export async function getLatestServices(): Promise<TrendService[]> {
 }
 
 export async function getServiceById(serviceId: string): Promise<TrendService | null> {
-  const res = await api.get(`/services/${serviceId}`);
+  const normalizedId = normalizeServiceApiIdentifier(serviceId);
+  const res = await api.get(`/services/${normalizedId}`);
   const service = res.data?.service || res.data || null;
   if (!service) return null;
   return {
     ...service,
-    id: service.id || service._id || serviceId
+    id: service.id || service._id || normalizedId
   };
 }

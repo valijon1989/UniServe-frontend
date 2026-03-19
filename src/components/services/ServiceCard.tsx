@@ -2,9 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import type { ServiceListItem } from "@/lib/servicesTypes";
 import { useI18n } from "@/context/i18n";
+import {
+  ArrowUpRightIcon,
+  BookmarkIcon,
+  EyeIcon,
+  HeartIcon,
+  ShareIcon
+} from "@/components/listing/ListingActionIcons";
 import { getServiceImageUrl } from "@/lib/serviceImage";
+import { normalizeMarketplaceTitle } from "@/lib/marketplaceNaming";
 import { Avatar } from "@/components/ui/Avatar";
 
 type Props = {
@@ -19,6 +28,11 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [tracked, setTracked] = useState(false);
   const { t } = useI18n();
+  const serviceTitle = normalizeMarketplaceTitle(service.title, t("services.list.title"));
+  const viewActionLabel = t("services.card.view");
+  const likeActionLabel = service.liked ? t("services.card.liked") : t("services.card.like");
+  const saveActionLabel = service.saved ? t("services.card.saved") : t("services.card.save");
+  const shareActionLabel = t("services.card.share");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -48,6 +62,45 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
     return () => observer.disconnect();
   }, [service.id, tracked]);
 
+  const handleShare = async () => {
+    if (typeof window === "undefined") return;
+
+    const url = `${window.location.origin}/services/${service.id}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: serviceTitle, text: serviceTitle, url });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success(
+          t({
+            en: "Service link copied",
+            uz: "Xizmat havolasi nusxalandi",
+            ru: "Ссылка на услугу скопирована",
+            ko: "서비스 링크가 복사되었습니다"
+          })
+        );
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+    }
+
+    toast.error(
+      t({
+        en: "Could not share the service right now.",
+        uz: "Xizmatni hozir ulashib bo'lmadi.",
+        ru: "Сейчас не удалось поделиться услугой.",
+        ko: "지금은 서비스를 공유할 수 없습니다."
+      })
+    );
+  };
+
   return (
     <div ref={ref} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 shadow-lg">
       <div className="relative w-full overflow-hidden bg-slate-900 aspect-video">
@@ -59,7 +112,7 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
               service.coverUrl ??
               getServiceImageUrl(service.category || "consulting", service.id)
             }
-            alt={service.title}
+            alt={serviceTitle}
             className="h-full w-full object-cover"
           />
         )}
@@ -71,7 +124,7 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-100">{service.title}</p>
+            <p className="text-sm font-semibold text-slate-100">{serviceTitle}</p>
             <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
               <Avatar
                 src={service.provider.avatarUrl}
@@ -121,15 +174,27 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
 
         <div className="flex items-center justify-between text-xs text-slate-400">
           <div className="flex gap-3">
-            <span>👁 {service.stats.views}</span>
-            <span>❤️ {service.stats.likes}</span>
-            <span>🔖 {service.stats.saves}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <EyeIcon className="h-3.5 w-3.5" />
+              {service.stats.views}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <HeartIcon className="h-3.5 w-3.5" filled />
+              {service.stats.likes}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <BookmarkIcon className="h-3.5 w-3.5" filled />
+              {service.stats.saves}
+            </span>
           </div>
           <Link
             href={`/services/${service.id}`}
-            className="rounded-full bg-emerald-400/90 px-3 py-1 text-[11px] font-semibold text-slate-950"
+            aria-label={viewActionLabel}
+            title={viewActionLabel}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-400/90 text-slate-950 transition hover:bg-emerald-300"
           >
-            {t("services.card.view")}
+            <ArrowUpRightIcon className="h-4.5 w-4.5" />
+            <span className="sr-only">{viewActionLabel}</span>
           </Link>
         </div>
 
@@ -137,26 +202,42 @@ export function ServiceCard({ service, onLike, onSave }: Props) {
           <button
             type="button"
             onClick={() => onLike(service.id, !service.liked)}
-            className={`rounded-full px-3 py-1 ${
-              service.liked ? "bg-rose-500/20 text-rose-200" : "bg-slate-900 text-slate-300"
+            aria-label={likeActionLabel}
+            aria-pressed={service.liked}
+            title={likeActionLabel}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+              service.liked
+                ? "border-rose-400/50 bg-rose-500/20 text-rose-200"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:border-rose-400/40 hover:text-rose-200"
             }`}
           >
-            {service.liked ? t("services.card.liked") : t("services.card.like")}
+            <HeartIcon className="h-4.5 w-4.5" filled={service.liked} />
+            <span className="sr-only">{likeActionLabel}</span>
           </button>
           <button
             type="button"
             onClick={() => onSave(service.id, !service.saved)}
-            className={`rounded-full px-3 py-1 ${
-              service.saved ? "bg-sky-500/20 text-sky-200" : "bg-slate-900 text-slate-300"
+            aria-label={saveActionLabel}
+            aria-pressed={service.saved}
+            title={saveActionLabel}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+              service.saved
+                ? "border-sky-400/50 bg-sky-500/20 text-sky-200"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:border-sky-400/40 hover:text-sky-200"
             }`}
           >
-            {service.saved ? t("services.card.saved") : t("services.card.save")}
+            <BookmarkIcon className="h-4.5 w-4.5" filled={service.saved} />
+            <span className="sr-only">{saveActionLabel}</span>
           </button>
           <button
             type="button"
-            className="rounded-full bg-slate-900 px-3 py-1 text-slate-300"
+            onClick={() => void handleShare()}
+            aria-label={shareActionLabel}
+            title={shareActionLabel}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-300 transition hover:border-emerald-400/40 hover:text-emerald-200"
           >
-            {t("services.card.share")}
+            <ShareIcon className="h-4.5 w-4.5" />
+            <span className="sr-only">{shareActionLabel}</span>
           </button>
         </div>
       </div>

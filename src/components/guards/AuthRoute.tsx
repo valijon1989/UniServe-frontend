@@ -1,8 +1,9 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth";
+import { sanitizeInternalRedirect } from "@/lib/authRedirect";
 
 function AuthGuardFallback({ message }: { message: string }) {
   return (
@@ -17,7 +18,8 @@ function AuthGuardFallback({ message }: { message: string }) {
 
 export function AuthRoute({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isHydrated, hydrateFromStorage } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isHydrated, hydrateFromStorage, role } = useAuthStore();
 
   useEffect(() => {
     hydrateFromStorage();
@@ -26,9 +28,10 @@ export function AuthRoute({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isHydrated) return;
     if (isAuthenticated) {
-      router.replace("/");
+      const redirectTarget = sanitizeInternalRedirect(searchParams.get("redirect"), "/");
+      router.replace(role === "ADMIN" ? "/admin" : redirectTarget);
     }
-  }, [isAuthenticated, isHydrated, router]);
+  }, [isAuthenticated, isHydrated, role, router, searchParams]);
 
   if (!isHydrated) {
     return <AuthGuardFallback message="Yuklanmoqda..." />;

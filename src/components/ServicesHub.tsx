@@ -22,6 +22,8 @@ import { DeliveryServiceSection } from "@/components/services/DeliveryServiceSec
 import { TechnicalServiceSection } from "@/components/services/TechnicalServiceSection";
 import { EmploymentServiceSection } from "@/components/services/EmploymentServiceSection";
 import { EducationServiceSection } from "@/components/services/EducationServiceSection";
+import { VerticalServiceCard } from "@/components/services/VerticalServiceCard";
+import { HeartIcon, ShareIcon, UserPlusIcon } from "@/components/listing/ListingActionIcons";
 import { Avatar } from "@/components/ui/Avatar";
 
 type ServiceFormState = {
@@ -624,6 +626,14 @@ export function ServicesHub() {
       psychology: translate("services.category.psychology.desc"),
       legal: translate("services.category.legal.desc"),
       sport: translate("services.category.sport.desc")
+    };
+    return map[id] || fallback;
+  };
+
+  const getGroupLabel = (id: ServiceCatalogGroup["id"], fallback: string) => {
+    const map: Record<ServiceCatalogGroup["id"], string> = {
+      material: translate("services.group.material"),
+      spiritual: translate("services.group.spiritual")
     };
     return map[id] || fallback;
   };
@@ -1637,6 +1647,8 @@ export function ServicesHub() {
   };
 
   const renderServiceCard = (service: DisplayService, keyPrefix = "") => {
+    type CardTone = "emerald" | "sky" | "amber" | "rose" | "slate";
+    type CardChip = { label: string; tone: CardTone };
     const translationLabel = getTranslationCategoryLabelLocalized(service.subCategory);
     const translationPair = `${service.sourceLang || "—"} → ${service.targetLang || "—"}`;
     const translationSlaLabel = getTranslationSlaLabel(service);
@@ -1657,481 +1669,332 @@ export function ServicesHub() {
     const certs = service.certificates.slice(0, 2);
     const certsExtra = Math.max(0, service.certificates.length - certs.length);
     const formats = service.agent.consultationFormats || ["Online"];
-    const formatTop = formats.slice(0, 2);
-    const formatExtra = Math.max(0, formats.length - formatTop.length);
     const audiences = service.agent.audiences || [];
     const audienceTop = audiences.slice(0, 2);
     const audienceExtra = Math.max(0, audiences.length - audienceTop.length);
-    return (
-      <div
-        key={`${keyPrefix}${service.displayId}`}
-        role="button"
-        tabIndex={0}
-        onClick={(event) => handleServiceCardClick(event, service.displayId)}
-        onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
-        className="flex h-[440px] cursor-pointer flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-sky-500/60"
-      >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Link href={`/agents/${service.agent.id}`} className="flex items-center gap-3">
-          <Avatar
-            src={isPsychologyCategory ? "" : service.agent.avatar.src}
-            alt={service.agent.avatar.alt}
-            fallbackText={service.agent.name || getInitials(service.agent.name)}
-            size={40}
-            className="border border-slate-700/70"
-          />
-          <div>
-            <p className="text-sm font-semibold text-slate-100">{service.agent.name}</p>
-            <p className="text-[11px] text-slate-400">@{service.agent.nickname}</p>
-            {(service.agent.region || service.agent.distanceKm) && (
-              <p className="text-[11px] text-slate-500">
-                📍 {service.agent.region || translate({ en: "Region", uz: "Hudud", ru: "Регион", ko: "지역" })} ·{" "}
-                {service.agent.distanceKm ?? "—"} km
-              </p>
-            )}
-            {isConsultingCategory && service.agent.languages && service.agent.languages.length > 0 && (
-              <p className="truncate text-[11px] text-slate-500">
-                🌐 {service.agent.languages.slice(0, 2).join(" · ")}
-              </p>
-            )}
-            {isPsychologyCategory && (
-              <p className="text-[11px] text-slate-500">
-                🔒 {translate({ en: "Private", uz: "Maxfiy", ru: "Конфиденциально", ko: "비공개 상담" })}
-              </p>
-            )}
-          </div>
-        </Link>
-        <div className="flex items-center gap-2 text-[11px] text-slate-200">
-          <span title="Verified" className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-200">
-            ✔
-          </span>
-          {isConsultingCategory && service.certificates.length > 0 && (
-            <span title="Certificates checked" className="rounded-full bg-slate-800 px-2 py-0.5">
-              📜
-            </span>
-          )}
-          {isLegalCategory && service.agent.legalLicenseMasked && (
-            <span title="Licensed" className="rounded-full bg-slate-800 px-2 py-0.5">
-              ⚖️
-            </span>
-          )}
-          {isSportCategory && service.agent.sportCertificates && (
-            <span title="Certified" className="rounded-full bg-slate-800 px-2 py-0.5">
-              🏅
-            </span>
-          )}
-        </div>
-      </div>
-
-      {activeCategory.id === "taxi" && (service.agent.vehicleClass || service.agent.seatCount) && (
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-          {service.agent.vehicleClass && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {formatTaxiClassLabel(service.agent.vehicleClass)}
-            </span>
-          )}
-          {service.agent.seatCount && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {service.agent.seatCount} kishi
-            </span>
-          )}
-          {service.agent.vehicleModel && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              {service.agent.vehicleModel}
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="mt-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="line-clamp-1 text-sm font-semibold text-slate-100">{legalTitle}</p>
-          <p className="line-clamp-2 text-xs text-slate-400">{service.description}</p>
-          {isNannyCategory && (
-            <p className="mt-1 text-[11px] text-emerald-200">
-              👶 {getNannyTypeLabel(service.subCategory)}
-            </p>
-          )}
-          {isConsultingCategory && (
-            <>
-              <p className="mt-1 text-[11px] text-emerald-200">
-                🧭 {service.agent.specialty || "Konsalting yo'nalishi"}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  📍 {service.agent.region || service.agent.location || "Hudud"}
-                </span>
-                {formatTop.map((item) => (
-                  <span key={`${service.displayId}-format-${item}`} className="rounded-full bg-slate-900 px-2 py-1">
-                    💬 {item}
-                  </span>
-                ))}
-                {formatExtra > 0 && (
-                  <span className="rounded-full bg-slate-900 px-2 py-1">+{formatExtra}</span>
-                )}
-              </div>
-            </>
-          )}
-          {isPsychologyCategory && (
-            <>
-              <p className="mt-1 text-[11px] text-emerald-200">
-                🧠 {service.agent.specialty || "Psixolog"}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  👥 {(audienceTop.length ? audienceTop.join(" · ") : "Kattalar")}
-                </span>
-                {audienceExtra > 0 && (
-                  <span className="rounded-full bg-slate-900 px-2 py-1">+{audienceExtra}</span>
-                )}
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  💬 {(service.agent.consultationFormats || ["Chat", "Video"]).slice(0, 2).join(" · ")}
-                </span>
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  ⏱ {(service.agent.consultationDurations || ["50 daqiqa"]).slice(0, 1).join(" · ")}
-                </span>
-              </div>
-            </>
-          )}
-          {isLegalCategory && (
-            <>
-              <p className="mt-1 text-[11px] text-emerald-200">
-                ⚖️ {service.legalServiceType || "Maslahat"} · {legalJurisdictionLabel}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  💬 {service.legalServiceType || "Maslahat"}
-                </span>
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.legalJurisdiction === "KR"
-                    ? "🇰🇷 Koreya"
-                    : service.legalJurisdiction === "INT"
-                      ? "🌍 Xalqaro"
-                      : "🇺🇿 O‘zbekiston"}
-                </span>
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  {service.legalFormat?.slice(0, 2).join(" · ") || "Chat"}
-                </span>
-              </div>
-            </>
-          )}
-          {isSportCategory && (
-            <>
-              <p className="mt-1 text-[11px] text-emerald-200">
-                🏅 {service.sportType || "Sport"} · {service.sportServiceType || "Mashg‘ulot"}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  ⏳ {service.agent.experienceYears} yil
-                </span>
-                <span className="rounded-full bg-slate-900 px-2 py-1">
-                  🎯 {service.sportFormat?.slice(0, 2).join(" · ") || "online/offline"}
-                </span>
-                {service.sportLevel && (
-                  <span className="rounded-full bg-slate-900 px-2 py-1">
-                    🧩 {service.sportLevel}
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        <div className="text-right">
-          {isConsultingCategory ? (
-            <>
-              <p className="text-sm font-semibold text-emerald-200">
-                {formatCount(convertCurrency(service.price, service.currency, consultingCurrency).amount)}{" "}
-                {convertCurrency(service.price, service.currency, consultingCurrency).label}
-              </p>
-              {service.currency !== consultingCurrency && (
-                <p className="text-[10px] text-slate-500">
-                  Asl: {formatCount(service.price)} {service.currency}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm font-semibold text-emerald-200">
-              {formatCount(service.price)} {service.currency}
-            </p>
-          )}
-          <p className="text-[11px] text-slate-500">/{service.unit}</p>
-        </div>
-      </div>
-
-      {isTranslationCategory && (
-        <div className="mt-2 space-y-2 text-[11px] text-slate-400">
-          <p className="text-xs text-slate-300">
-            🌐 {translationLabel} ({translationPair})
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ⏱ {translationSlaLabel}
-            </span>
-            {translationTopTags.map((tag) => (
-              <span key={`${service.displayId}-official-${tag}`} className="rounded-full bg-slate-900 px-2 py-1">
-                {tag}
-              </span>
-            ))}
-            {translationExtraTags > 0 && (
-              <span className="rounded-full bg-slate-900 px-2 py-1">+{translationExtraTags}</span>
-            )}
-            {service.translationMode && (
-              <span className="rounded-full bg-slate-900 px-2 py-1">
-                {service.translationMode === "oral"
-                  ? `🗣 ${translate({ en: "Oral", uz: "Og'zaki", ru: "Устный", ko: "구두" })}`
-                  : `✍️ ${translate({ en: "Written", uz: "Yozma", ru: "Письменный", ko: "문서" })}`}
-              </span>
-            )}
-            {service.translationFormat && (
-              <span className="rounded-full bg-slate-900 px-2 py-1">
-                📎{" "}
-                {service.translationFormat === "Scan"
-                  ? translate({ en: "Image → text", uz: "Rasm → matn", ru: "Изображение → текст", ko: "이미지 → 텍스트" })
-                  : service.translationFormat === "Original"
-                    ? translate({ en: "Original (stamped)", uz: "Original (muhrli)", ru: "Оригинал (с печатью)", ko: "원본 (도장)" })
-                    : service.translationFormat}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-        {certs.map((cert) => (
-          <span key={`${service.displayId}-${cert}`} className="rounded-full bg-slate-900 px-2 py-1">
-            📜 {cert}
-          </span>
-        ))}
-        {certsExtra > 0 && (
-          <span className="rounded-full bg-slate-900 px-2 py-1">+{certsExtra}</span>
-        )}
-        {isConsultingCategory && (
-          <>
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              🗓 {getMonthsOnPlatform(service.createdAt)} {translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}
-            </span>
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              🛡 {getConsultingTrustScore(service)}/100
-            </span>
-          </>
-        )}
-        {isTranslationCategory && (
-          <>
-            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ✅ {translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}
-            </span>
-            {service.notarization && (
-              <span className="rounded-full bg-slate-900 px-2 py-1">
-                🧾 {translate({ en: "Immigration", uz: "Immigratsiya", ru: "Иммиграция", ko: "이민" })}
-              </span>
-            )}
-          </>
-        )}
-        {isPsychologyCategory && (
-          <>
-            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ✅ {translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}
-            </span>
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              🗓 {getMonthsOnPlatform(service.createdAt)} {translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}
-            </span>
-          </>
-        )}
-        {isLegalCategory && (
-          <>
-            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              ⚖️ {translate({ en: "Verified", uz: "Tekshirildi", ru: "Проверено", ko: "검증됨" })}
-            </span>
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              ⏱ {service.legalResponseTime || translate({ en: "~24 hours", uz: "~24 soat", ru: "~24 часа", ko: "~24시간" })}
-            </span>
-          </>
-        )}
-        {isSportCategory && (
-          <>
-            <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-emerald-200">
-              🏅 {translate({ en: "Certified", uz: "Sertifikat", ru: "Сертификат", ko: "자격" })}
-            </span>
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              👥 {formatCount(service.agent.sportStudentsCount ?? 0)}
-            </span>
-          </>
-        )}
-      </div>
-
-      <div
-        className={`mt-2 grid ${
-          service.images.length <= 2 ? "grid-cols-2" : "grid-cols-3"
-        } gap-2`}
-      >
-        {(isMarketingCategory
+    const topChips: CardChip[] = [
+      { label: "Verified", tone: "emerald" as const },
+      ...(isConsultingCategory && service.certificates.length > 0
+        ? [{ label: "Certificates", tone: "slate" as const }]
+        : []),
+      ...(isLegalCategory && service.agent.legalLicenseMasked
+        ? [{ label: "Licensed", tone: "sky" as const }]
+        : []),
+      ...(isSportCategory && service.agent.sportCertificates
+        ? [{ label: "Certified", tone: "amber" as const }]
+        : [])
+    ];
+    const metaChips: CardChip[] = [
+      ...(activeCategory.id === "taxi" && service.agent.vehicleClass
+        ? [{ label: formatTaxiClassLabel(service.agent.vehicleClass), tone: "slate" as const }]
+        : []),
+      ...(activeCategory.id === "taxi" && service.agent.seatCount
+        ? [{ label: `${service.agent.seatCount} kishi`, tone: "slate" as const }]
+        : []),
+      ...(activeCategory.id === "taxi" && service.agent.vehicleModel
+        ? [{ label: service.agent.vehicleModel, tone: "slate" as const }]
+        : []),
+      ...(isConsultingCategory
+        ? [
+            {
+              label: `📍 ${service.agent.region || service.agent.location || "Hudud"}`,
+              tone: "slate" as const
+            },
+            ...formats.slice(0, 2).map((item) => ({
+              label: `💬 ${item}`,
+              tone: "slate" as const
+            }))
+          ]
+        : []),
+      ...(isPsychologyCategory
+        ? [
+            {
+              label: `👥 ${audienceTop.length ? audienceTop.join(" · ") : "Kattalar"}`,
+              tone: "slate" as const
+            },
+            ...(audienceExtra > 0 ? [{ label: `+${audienceExtra}`, tone: "slate" as const }] : []),
+            {
+              label: `💬 ${(service.agent.consultationFormats || ["Chat", "Video"]).slice(0, 2).join(" · ")}`,
+              tone: "slate" as const
+            },
+            {
+              label: `⏱ ${(service.agent.consultationDurations || ["50 daqiqa"]).slice(0, 1).join(" · ")}`,
+              tone: "slate" as const
+            }
+          ]
+        : []),
+      ...(isLegalCategory
+        ? [
+            {
+              label: `⚖️ ${service.legalServiceType || "Maslahat"}`,
+              tone: "slate" as const
+            },
+            {
+              label:
+                service.legalJurisdiction === "KR"
+                  ? "🇰🇷 Koreya"
+                  : service.legalJurisdiction === "INT"
+                    ? "🌍 Xalqaro"
+                    : "🇺🇿 O‘zbekiston",
+              tone: "slate" as const
+            },
+            {
+              label: service.legalFormat?.slice(0, 2).join(" · ") || "Chat",
+              tone: "slate" as const
+            }
+          ]
+        : []),
+      ...(isSportCategory
+        ? [
+            {
+              label: `⏳ ${service.agent.experienceYears} yil`,
+              tone: "slate" as const
+            },
+            {
+              label: `🎯 ${service.sportFormat?.slice(0, 2).join(" · ") || "online/offline"}`,
+              tone: "slate" as const
+            },
+            ...(service.sportLevel ? [{ label: `🧩 ${service.sportLevel}`, tone: "slate" as const }] : [])
+          ]
+        : [])
+    ];
+    if (isTranslationCategory) {
+      metaChips.push(
+        { label: `🌐 ${translationLabel} (${translationPair})`, tone: "sky" as const },
+        { label: `⏱ ${translationSlaLabel}`, tone: "emerald" as const },
+        ...translationTopTags.map((tag) => ({ label: tag, tone: "slate" as const })),
+        ...(translationExtraTags > 0 ? [{ label: `+${translationExtraTags}`, tone: "slate" as const }] : []),
+        ...(service.translationMode
           ? [
-              { src: service.agent.avatar.src, alt: service.agent.avatar.alt },
-              ...service.images.slice(0, 2)
+              {
+                label:
+                  service.translationMode === "oral"
+                    ? `🗣 ${translate({ en: "Oral", uz: "Og'zaki", ru: "Устный", ko: "구두" })}`
+                    : `✍️ ${translate({ en: "Written", uz: "Yozma", ru: "Письменный", ko: "문서" })}`,
+                tone: "slate" as const
+              }
             ]
-          : service.images
-        ).map((image, idx) => {
-          const fallback = isConstructionCategory
-            ? getConstructionFallback(service.displayId, idx)
-            : isNannyCategory
-              ? getNannyFallback(service.displayId, idx)
+          : []),
+        ...(service.translationFormat
+          ? [
+              {
+                label:
+                  service.translationFormat === "Scan"
+                    ? `📎 ${translate({ en: "Image → text", uz: "Rasm → matn", ru: "Изображение → текст", ko: "이미지 → 텍스트" })}`
+                    : service.translationFormat === "Original"
+                      ? `📎 ${translate({ en: "Original (stamped)", uz: "Original (muhrli)", ru: "Оригинал (с печатью)", ko: "원본 (도장)" })}`
+                      : `📎 ${service.translationFormat}`,
+                tone: "slate" as const
+              }
+            ]
+          : [])
+      );
+    }
+
+    const trustChips: CardChip[] = [
+      ...certs.map((cert) => ({ label: `📜 ${cert}`, tone: "slate" as const })),
+      ...(certsExtra > 0 ? [{ label: `+${certsExtra}`, tone: "slate" as const }] : []),
+      ...(isConsultingCategory
+        ? [
+            {
+              label: `🗓 ${getMonthsOnPlatform(service.createdAt)} ${translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}`,
+              tone: "slate" as const
+            },
+            { label: `🛡 ${getConsultingTrustScore(service)}/100`, tone: "emerald" as const }
+          ]
+        : []),
+      ...(isTranslationCategory
+        ? [
+            {
+              label: `✅ ${translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}`,
+              tone: "emerald" as const
+            },
+            ...(service.notarization
+              ? [
+                  {
+                    label: `🧾 ${translate({ en: "Immigration", uz: "Immigratsiya", ru: "Иммиграция", ko: "이민" })}`,
+                    tone: "slate" as const
+                  }
+                ]
+              : [])
+          ]
+        : []),
+      ...(isPsychologyCategory
+        ? [
+            {
+              label: `✅ ${translate({ en: "Verified", uz: "Tasdiqlangan", ru: "Проверено", ko: "검증됨" })}`,
+              tone: "emerald" as const
+            },
+            {
+              label: `🗓 ${getMonthsOnPlatform(service.createdAt)} ${translate({ en: "mo", uz: "oy", ru: "мес.", ko: "개월" })}`,
+              tone: "slate" as const
+            }
+          ]
+        : []),
+      ...(isLegalCategory
+        ? [
+            {
+              label: `⚖️ ${translate({ en: "Verified", uz: "Tekshirildi", ru: "Проверено", ko: "검증됨" })}`,
+              tone: "emerald" as const
+            },
+            {
+              label: `⏱ ${service.legalResponseTime || translate({ en: "~24 hours", uz: "~24 soat", ru: "~24 часа", ko: "~24시간" })}`,
+              tone: "slate" as const
+            }
+          ]
+        : []),
+      ...(isSportCategory
+        ? [
+            {
+              label: `🏅 ${translate({ en: "Certified", uz: "Sertifikat", ru: "Сертификат", ko: "자격" })}`,
+              tone: "amber" as const
+            },
+            {
+              label: `👥 ${formatCount(service.agent.sportStudentsCount ?? 0)}`,
+              tone: "slate" as const
+            }
+          ]
+        : [])
+    ];
+    const previewImages = (isMarketingCategory
+      ? [{ src: service.agent.avatar.src, alt: service.agent.avatar.alt }, ...service.images.slice(0, 2)]
+      : service.images
+    ).map((image, idx) => {
+      const fallback = isConstructionCategory
+        ? getConstructionFallback(service.displayId, idx)
+        : isNannyCategory
+          ? getNannyFallback(service.displayId, idx)
+          : undefined;
+      return {
+        src: isConstructionCategory || (isNannyCategory && fallback) ? fallback || image.src : image.src,
+        alt: image.alt
+      };
+    });
+    const stats: CardChip[] = [
+      { label: `⭐ ${service.rating.toFixed(1)}`, tone: "amber" as const },
+      { label: `✅ ${formatCount(service.agent.completedOrders ?? service.usedCount)}`, tone: "slate" as const },
+      { label: `💬 ${formatCount(service.reviewCount)}`, tone: "slate" as const },
+      ...(isConsultingCategory
+        ? [
+            {
+              label: `⏱ ~${(hashValue(service.agent.id) % 8) + 1} ${translate({ en: "hours", uz: "soat", ru: "часов", ko: "시간" })}`,
+              tone: "slate" as const
+            }
+          ]
+        : []),
+      {
+        label: service.canRate ? "⭐" : "☆",
+        tone: service.canRate ? ("emerald" as const) : ("slate" as const)
+      }
+    ];
+    const actions = isConsultingCategory
+      ? [
+          { label: "💬", tone: "primary" as const, onClick: () => undefined },
+          { label: "❓", tone: "secondary" as const, onClick: () => undefined },
+          { label: "★", tone: "secondary" as const, onClick: () => undefined }
+        ]
+      : isLegalCategory
+        ? [
+            { label: "⚖️", tone: "primary" as const, onClick: () => undefined },
+            { label: "❓", tone: "secondary" as const, onClick: () => undefined }
+          ]
+        : isSportCategory
+          ? [
+              { label: "🏃", tone: "primary" as const, onClick: () => undefined },
+              { label: "❓", tone: "secondary" as const, onClick: () => undefined }
+            ]
+          : isTranslationCategory
+            ? [
+                {
+                  label: "📎",
+                  tone: "primary" as const,
+                  onClick: () => router.push(`/services/${service.displayId}?upload=1`)
+                },
+                { label: "❓", tone: "secondary" as const, onClick: () => undefined }
+              ]
+            : isPsychologyCategory
+              ? [
+                  {
+                    label: "🔒",
+                    tone: "primary" as const,
+                    onClick: () => router.push(`/services/${service.displayId}?secure=1`)
+                  },
+                  { label: "Profilni ko'rish", tone: "secondary" as const, href: `/agents/${service.agent.id}` }
+                ]
+              : [
+                  {
+                    key: "nice",
+                    icon: <HeartIcon className="h-4 w-4" />,
+                    srLabel: `${translate("services.actions.nice")}: ${formatCount(service.niceCount)}`,
+                    badge: formatCount(service.niceCount),
+                    tone: "secondary" as const,
+                    onClick: () => undefined
+                  },
+                  {
+                    key: "follow",
+                    icon: <UserPlusIcon className="h-4 w-4" />,
+                    srLabel: translate("services.actions.followAgent"),
+                    tone: "secondary" as const,
+                    onClick: () => undefined
+                  },
+                  {
+                    key: "share",
+                    icon: <ShareIcon className="h-4 w-4" />,
+                    srLabel: `${translate("services.actions.share")}: ${formatCount(service.shareCount)}`,
+                    badge: formatCount(service.shareCount),
+                    tone: "secondary" as const,
+                    onClick: () => undefined
+                  }
+                ];
+    const descriptor = isNannyCategory
+      ? `👶 ${getNannyTypeLabel(service.subCategory)}`
+      : isConsultingCategory
+        ? `🧭 ${service.agent.specialty || "Konsalting yo'nalishi"}`
+        : isPsychologyCategory
+          ? `🧠 ${service.agent.specialty || "Psixolog"}`
+          : isLegalCategory
+            ? `⚖️ ${service.legalServiceType || "Maslahat"} · ${legalJurisdictionLabel}`
+            : isSportCategory
+              ? `🏅 ${service.sportType || "Sport"} · ${service.sportServiceType || "Mashg‘ulot"}`
               : undefined;
-          const src =
-            isConstructionCategory || (isNannyCategory && fallback) ? fallback : image.src;
-          return (
-            <img
-              key={`${service.displayId}-${idx}`}
-              src={src}
-              alt={image.alt}
-              className="h-16 w-full rounded-lg object-cover"
-              loading="lazy"
-              onError={(event) => {
-                if (fallback) {
-                  event.currentTarget.src = fallback;
-                }
-              }}
-            />
-          );
-        })}
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-slate-900 px-2 py-1">⭐ {service.rating.toFixed(1)}</span>
-          <span className="rounded-full bg-slate-900 px-2 py-1">✅ {formatCount(service.agent.completedOrders ?? service.usedCount)}</span>
-          <span className="rounded-full bg-slate-900 px-2 py-1">💬 {formatCount(service.reviewCount)}</span>
-          {isConsultingCategory && (
-            <span className="rounded-full bg-slate-900 px-2 py-1">
-              ⏱ ~{(hashValue(service.agent.id) % 8) + 1} {translate({ en: "hours", uz: "soat", ru: "часов", ko: "시간" })}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          className={`rounded-full px-3 py-1 ${
-            service.canRate
-              ? "bg-emerald-400/20 text-emerald-200"
-              : "bg-slate-800 text-slate-400"
-          }`}
-        >
-          {service.canRate ? "⭐" : "☆"}
-        </button>
-      </div>
-
-      <div className="mt-auto flex flex-wrap gap-2 pt-3 text-xs">
-        {isConsultingCategory ? (
-          <>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-emerald-500/80 px-3 py-1 text-slate-950"
-            >
-              💬
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              ❓
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              ★
-            </button>
-          </>
-        ) : isLegalCategory ? (
-          <>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
-            >
-              ⚖️
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              ❓
-            </button>
-          </>
-        ) : isSportCategory ? (
-          <>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
-            >
-              🏃
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              ❓
-            </button>
-          </>
-        ) : isTranslationCategory ? (
-          <>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/services/${service.displayId}?upload=1`);
-              }}
-              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
-            >
-              📎
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              ❓
-            </button>
-          </>
-        ) : isPsychologyCategory ? (
-          <>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                router.push(`/services/${service.displayId}?secure=1`);
-              }}
-              className="rounded-full bg-sky-500/90 px-3 py-1 text-white"
-            >
-              🔒
-            </button>
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded-full bg-slate-800 px-3 py-1 text-slate-200"
-            >
-              Profilni ko'rish
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {translate("services.actions.nice")} ({formatCount(service.niceCount)})
-            </button>
-            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {translate("services.actions.followAgent")}
-            </button>
-            <button className="rounded-full bg-slate-800 px-3 py-1 text-slate-200">
-              {translate("services.actions.share")} ({formatCount(service.shareCount)})
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+    return (
+      <VerticalServiceCard
+        key={`${keyPrefix}${service.displayId}`}
+        title={legalTitle}
+        description={service.description}
+        priceLabel={
+          isConsultingCategory
+            ? `${formatCount(convertCurrency(service.price, service.currency, consultingCurrency).amount)} ${convertCurrency(service.price, service.currency, consultingCurrency).label}`
+            : `${formatCount(service.price)} ${service.currency}`
+        }
+        unitLabel={`/${service.unit}`}
+        agentName={service.agent.name}
+        agentHandle={service.agent.nickname}
+        agentHref={`/agents/${service.agent.id}`}
+        avatarSrc={isPsychologyCategory ? "" : service.agent.avatar.src}
+        avatarAlt={service.agent.avatar.alt}
+        avatarFallback={service.agent.name || getInitials(service.agent.name)}
+        identityMeta={[
+          service.agent.region || translate({ en: "Region", uz: "Hudud", ru: "Регион", ko: "지역" }),
+          `${service.agent.distanceKm ?? "—"} km`,
+          ...(isConsultingCategory && service.agent.languages?.length
+            ? [service.agent.languages.slice(0, 2).join(" · ")]
+            : []),
+          ...(isPsychologyCategory
+            ? [translate({ en: "Private", uz: "Maxfiy", ru: "Конфиденциально", ko: "비공개 상담" })]
+            : [])
+        ]}
+        descriptor={descriptor}
+        topChips={topChips}
+        metaChips={metaChips}
+        trustChips={trustChips}
+        previewImages={previewImages}
+        stats={stats}
+        actions={actions}
+        onOpen={(event) => handleServiceCardClick(event, service.displayId)}
+        onKeyDown={(event) => handleServiceCardKeyDown(event, service.displayId)}
+      />
     );
   };
 
@@ -2148,48 +2011,113 @@ export function ServicesHub() {
             <p className="text-xs uppercase tracking-[0.3em] text-emerald-200">{translate("services.hub.label")}</p>
             <h1 className="text-2xl font-semibold text-slate-50">
               {isLegalCategory
-                ? "Huquqiy maslahat va xizmatlar"
+                ? translate({
+                    en: "Legal advice and services",
+                    uz: "Huquqiy maslahat va xizmatlar",
+                    ru: "Юридические консультации и услуги",
+                    ko: "법률 상담 및 서비스"
+                  })
                 : isSportCategory
-                  ? "Professional sport murabbiylari va treninglar"
+                  ? translate({
+                      en: "Professional coaches and training",
+                      uz: "Professional sport murabbiylari va treninglar",
+                      ru: "Профессиональные тренеры и тренировки",
+                      ko: "전문 코치와 트레이닝"
+                    })
                 : isPsychologyCategory
-                  ? "Psixologik yordam va maslahatlar"
+                  ? translate({
+                      en: "Psychology care and counseling",
+                      uz: "Psixologik yordam va maslahatlar",
+                      ru: "Психологическая помощь и консультации",
+                      ko: "심리 상담 및 케어"
+                    })
                   : translate("services.hub.title")}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-300">
               {isLegalCategory
-                ? "Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar. Onlayn va oflayn formatda."
+                ? translate({
+                    en: "Official and trustworthy help from verified legal specialists in online or offline formats.",
+                    uz: "Sertifikatlangan huquqshunoslardan rasmiy va ishonchli maslahatlar. Onlayn va oflayn formatda.",
+                    ru: "Официальная и надежная помощь от проверенных юристов в онлайн и офлайн формате.",
+                    ko: "검증된 법률 전문가의 공식적이고 신뢰할 수 있는 상담을 온라인과 오프라인으로 제공합니다."
+                  })
                 : isSportCategory
-                  ? "Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar."
+                  ? translate({
+                      en: "Individual sessions, online and offline training, and professional course programs.",
+                      uz: "Individual mashg‘ulotlar, onlayn va oflayn treninglar, hamda professional kurslar.",
+                      ru: "Индивидуальные занятия, онлайн и офлайн тренировки, а также профессиональные курсы.",
+                      ko: "개인 수업, 온라인·오프라인 트레이닝, 그리고 전문 코스 프로그램을 제공합니다."
+                    })
                 : isPsychologyCategory
-                  ? "Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda."
+                  ? translate({
+                      en: "Confidential and reliable support from certified specialists in online or offline formats.",
+                      uz: "Sertifikatlangan mutaxassislar bilan maxfiy va ishonchli muloqot. Onlayn va oflayn formatda.",
+                      ru: "Конфиденциальное и надежное общение с сертифицированными специалистами онлайн и офлайн.",
+                      ko: "공인 전문가와 온라인·오프라인으로 비공개 상담을 진행할 수 있습니다."
+                    })
                   : translate("services.hub.description")}
             </p>
           </div>
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-100">
             <p className="font-semibold">
               {isLegalCategory
-                ? "⚖️ Huquqshunoslarning malakasi platforma tomonidan tekshiriladi"
+                ? translate({
+                    en: "⚖️ Lawyer credentials are verified by the platform",
+                    uz: "⚖️ Huquqshunoslarning malakasi platforma tomonidan tekshiriladi",
+                    ru: "⚖️ Квалификация юристов проверяется платформой",
+                    ko: "⚖️ 법률 전문가 자격은 플랫폼에서 검증합니다"
+                  })
                 : isSportCategory
-                  ? "🔵 Murabbiy bo‘lish / Kurs joylash"
+                  ? translate({
+                      en: "🔵 Become a coach / Publish a course",
+                      uz: "🔵 Murabbiy bo‘lish / Kurs joylash",
+                      ru: "🔵 Стать тренером / Опубликовать курс",
+                      ko: "🔵 코치 등록 / 코스 게시"
+                    })
                 : isPsychologyCategory
-                  ? "🔒 Barcha yozishmalar maxfiy"
+                  ? translate({
+                      en: "🔒 All communication stays private",
+                      uz: "🔒 Barcha yozishmalar maxfiy",
+                      ru: "🔒 Вся переписка конфиденциальна",
+                      ko: "🔒 모든 상담 내용은 비공개입니다"
+                    })
                   : translate("services.hub.noteTitle")}
             </p>
             <p className="mt-1 text-amber-200/90">
               {isLegalCategory
-                ? "🔒 Yozishmalar maxfiy, hujjatlar xavfsiz saqlanadi."
+                ? translate({
+                    en: "🔒 Messages stay private and documents are stored securely.",
+                    uz: "🔒 Yozishmalar maxfiy, hujjatlar xavfsiz saqlanadi.",
+                    ru: "🔒 Переписка конфиденциальна, документы хранятся безопасно.",
+                    ko: "🔒 대화는 비공개로 유지되며 문서는 안전하게 보관됩니다."
+                  })
                 : isSportCategory
-                  ? "Murabbiy sifatida ro‘yxatdan o‘tib trening yoki kursingizni joylashtiring."
+                  ? translate({
+                      en: "Register as a coach and publish your training sessions or course.",
+                      uz: "Murabbiy sifatida ro‘yxatdan o‘tib trening yoki kursingizni joylashtiring.",
+                      ru: "Зарегистрируйтесь как тренер и разместите свою тренировку или курс.",
+                      ko: "코치로 등록하고 트레이닝 세션이나 코스를 게시하세요."
+                    })
                 : isPsychologyCategory
-                  ? "Sizning yozishmalaringiz faqat siz va mutaxassisga ko'rinadi."
+                  ? translate({
+                      en: "Your messages are visible only to you and the specialist.",
+                      uz: "Sizning yozishmalaringiz faqat siz va mutaxassisga ko'rinadi.",
+                      ru: "Ваши сообщения видны только вам и специалисту.",
+                      ko: "대화 내용은 본인과 전문가에게만 보입니다."
+                    })
                   : translate("services.hub.noteBody")}
             </p>
             {isSportCategory && (
               <Link
-                href="/agent/listings/new"
+                href="/agent/listings?create=1"
                 className="mt-3 inline-flex items-center justify-center rounded-full bg-sky-500/90 px-3 py-1 text-[11px] font-semibold text-white"
               >
-                Murabbiy bo‘lish / Kurs joylash
+                {translate({
+                  en: "Become a coach / Publish a course",
+                  uz: "Murabbiy bo‘lish / Kurs joylash",
+                  ru: "Стать тренером / Опубликовать курс",
+                  ko: "코치 등록 / 코스 게시"
+                })}
               </Link>
             )}
           </div>
@@ -2206,7 +2134,7 @@ export function ServicesHub() {
                   : "bg-slate-900/70 text-slate-300 ring-1 ring-slate-700/70 hover:text-slate-100"
               }`}
             >
-              {item.title}
+              {getGroupLabel(item.id, item.title)}
             </button>
           ))}
         </div>

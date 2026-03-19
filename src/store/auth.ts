@@ -297,6 +297,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       safeRemoveItem(window.sessionStorage, PROFILE_KEY);
       safeRemoveItem(window.sessionStorage, SESSION_META_KEY);
       safeRemoveItem(window.sessionStorage, "uniserve_user");
+      safeRemoveItem(window.sessionStorage, "uniserve_admin_mode_v1");
     }
     set({
       token: null,
