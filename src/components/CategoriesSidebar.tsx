@@ -31,6 +31,8 @@ export default function CategoriesSidebar({ selected, onSelect }: CategoriesSide
             onClick={() => onSelect(cat.slug)}
             role="button"
             tabIndex={0}
+            aria-label={label}
+            title={label}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();

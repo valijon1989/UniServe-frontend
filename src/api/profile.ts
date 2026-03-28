@@ -24,6 +24,7 @@ export interface MyProfile {
   about?: string;
   location?: string;
   language?: string;
+  languages?: string[];
   isPrivate?: boolean;
   stats?: UserStats;
 }
@@ -36,18 +37,26 @@ export interface UpdateMyProfileInput {
   phone?: string;
   location?: string;
   language?: string;
+  languages?: string[];
   isPrivate?: boolean;
   avatarUrl?: string;
 }
 
 export interface AgentMeProfile {
   id?: string;
+  kind?: AgentKind | string;
+  serviceCategory?: string;
+  socialServices?: string[];
+  materialServices?: string[];
+  serviceOfficeAddress?: string;
+  serviceQualification?: string;
   categories: string[];
   pricing?: string;
   availability?: string;
   portfolio: string[];
   ratingAvg?: number;
   ratingCount?: number;
+  verificationStatus?: string;
   ratingBreakdown?: {
     five: number;
     four: number;
@@ -69,6 +78,13 @@ export type AgentKind = "SERVICE" | "SELLER";
 export interface AgentTypesResponse {
   kinds: Array<{ value: AgentKind; label?: string }>;
   categories: string[];
+  categoryOptions?: Array<{
+    value: string;
+    label?: string;
+    localizedName?: string;
+    route?: string;
+    mainCategory?: string;
+  }>;
   defaults?: {
     kind?: AgentKind;
   };
@@ -139,6 +155,31 @@ const defaultAgentCategories = [
   "products"
 ];
 
+const normalizeLanguageList = (input: UpdateMyProfileInput) => {
+  if (Array.isArray(input.languages)) {
+    return Array.from(
+      new Set(
+        input.languages
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  if (typeof input.language === "string") {
+    return Array.from(
+      new Set(
+        input.language
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  return undefined;
+};
+
 const shouldFallbackToBaseProfilePatch = (error: unknown) => {
   if (!(error instanceof AxiosError)) return false;
   if (error.response?.status !== 400) return false;
@@ -147,7 +188,7 @@ const shouldFallbackToBaseProfilePatch = (error: unknown) => {
   const message = extractAxiosMessage(error).toLowerCase();
   const errors = Array.isArray(data?.errors) ? data.errors : [];
 
-  const blockedFieldNames = ["phone", "location", "language", "city", "locale", "phonenumber"];
+  const blockedFieldNames = ["phone", "location", "language", "languages", "city", "locale", "phonenumber"];
   const blockedFieldKeywords = ["not allowed", "forbidden", "unknown field", "invalid field", "cannot", "allowed fields"];
 
   const messageHasBlockedField = blockedFieldNames.some((field) => message.includes(field.toLowerCase()));
@@ -237,6 +278,15 @@ const normalizeStats = (raw: Record<string, any>): UserStats => {
 
 const normalizeMyProfile = (input: any): MyProfile => {
   const raw = unwrapPayload<Record<string, any>>(input) || {};
+  const languages = Array.isArray(raw.languages)
+    ? raw.languages.map((item: unknown) => String(item).trim()).filter(Boolean)
+    : typeof raw.language === "string"
+      ? raw.language
+          .split(",")
+          .map((item: string) => item.trim())
+          .filter(Boolean)
+      : [];
+
   return {
     _id: raw._id || raw.id,
     id: raw.id || raw._id,
@@ -249,8 +299,9 @@ const normalizeMyProfile = (input: any): MyProfile => {
     avatarUrl: raw.avatarUrl || raw.avatar,
     bio: raw.bio || raw.about || raw.description,
     about: raw.about || raw.bio || raw.description,
-    location: raw.location || raw.city,
-    language: raw.language || raw.locale,
+    location: raw.location || raw.region || raw.city,
+    language: typeof raw.language === "string" ? raw.language : languages.join(", "),
+    languages,
     isPrivate: Boolean(raw.isPrivate ?? raw.privateProfile ?? false),
     stats: normalizeStats(raw)
   };
@@ -275,12 +326,19 @@ const normalizeAgentProfile = (input: any): AgentMeProfile => {
 
   return {
     id: String(raw.id || raw._id || ""),
+    kind: raw.kind,
+    serviceCategory: typeof raw.serviceCategory === "string" ? raw.serviceCategory : undefined,
+    socialServices: Array.isArray(raw.socialServices) ? raw.socialServices.map((x) => String(x)) : [],
+    materialServices: Array.isArray(raw.materialServices) ? raw.materialServices.map((x) => String(x)) : [],
+    serviceOfficeAddress: typeof raw.serviceOfficeAddress === "string" ? raw.serviceOfficeAddress : undefined,
+    serviceQualification: typeof raw.serviceQualification === "string" ? raw.serviceQualification : undefined,
     categories,
     pricing: raw.pricing || raw.priceModel || raw.priceRange || "",
     availability: raw.availability || raw.schedule || "",
     portfolio,
     ratingAvg: toNumber(raw.ratingAvg ?? raw.rating ?? raw.ratingAverage, 0),
     ratingCount: toNumber(raw.ratingCount ?? raw.reviewsCount ?? 0, 0),
+    verificationStatus: typeof raw.adminStatus === "string" ? raw.adminStatus : typeof raw.verificationStatus === "string" ? raw.verificationStatus : undefined,
     ratingBreakdown: {
       five: toNumber(raw.ratingBreakdown?.five ?? raw.ratings?.five ?? raw.stars?.[5], 0),
       four: toNumber(raw.ratingBreakdown?.four ?? raw.ratings?.four ?? raw.stars?.[4], 0),
@@ -299,6 +357,7 @@ export async function getMyProfile(): Promise<MyProfile> {
 export async function updateMyProfile(input: UpdateMyProfileInput): Promise<MyProfile> {
   const basePayload: Record<string, unknown> = {};
   const extendedPayload: Record<string, unknown> = {};
+  const normalizedLanguages = normalizeLanguageList(input);
 
   if (typeof input.name === "string") basePayload.name = input.name.trim();
   if (typeof input.username === "string") basePayload.username = input.username.trim();
@@ -308,7 +367,12 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<MyPr
 
   if (typeof input.phone === "string") extendedPayload.phone = input.phone.trim();
   if (typeof input.location === "string") extendedPayload.location = input.location.trim();
-  if (typeof input.language === "string") extendedPayload.language = input.language.trim();
+  if (normalizedLanguages) {
+    extendedPayload.languages = normalizedLanguages;
+    extendedPayload.language = normalizedLanguages.join(", ");
+  } else if (typeof input.language === "string") {
+    extendedPayload.language = input.language.trim();
+  }
 
   const hasBasePayload = Object.keys(basePayload).length > 0;
   const hasExtendedPayload = Object.keys(extendedPayload).length > 0;
@@ -462,6 +526,7 @@ export async function getAgentTypes(): Promise<AgentTypesResponse> {
     const raw = await tryGetByPaths<Record<string, any>>(["/agents/types"]);
     const kindsRaw = Array.isArray(raw?.kinds) ? raw.kinds : [];
     const categoriesRaw = Array.isArray(raw?.categories) ? raw.categories : [];
+    const categoryOptionsRaw = Array.isArray(raw?.categoryOptions) ? raw.categoryOptions : [];
 
     const kinds = kindsRaw
       .map((item) => {
@@ -475,6 +540,19 @@ export async function getAgentTypes(): Promise<AgentTypesResponse> {
       .filter(Boolean) as AgentTypesResponse["kinds"];
 
     const categories = categoriesRaw.map((item) => String(item).trim().toLowerCase()).filter(Boolean);
+    const categoryOptions = categoryOptionsRaw
+      .map((item) => {
+        const value = String(item?.value || "").trim().toLowerCase();
+        if (!value) return null;
+        return {
+          value,
+          label: typeof item?.label === "string" ? item.label : undefined,
+          localizedName: typeof item?.localizedName === "string" ? item.localizedName : undefined,
+          route: typeof item?.route === "string" ? item.route : undefined,
+          mainCategory: typeof item?.mainCategory === "string" ? item.mainCategory : undefined
+        };
+      })
+      .filter(Boolean) as NonNullable<AgentTypesResponse["categoryOptions"]>;
     const defaultKindValue = String(raw?.defaults?.kind || "").toUpperCase();
     const defaults =
       defaultKindValue === "SERVICE" || defaultKindValue === "SELLER"
@@ -484,12 +562,14 @@ export async function getAgentTypes(): Promise<AgentTypesResponse> {
     return {
       kinds: kinds.length ? kinds : defaultAgentKinds,
       categories: categories.length ? Array.from(new Set(categories)) : defaultAgentCategories,
+      categoryOptions: categoryOptions.length ? categoryOptions : undefined,
       defaults
     };
   } catch {
     return {
       kinds: defaultAgentKinds,
       categories: defaultAgentCategories,
+      categoryOptions: undefined,
       defaults: { kind: "SERVICE" }
     };
   }

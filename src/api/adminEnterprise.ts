@@ -1,4 +1,5 @@
 import { appApi, client } from "./client";
+import { normalizeAdminHref } from "@/lib/adminRouteAlias";
 import type {
   AdminPermission,
   AdminContentItem,
@@ -500,7 +501,7 @@ export async function getAdminControlCenter(): Promise<AdminControlCenter> {
       label: asString(item?.label || item?.title || item?.id),
       count: asNumber(item?.count),
       tone: asOptionalString(item?.tone) || undefined,
-      href: asOptionalString(item?.href) || undefined,
+      href: normalizeAdminHref(asOptionalString(item?.href)) || undefined,
       module: asOptionalString(item?.module) || undefined,
       description: asOptionalString(item?.description) || undefined,
       permissionAny: asArray<string>(item?.permissionAny).map((value) => asString(value) as AdminPermission)
@@ -511,7 +512,7 @@ export async function getAdminControlCenter(): Promise<AdminControlCenter> {
       title: asString(item?.title),
       description: asOptionalString(item?.description) || undefined,
       count: asNumber(item?.count),
-      href: asOptionalString(item?.href) || undefined,
+      href: normalizeAdminHref(asOptionalString(item?.href)) || undefined,
       module: asOptionalString(item?.module) || undefined,
       permissionAny: asArray<string>(item?.permissionAny).map((value) => asString(value) as AdminPermission)
     })),
@@ -521,7 +522,7 @@ export async function getAdminControlCenter(): Promise<AdminControlCenter> {
       title: asString(item?.title),
       description: asOptionalString(item?.description) || undefined,
       count: asNumber(item?.count),
-      href: asOptionalString(item?.href) || undefined,
+      href: normalizeAdminHref(asOptionalString(item?.href)) || undefined,
       module: asOptionalString(item?.module) || undefined,
       permissionAny: asArray<string>(item?.permissionAny).map((value) => asString(value) as AdminPermission)
     })),

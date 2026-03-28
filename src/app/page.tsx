@@ -1,21 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type MouseEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getTopAgents, type TopAgent } from "@/api/agent";
 import { client } from "@/api/client";
 import { TopPodium } from "@/components/TopPodium";
 import { EventsSection } from "@/components/EventsSection";
 import { useI18n } from "@/context/i18n";
+import { getHomeHeroCategoryHref, getHomeHeroPrimaryHref } from "@/lib/homeHeroRouting";
 import { normalizeListing, type NormalizedListing } from "@/lib/normalizeListing";
+import { fetchPublicServicesFeed, fetchTrendingServicesFeed } from "@/lib/publicServicesFeed";
 import { useAuthStore } from "@/store/auth";
 
 export default function HomePage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<TopAgent[]>([]);
   const [saleProducts, setSaleProducts] = useState<NormalizedListing[]>([]);
   const [saleServices, setSaleServices] = useState<NormalizedListing[]>([]);
   const [dealsCount, setDealsCount] = useState(0);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const salesLoadedRef = useRef<string | null>(null);
+  const [isNavigating, startNavigation] = useTransition();
   const { t } = useI18n();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -130,15 +136,12 @@ export default function HomePage() {
             params: { limit: 24, order: "latest" },
             headers: { "X-Skip-Auth": "1" }
           }),
-          client.get("/services", {
-            params: { limit: 24, sort: "newest" },
-            headers: { "X-Skip-Auth": "1" }
-          })
+          fetchPublicServicesFeed({ limit: 24, sort: "newest" })
         ]);
 
         rawProducts = extractItems(productsRes.data);
         rawServices = extractItems(servicesRes.data);
-        source = "products+services";
+        source = `products+services:${servicesRes.source}`;
       };
 
       if (!isAuthenticated && (HOME_DEALS_MODE === "home-deals" || HOME_DEALS_MODE === "auto")) {
@@ -163,11 +166,11 @@ export default function HomePage() {
         try {
           const [productsRes, servicesRes] = await Promise.all([
             client.get("/products/trending", { params: { limit: 24, page: 1 } }),
-            client.get("/services/trending", { params: { limit: 24, page: 1 } })
+            fetchTrendingServicesFeed({ limit: 24, page: 1 })
           ]);
           rawProducts = extractItems(productsRes.data);
           rawServices = extractItems(servicesRes.data);
-          source = "products/trending+services/trending";
+          source = `products/trending+services/trending:${servicesRes.source}`;
         } catch (fallbackErr) {
           if (!isProtectedStatus(fallbackErr)) {
             console.error("Home deals fallback load error", fallbackErr);
@@ -350,6 +353,68 @@ export default function HomePage() {
         .slice(0, 10),
     [weeklyQualifiedAgents]
   );
+
+  const handleHeroNavigate = (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (!href || pendingHref === href) return;
+    setPendingHref(href);
+    startNavigation(() => {
+      router.push(href);
+    });
+  };
+
+  const primaryHeroHref = getHomeHeroPrimaryHref("services");
+  const secondaryHeroHref = getHomeHeroPrimaryHref("register");
+  const heroCategories = [
+    {
+      key: "consulting",
+      icon: "💼",
+      title: t("home.category.consulting.title"),
+      desc: t("home.category.consulting.desc"),
+      href: getHomeHeroCategoryHref("consulting"),
+      tone: "bg-emerald-500/15 text-emerald-100"
+    },
+    {
+      key: "translation",
+      icon: "🌐",
+      title: t("home.category.translation.title"),
+      desc: t("home.category.translation.desc"),
+      href: getHomeHeroCategoryHref("translation"),
+      tone: "bg-sky-500/15 text-sky-100"
+    },
+    {
+      key: "legal",
+      icon: "⚖️",
+      title: t("home.category.legal.title"),
+      desc: t("home.category.legal.desc"),
+      href: getHomeHeroCategoryHref("legal"),
+      tone: "bg-amber-500/15 text-amber-100"
+    },
+    {
+      key: "psychology",
+      icon: "🧠",
+      title: t("home.category.psychology.title"),
+      desc: t("home.category.psychology.desc"),
+      href: getHomeHeroCategoryHref("psychology"),
+      tone: "bg-rose-500/15 text-rose-100"
+    },
+    {
+      key: "sport",
+      icon: "🏋️",
+      title: t("home.category.sports.title"),
+      desc: t("home.category.sports.desc"),
+      href: getHomeHeroCategoryHref("sport"),
+      tone: "bg-indigo-500/15 text-indigo-100"
+    },
+    {
+      key: "product",
+      icon: "🛒",
+      title: t("home.category.products.title"),
+      desc: t("home.category.products.desc"),
+      href: getHomeHeroCategoryHref("product"),
+      tone: "bg-slate-100/15 text-slate-100"
+    }
+  ] as const;
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white shadow-2xl">
@@ -367,16 +432,28 @@ export default function HomePage() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/services?from=home_hero"
-                className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-0.5 hover:shadow-emerald-500/50"
+                href={primaryHeroHref}
+                onClick={handleHeroNavigate(primaryHeroHref)}
+                aria-label={t("home.hero.cta.primary")}
+                aria-busy={pendingHref === primaryHeroHref && isNavigating}
+                className={`rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:-translate-y-0.5 hover:shadow-emerald-500/50 ${
+                  pendingHref === primaryHeroHref && isNavigating ? "pointer-events-none opacity-80" : ""
+                }`}
               >
                 {t("home.hero.cta.primary")}
+                {pendingHref === primaryHeroHref && isNavigating ? "..." : ""}
               </Link>
               <Link
-                href="/become-agent"
-                className="rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/60"
+                href={secondaryHeroHref}
+                onClick={handleHeroNavigate(secondaryHeroHref)}
+                aria-label={t("home.hero.cta.secondary")}
+                aria-busy={pendingHref === secondaryHeroHref && isNavigating}
+                className={`rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/60 ${
+                  pendingHref === secondaryHeroHref && isNavigating ? "pointer-events-none opacity-80" : ""
+                }`}
               >
                 {t("home.hero.cta.secondary")}
+                {pendingHref === secondaryHeroHref && isNavigating ? "..." : ""}
               </Link>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-emerald-100/90">
@@ -386,60 +463,27 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              {
-                icon: "💼",
-                title: t("home.category.consulting.title"),
-                desc: t("home.category.consulting.desc"),
-                href: "/agents?category=consulting&tags=career,visa,business&from=home_category_consulting",
-                tone: "bg-emerald-500/15 text-emerald-100"
-              },
-              {
-                icon: "🌐",
-                title: t("home.category.translation.title"),
-                desc: t("home.category.translation.desc"),
-                href: "/agents?category=translation&tags=official,fast&from=home_category_translation",
-                tone: "bg-sky-500/15 text-sky-100"
-              },
-              {
-                icon: "⚖️",
-                title: t("home.category.legal.title"),
-                desc: t("home.category.legal.desc"),
-                href: "/agents?category=legal&tags=verified,lawyers&from=home_category_legal",
-                tone: "bg-amber-500/15 text-amber-100"
-              },
-              {
-                icon: "🧠",
-                title: t("home.category.psychology.title"),
-                desc: t("home.category.psychology.desc"),
-                href: "/agents?category=psychology&tags=safe,confidential&from=home_category_psychology",
-                tone: "bg-rose-500/15 text-rose-100"
-              },
-              {
-                icon: "🏋️",
-                title: t("home.category.sports.title"),
-                desc: t("home.category.sports.desc"),
-                href: "/agents?category=sports&tags=online,offline&from=home_category_sports",
-                tone: "bg-indigo-500/15 text-indigo-100"
-              },
-              {
-                icon: "🛒",
-                title: t("home.category.products.title"),
-                desc: t("home.category.products.desc"),
-                href: "/products?from=home_category_products",
-                tone: "bg-slate-100/15 text-slate-100"
-              }
-            ].map((item) => (
+            {heroCategories.map((item) => {
+              const cardLabel = `${item.title} · ${item.desc}`;
+              const isPendingCard = pendingHref === item.href && isNavigating;
+              return (
               <Link
-                key={item.title}
+                key={item.key}
                 href={item.href}
-                className={`group rounded-2xl border border-white/10 p-4 transition hover:-translate-y-0.5 hover:border-white/30 hover:shadow-lg hover:shadow-white/10 ${item.tone}`}
+                onClick={handleHeroNavigate(item.href)}
+                aria-label={cardLabel}
+                title={cardLabel}
+                aria-busy={isPendingCard}
+                className={`group cursor-pointer rounded-2xl border border-white/10 p-4 transition hover:-translate-y-0.5 hover:border-white/30 hover:shadow-lg hover:shadow-white/10 ${
+                  item.tone
+                } ${isPendingCard ? "pointer-events-none opacity-80" : ""}`}
               >
                 <div className="text-2xl">{item.icon}</div>
                 <p className="mt-2 text-sm font-semibold">{item.title}</p>
                 <p className="text-xs text-white/80">{item.desc}</p>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

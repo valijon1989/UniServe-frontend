@@ -112,10 +112,19 @@ export interface AgentListItem {
   nickname?: string;
   username?: string;
   avatarUrl?: string;
+  kindLabel?: string | null;
+  serviceCategory?: string | null;
+  serviceCategoryLabel?: string | null;
+  serviceCategoryMeta?: {
+    displayName?: string | null;
+  } | null;
   rating?: number;
   views?: number;
   likes?: number;
   active?: boolean;
+  status?: string | boolean;
+  onlineStatus?: string | boolean;
+  availability?: string | boolean;
   verifiedByAdmin?: boolean;
   isVerified?: boolean;
   listingsCount?: number;
@@ -128,7 +137,19 @@ export interface AgentListItem {
   responseMinutes?: number;
   complaintRate?: number;
   cancelRate?: number;
+  lastActiveAt?: string;
+  lastActive?: string;
+  updatedAt?: string;
+  createdAt?: string;
+  hourlyRate?: number | string;
+  priceHourly?: number | string;
+  price?: number | string;
+  rate?: number | string;
+  currency?: string;
+  priceCurrency?: string;
   region?: string;
+  socialServices?: string[];
+  materialServices?: string[];
   user?: {
     _id?: string;
     name?: string;
@@ -267,7 +288,7 @@ export async function getAgentReviews(agentId: string): Promise<AgentReview[]> {
   const raw: AgentReview[] = res.data?.items || res.data?.reviews || res.data || [];
   return raw.map((review) => ({
     ...review,
-    user: normalizeUserAvatar(review.user)
+    user: normalizeUserAvatar((review as any).user || (review as any).userId)
   }));
 }
 
@@ -276,7 +297,11 @@ export async function createAgentReview(
   payload: { rating: number; comment: string }
 ): Promise<AgentReview> {
   const res = await api.post(`/agents/${agentId}/reviews`, payload);
-  return res.data;
+  const review = res.data?.review || res.data;
+  return {
+    ...review,
+    user: normalizeUserAvatar(review?.user || review?.userId)
+  };
 }
 
 const normalizeListingStatus = (value: unknown): ListingStatus => {

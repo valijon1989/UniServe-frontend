@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { LocalizedText } from "@/lib/localization";
+import type { LocalizedText, SupportedLocale } from "@/lib/localization";
 import { normalizeMarketplaceSubtitle, normalizeMarketplaceTitle } from "@/lib/marketplaceNaming";
 
 export interface ProductRating {
@@ -499,8 +499,19 @@ const PRODUCTS_PATH = api.defaults.baseURL?.includes("/api")
   ? "/products"
   : "/api/products";
 
-export async function getProducts(params: Record<string, any> = {}): Promise<ProductsResponse> {
-  const res = await api.get(PRODUCTS_PATH, { params });
+export async function getProducts(
+  params: Record<string, any> = {},
+  locale?: SupportedLocale
+): Promise<ProductsResponse> {
+  const res = await api.get(PRODUCTS_PATH, {
+    params,
+    headers: locale
+      ? {
+          "X-Locale": locale,
+          "Accept-Language": locale
+        }
+      : undefined
+  });
   const items = extractItems(res.data);
 
   const page = Number(res.data?.page ?? params.page ?? 1) || 1;
@@ -515,8 +526,15 @@ export async function getProducts(params: Record<string, any> = {}): Promise<Pro
   };
 }
 
-export async function getProductDetail(id: string): Promise<Product> {
-  const res = await api.get(`${PRODUCTS_PATH}/${id}`);
+export async function getProductDetail(id: string, locale?: SupportedLocale): Promise<Product> {
+  const res = await api.get(`${PRODUCTS_PATH}/${id}`, {
+    headers: locale
+      ? {
+          "X-Locale": locale,
+          "Accept-Language": locale
+        }
+      : undefined
+  });
   return normalizeProduct(res.data, 0);
 }
 

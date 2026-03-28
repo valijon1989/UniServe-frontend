@@ -1,6 +1,7 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { triggerClientLogout } from "@/lib/authSession";
 import { useAuthStore } from "@/store/auth";
+import { decodeJwt } from "@/utils/jwt";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -27,6 +28,7 @@ const AUTH_RECOVERY_MARKERS = [
   "/admins/auth/login",
   "/admins/auth/logout"
 ];
+const ACCESS_TOKEN_REFRESH_BUFFER_MS = 15_000;
 
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -38,6 +40,18 @@ const asRecord = (value: unknown): Record<string, any> | null => {
 const readStoredToken = () => {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("uniserve_token") || window.sessionStorage.getItem("uniserve_token");
+};
+
+const readTokenExpiryMs = (token: string) => {
+  const payload = decodeJwt(token);
+  const exp = payload?.exp;
+  return typeof exp === "number" && Number.isFinite(exp) ? exp * 1000 : null;
+};
+
+const isTokenExpiredOrExpiring = (token: string, minTtlMs = ACCESS_TOKEN_REFRESH_BUFFER_MS) => {
+  const expiryMs = readTokenExpiryMs(token);
+  if (!expiryMs) return false;
+  return Date.now() + Math.max(0, minTtlMs) >= expiryMs;
 };
 
 const readStoredLocale = () => {
@@ -133,7 +147,7 @@ const persistRefreshedSession = (raw: unknown, token: string) => {
   );
 };
 
-const requestTokenRefresh = async () => {
+export const requestTokenRefresh = async () => {
   if (typeof window === "undefined") return null;
   if (refreshPromise) return refreshPromise;
 
@@ -184,6 +198,20 @@ const requestTokenRefresh = async () => {
   });
 
   return refreshPromise;
+};
+
+export const ensureValidAccessToken = async (options?: { forceRefresh?: boolean; minTtlMs?: number }) => {
+  const storedToken = readStoredToken();
+  if (!storedToken) return null;
+
+  const shouldRefresh =
+    options?.forceRefresh || isTokenExpiredOrExpiring(storedToken, options?.minTtlMs ?? ACCESS_TOKEN_REFRESH_BUFFER_MS);
+
+  if (!shouldRefresh) {
+    return storedToken;
+  }
+
+  return requestTokenRefresh();
 };
 
 const createConfiguredClient = (baseURL?: string) =>

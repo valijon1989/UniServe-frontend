@@ -22,8 +22,16 @@ import { ProductBadge, type ProductBadgeTone } from "@/components/product-card/P
 import { ProductMetaRow } from "@/components/product-card/ProductMetaRow";
 import { ProductPriceBlock } from "@/components/product-card/ProductPriceBlock";
 import { buildLoginRedirect, isUnauthorizedApiError, sanitizeInternalRedirect } from "@/lib/authRedirect";
-import { formatMoneyByLocale, resolveLocalizedText, type SupportedLocale } from "@/lib/localization";
+import { formatMoneyByLocale, resolveLocalizedText } from "@/lib/localization";
 import { normalizeMarketplaceSubtitle, normalizeMarketplaceTitle } from "@/lib/marketplaceNaming";
+import {
+  formatProductDemandLabel,
+  formatProductImageCountLabel,
+  formatProductInstallmentLabel,
+  formatProductReviewLabel,
+  formatProductStockLabel,
+  getProductDeliveryLabel
+} from "@/lib/productsPresentation";
 import { useAuthStore } from "@/store/auth";
 
 interface ProductCardProps {
@@ -37,13 +45,6 @@ const productImageFallbacks = [
   "/images/products/bosh.png",
   "/images/placeholders/service.jpg"
 ];
-
-const LOCALE_FORMAT_MAP: Record<SupportedLocale, string> = {
-  en: "en-US",
-  uz: "uz-UZ",
-  ru: "ru-RU",
-  ko: "ko-KR"
-};
 
 const hashValue = (value: string) => {
   let hash = 0;
@@ -65,12 +66,6 @@ const resolveProductImage = (src: string | undefined, seed: number) => {
   const safeIndex = Number.isFinite(remoteNumber) ? remoteNumber % productImageFallbacks.length : seed % productImageFallbacks.length;
   return productImageFallbacks[safeIndex];
 };
-
-const formatCompactCount = (value: number, locale: SupportedLocale) =>
-  new Intl.NumberFormat(LOCALE_FORMAT_MAP[locale], {
-    notation: "compact",
-    maximumFractionDigits: 1
-  }).format(Math.max(0, value));
 
 const isRecentProduct = (createdAt?: string) => {
   if (!createdAt) return false;
@@ -150,6 +145,10 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const [saved, setSaved] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrated = useAuthStore((state) => state.isHydrated);
+  const tp = (key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   const productId = data._id || data.id || "";
   const routeIdentifier = data.slug || data.id || data._id || "";
@@ -205,18 +204,13 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
       ) ||
         data.name ||
         data.title,
-      t({ en: "Product", uz: "Mahsulot", ru: "Товар", ko: "상품" })
+      tp("products.card.fallback.title", "Product")
     );
 
   const description =
     normalizeMarketplaceSubtitle(
       resolveLocalizedText(data.descriptionLocalized || data.localized?.description, language) || data.description,
-      t({
-        en: "No short description available yet.",
-        uz: "Qisqacha tavsif hozircha mavjud emas.",
-        ru: "Краткое описание пока недоступно.",
-        ko: "간단한 설명이 아직 없습니다."
-      })
+      tp("products.card.fallback.description", "No short description available yet.")
     );
 
   const priceValue = typeof data.price === "number" ? data.price : null;
@@ -224,12 +218,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const price =
     priceValue !== null
       ? formatMoneyByLocale(priceValue, data.currency || "USD", language)
-      : t({
-          en: "Contact for price",
-          uz: "Narxni aniqlashtiring",
-          ru: "Цена по запросу",
-          ko: "가격 문의"
-        });
+      : tp("products.card.price.contact", "Contact for price");
   const oldPrice =
     oldPriceValue !== null ? formatMoneyByLocale(oldPriceValue, data.currency || "USD", language) : null;
 
@@ -260,22 +249,13 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
     .filter(Boolean)
     .join(" / ");
   const subtitle = specSnippet.slice(0, 2).join(" · ") || description;
-
-  const deliveryOptions = [
-    {
-      key: "fast",
-      label: t({ en: "Fast shipping", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })
-    },
-    {
-      key: "tomorrow",
-      label: t({ en: "Next-day delivery", uz: "Ertangi yetkazish", ru: "Доставка завтра", ko: "익일 배송" })
-    },
-    {
-      key: "standard",
-      label: t({ en: "Standard delivery", uz: "Standart yetkazish", ru: "Стандартная доставка", ko: "일반 배송" })
-    }
-  ] as const;
-  const delivery = deliveryOptions[hash % deliveryOptions.length];
+  const deliveryKeys = ["fast", "tomorrow", "standard"] as const;
+  const deliveryKey =
+    (data.shippingInfo?.deliveryType as (typeof deliveryKeys)[number] | undefined) || deliveryKeys[hash % deliveryKeys.length];
+  const deliveryLabel =
+    data.shippingInfo?.deliveryLabel ||
+    data.card?.logistics?.deliveryLabel ||
+    getProductDeliveryLabel(deliveryKey, language);
 
   const stockCount = typeof data.stock === "number" ? data.stock : null;
   const isOutOfStock = stockCount !== null && stockCount <= 0;
@@ -287,12 +267,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const isNew = isRecentProduct(data.createdAt) || (!data.createdAt && hash % 7 === 0);
   const installmentLabel =
     priceValue && priceValue >= 60
-      ? t({
-          en: `from ${formatMoneyByLocale(priceValue / 12, data.currency || "USD", language)}/mo`,
-          uz: `oyiga ${formatMoneyByLocale(priceValue / 12, data.currency || "USD", language)} dan`,
-          ru: `от ${formatMoneyByLocale(priceValue / 12, data.currency || "USD", language)}/мес`,
-          ko: `월 ${formatMoneyByLocale(priceValue / 12, data.currency || "USD", language)}부터`
-        })
+      ? formatProductInstallmentLabel(priceValue / 12, data.currency || "USD", language)
       : null;
   const discount =
     priceValue !== null && oldPriceValue !== null && oldPriceValue > priceValue
@@ -313,49 +288,14 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
   const primaryImage = imageCandidates[0] || productImageFallbacks[hash % productImageFallbacks.length];
   const secondaryImage = imageCandidates[1] || null;
   const imageCount = imageCandidates.length;
-  const imageCountLabel =
-    imageCount > 1
-      ? t({
-          en: `${imageCount} photos`,
-          uz: `${imageCount} ta rasm`,
-          ru: `${imageCount} фото`,
-          ko: `사진 ${imageCount}장`
-        })
-      : null;
-
-  const stockLabel = isOutOfStock
-    ? t({ en: "Out of stock", uz: "Tugagan", ru: "Нет в наличии", ko: "품절" })
-    : stockCount !== null
-      ? t({
-          en: `${stockCount} in stock`,
-          uz: `${stockCount} dona`,
-          ru: `${stockCount} в наличии`,
-          ko: `${stockCount}개 재고`
-        })
-      : isLimitedStock
-        ? t({ en: "Limited stock", uz: "Kam qoldi", ru: "Осталось мало", ko: "재고 적음" })
-        : t({ en: "Ready to ship", uz: "Jo'natishga tayyor", ru: "Готово к отправке", ko: "즉시 발송 가능" });
+  const imageCountLabel = formatProductImageCountLabel(imageCount, language) || null;
+  const stockLabel = formatProductStockLabel({ stockCount, isOutOfStock, isLimitedStock }, language);
 
   const savedKey = productId || seed;
   const saveActionLabel = saved
-    ? t({
-        en: "Remove product from saved",
-        uz: "Mahsulotni saqlanganlardan olib tashlash",
-        ru: "Убрать товар из сохраненных",
-        ko: "저장된 상품에서 제거"
-      })
-    : t({
-        en: "Save product",
-        uz: "Mahsulotni saqlash",
-        ru: "Сохранить товар",
-        ko: "상품 저장"
-      });
-  const quickViewLabel = t({
-    en: "Quick view",
-    uz: "Tez ko'rish",
-    ru: "Быстрый просмотр",
-    ko: "빠른 보기"
-  });
+    ? tp("products.card.action.unsave", "Remove product from saved")
+    : tp("products.card.action.save", "Save product");
+  const quickViewLabel = tp("products.card.action.quickView", "Quick view");
 
   useEffect(() => {
     if (!savedKey) return;
@@ -367,14 +307,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
     if (!productId || isOutOfStock) return;
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      redirectToLogin(
-        t({
-          en: "Please sign in to add products to your cart.",
-          uz: "Savatchaga qo'shish uchun avval login qiling.",
-          ru: "Войдите, чтобы добавить товар в корзину.",
-          ko: "장바구니에 담으려면 먼저 로그인하세요."
-        })
-      );
+      redirectToLogin(tp("products.card.toast.login_cart", "Please sign in to add products to your cart."));
       return;
     }
 
@@ -384,12 +317,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
       toast((instance) => (
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-100">
-            {t({
-              en: "Added to cart",
-              uz: "Savatchaga qo'shildi",
-              ru: "Добавлено в корзину",
-              ko: "장바구니에 추가됨"
-            })}
+            {tp("products.card.toast.added", "Added to cart")}
           </span>
           <button
             type="button"
@@ -399,30 +327,17 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
               router.push("/cart");
             }}
           >
-            {t({ en: "Go to cart", uz: "Savatchaga o'tish", ru: "Перейти в корзину", ko: "장바구니로 이동" })}
+            {tp("products.card.action.go_to_cart", "Go to cart")}
           </button>
         </div>
       ));
     } catch (error: unknown) {
       if (isUnauthorizedApiError(error)) {
-        redirectToLogin(
-          t({
-            en: "Your session is required to use the cart.",
-            uz: "Savatchadan foydalanish uchun sessiya kerak.",
-            ru: "Для корзины требуется активная сессия.",
-            ko: "장바구니를 사용하려면 로그인 세션이 필요합니다."
-          })
-        );
+        redirectToLogin(tp("products.card.toast.session_cart", "Your session is required to use the cart."));
         return;
       }
       toast.error(
-        (error as { message?: string })?.message ||
-          t({
-            en: "Could not add the product to cart.",
-            uz: "Savatchaga qo'shib bo'lmadi.",
-            ru: "Не удалось добавить товар в корзину.",
-            ko: "상품을 장바구니에 추가하지 못했습니다."
-          })
+        (error as { message?: string })?.message || tp("products.card.toast.cart_error", "Could not add the product to cart.")
       );
     } finally {
       setPendingAction(null);
@@ -434,14 +349,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
     if (!productId || isOutOfStock) return;
     if (!isHydrated) return;
     if (!isAuthenticated) {
-      redirectToLogin(
-        t({
-          en: "Please sign in to continue with checkout.",
-          uz: "Checkoutni davom ettirish uchun avval login qiling.",
-          ru: "Войдите, чтобы продолжить checkout.",
-          ko: "체크아웃을 계속하려면 먼저 로그인하세요."
-        })
-      );
+      redirectToLogin(tp("products.card.toast.login_checkout", "Please sign in to continue with checkout."));
       return;
     }
 
@@ -452,23 +360,12 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
     } catch (error: unknown) {
       if (isUnauthorizedApiError(error)) {
         redirectToLogin(
-          t({
-            en: "Your session is required to continue with checkout.",
-            uz: "Checkoutni davom ettirish uchun sessiya kerak.",
-            ru: "Для продолжения checkout нужна активная сессия.",
-            ko: "체크아웃을 계속하려면 로그인 세션이 필요합니다."
-          })
+          tp("products.card.toast.session_checkout", "Your session is required to continue with checkout.")
         );
         return;
       }
       toast.error(
-        (error as { message?: string })?.message ||
-          t({
-            en: "Could not start checkout.",
-            uz: "Checkoutni boshlab bo'lmadi.",
-            ru: "Не удалось начать checkout.",
-            ko: "체크아웃을 시작하지 못했습니다."
-          })
+        (error as { message?: string })?.message || tp("products.card.toast.checkout_error", "Could not start checkout.")
       );
     } finally {
       setPendingAction(null);
@@ -482,13 +379,8 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
     setSaved(next);
     toast.success(
       next
-        ? t({ en: "Product saved", uz: "Mahsulot saqlandi", ru: "Товар сохранен", ko: "상품이 저장되었습니다" })
-        : t({
-            en: "Product removed from saved",
-            uz: "Mahsulot saqlashdan olindi",
-            ru: "Товар удален из сохраненных",
-            ko: "저장 목록에서 제거되었습니다"
-          })
+        ? tp("products.card.toast.saved", "Product saved")
+        : tp("products.card.toast.unsaved", "Product removed from saved")
     );
   };
 
@@ -499,39 +391,39 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
 
   const badgeItems: Array<{ key: string; label: string; tone: ProductBadgeTone } | null> = [
     discount !== null ? { key: "discount", label: `-${discount}%`, tone: "discount" as const } : null,
-    isNew ? { key: "new", label: t({ en: "New", uz: "Yangi", ru: "Новинка", ko: "신상품" }), tone: "dark" as const } : null,
+    isNew ? { key: "new", label: tp("products.card.badge.new", "New"), tone: "dark" as const } : null,
     isBestSeller
       ? {
           key: "bestseller",
-          label: t({ en: "Best seller", uz: "Top sotuv", ru: "Хит продаж", ko: "베스트셀러" }),
+          label: tp("products.card.badge.best_seller", "Best seller"),
           tone: "warning" as const
         }
       : null,
     isFreeDelivery
       ? {
           key: "free-delivery",
-          label: t({ en: "Free delivery", uz: "Bepul yetkazish", ru: "Бесплатная доставка", ko: "무료 배송" }),
+          label: tp("products.card.badge.free_delivery", "Free delivery"),
           tone: "success" as const
         }
       : null,
     isVerifiedSeller
       ? {
           key: "verified",
-          label: t({ en: "Verified seller", uz: "Tasdiqlangan", ru: "Проверенный продавец", ko: "인증 판매자" }),
+          label: tp("products.card.badge.verified_seller", "Verified seller"),
           tone: "info" as const
         }
       : null,
     isLimitedStock && !isOutOfStock
       ? {
           key: "limited",
-          label: t({ en: "Limited stock", uz: "Kam qoldi", ru: "Осталось мало", ko: "재고 적음" }),
+          label: tp("products.card.badge.limitedStock", "Limited stock"),
           tone: "danger" as const
         }
       : null,
-    delivery.key === "fast"
+    deliveryKey === "fast"
       ? {
           key: "shipping",
-          label: t({ en: "Fast shipping", uz: "Tez jo'natish", ru: "Быстрая отправка", ko: "빠른 출고" }),
+          label: tp("products.card.badge.fastShipping", "Fast shipping"),
           tone: "info" as const
         }
       : null
@@ -609,7 +501,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
                 label:
                   rating > 0
                     ? `${rating.toFixed(1)}`
-                    : t({ en: "New", uz: "Yangi", ru: "Новый", ko: "신규" }),
+                    : tp("products.card.badge.new", "New"),
                 icon: (
                   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-100 text-amber-700">
                     <StarMark className="h-2.5 w-2.5" />
@@ -619,33 +511,12 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
               },
               {
                 key: "reviews",
-                label:
-                  ratingCount > 0
-                    ? t({
-                        en: `${formatCompactCount(ratingCount, language)} reviews`,
-                        uz: `${formatCompactCount(ratingCount, language)} ta baho`,
-                        ru: `${formatCompactCount(ratingCount, language)} отзывов`,
-                        ko: `리뷰 ${formatCompactCount(ratingCount, language)}개`
-                      })
-                    : t({ en: "No reviews", uz: "Baho yo'q", ru: "Без отзывов", ko: "리뷰 없음" }),
+                label: formatProductReviewLabel(ratingCount, language),
                 tone: "muted"
               },
               {
                 key: "demand",
-                label:
-                  soldCount > 0
-                    ? t({
-                        en: `${formatCompactCount(soldCount, language)} sold`,
-                        uz: `${formatCompactCount(soldCount, language)} sotilgan`,
-                        ru: `${formatCompactCount(soldCount, language)} продано`,
-                        ko: `${formatCompactCount(soldCount, language)} 판매`
-                      })
-                    : t({
-                        en: `${formatCompactCount(viewCount, language)} views`,
-                        uz: `${formatCompactCount(viewCount, language)} ko'rilgan`,
-                        ru: `${formatCompactCount(viewCount, language)} просмотров`,
-                        ko: `조회 ${formatCompactCount(viewCount, language)}회`
-                      }),
+                label: formatProductDemandLabel(soldCount, viewCount, language),
                 icon: (
                   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-slate-600">
                     {soldCount > 0 ? <CubeMark className="h-2.5 w-2.5" /> : <EyeIcon className="h-2.5 w-2.5" />}
@@ -661,7 +532,7 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
               isVerifiedSeller
                 ? {
                     key: "verified",
-                    label: t({ en: "Verified seller", uz: "Tasdiqlangan seller", ru: "Проверенный продавец", ko: "인증 판매자" }),
+                    label: tp("products.card.badge.verified_seller", "Verified seller"),
                     icon: (
                       <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-sky-100 text-sky-700">
                         <CheckMark className="h-2.5 w-2.5" />
@@ -694,20 +565,20 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
               },
               {
                 key: "delivery",
-                label: isFreeDelivery ? t({ en: "Free delivery", uz: "Bepul yetkazish", ru: "Бесплатная доставка", ko: "무료 배송" }) : delivery.label,
+                label: isFreeDelivery ? tp("products.card.badge.free_delivery", "Free delivery") : deliveryLabel,
                 icon: (
                   <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-slate-700">
                     <BoltMark className="h-2.5 w-2.5" />
                   </span>
                 ),
-                tone: isFreeDelivery || delivery.key === "fast" ? "success" : "neutral"
+                tone: isFreeDelivery || deliveryKey === "fast" ? "success" : "neutral"
               }
             ]}
           />
         </div>
 
         <ProductPriceBlock
-          label={t({ en: "Price", uz: "Narx", ru: "Цена", ko: "가격" })}
+          label={tp("products.card.price.label", "Price")}
           currentPrice={price}
           oldPrice={oldPrice}
           discountLabel={discount !== null ? `-${discount}%` : null}
@@ -716,10 +587,10 @@ export default function ProductCard({ data, disableNavigation = false, onCardCli
         />
 
         <ProductActions
-          addToCartLabel={t({ en: "Add to cart", uz: "Savatchaga", ru: "В корзину", ko: "장바구니 담기" })}
-          buyNowLabel={t({ en: "Buy now", uz: "Hozir sotib olish", ru: "Купить сейчас", ko: "바로 구매" })}
-          loadingCartLabel={t({ en: "Adding...", uz: "Qo'shilmoqda...", ru: "Добавление...", ko: "추가 중..." })}
-          loadingBuyLabel={t({ en: "Opening...", uz: "Ochilmoqda...", ru: "Открытие...", ko: "열리는 중..." })}
+          addToCartLabel={tp("products.card.action.add_to_cart", "Add to cart")}
+          buyNowLabel={tp("products.card.action.buy_now", "Buy now")}
+          loadingCartLabel={tp("products.card.action.loadingCart", "Adding...")}
+          loadingBuyLabel={tp("products.card.action.loadingBuy", "Opening...")}
           onAddToCart={addToCart}
           onBuyNow={buyNow}
           pendingAction={pendingAction}

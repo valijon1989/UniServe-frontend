@@ -8,6 +8,7 @@ export const AUTH_LOGOUT_STORAGE_KEY = "uniserve_logout_at";
 
 const AUTH_BROADCAST_CHANNEL = "uniserve:auth";
 const AUTH_STORAGE_KEYS = [
+  "accessToken",
   "uniserve_token",
   "uniserve_user",
   "uniserve_user_profile",

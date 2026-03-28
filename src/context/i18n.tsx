@@ -9,6 +9,7 @@ import {
   resolveLocalizedText,
   type LocalizedText
 } from "@/lib/localization";
+import { setDayjsLocale } from "@/lib/dayjs";
 import { getCatalogMessage } from "@/lib/i18nCatalog";
 
 export type Language = "en" | "uz" | "ru" | "ko";
@@ -2250,7 +2251,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    document.cookie = `${LANGUAGE_STORAGE_KEY}=${language}; path=/; max-age=31536000; SameSite=Lax`;
     document.documentElement.lang = language;
+    setDayjsLocale(language);
   }, [language]);
 
   const value = useMemo<I18nContextValue>(() => {

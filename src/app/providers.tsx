@@ -5,6 +5,7 @@ import axios from "axios";
 import { Toaster } from "react-hot-toast";
 import { I18nProvider } from "@/context/i18n";
 import { AuthProvider } from "@/context/AuthContext";
+import { SocketProvider } from "@/context/socket/SocketContext";
 import { GlobalImageLightbox } from "@/components/shared/GlobalImageLightbox";
 import {
   AUTH_LOGOUT_STORAGE_KEY,
@@ -58,9 +59,11 @@ export default function Providers({ children }: { children: ReactNode }) {
     <I18nProvider>
       <AuthProvider>
         <AuthStorageSync />
-        {children}
-        <Toaster />
-        <GlobalImageLightbox />
+        <SocketProvider>
+          {children}
+          <Toaster />
+          <GlobalImageLightbox />
+        </SocketProvider>
       </AuthProvider>
     </I18nProvider>
   );

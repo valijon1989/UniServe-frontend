@@ -5,6 +5,7 @@ import { client } from "@/api/client";
 import ProductCard from "@/components/ProductCard";
 import { ServiceCard } from "@/components/services/ServiceCard";
 import { useI18n } from "@/context/i18n";
+import { fetchPublicServicesFeed, fetchTrendingServicesFeed } from "@/lib/publicServicesFeed";
 import { useAuthStore } from "@/store/auth";
 import {
   normalizeListing,
@@ -212,29 +213,26 @@ const fetchPublicTop = async (): Promise<TopData> => {
       params: { limit: 3, order: "latest" },
       headers: { "X-Skip-Auth": "1" }
     }),
-    client.get("/services", {
-      params: { limit: 3, sort: "newest" },
-      headers: { "X-Skip-Auth": "1" }
-    })
+    fetchPublicServicesFeed({ limit: 3, sort: "newest" })
   ]);
 
   return {
     products: normalizeTop(extractItems(productsRes.data), "product").slice(0, 3),
     services: normalizeTop(extractItems(servicesRes.data), "service").slice(0, 3),
-    source: "products+services"
+    source: `products+services:${servicesRes.source}`
   };
 };
 
 const fetchTrendingTop = async (): Promise<TopData> => {
   const [productsRes, servicesRes] = await Promise.all([
     client.get("/products/trending", { params: { limit: 3, page: 1 } }),
-    client.get("/services/trending", { params: { limit: 3, page: 1 } })
+    fetchTrendingServicesFeed({ limit: 3, page: 1 })
   ]);
 
   return {
     products: normalizeTop(extractItems(productsRes.data), "product").slice(0, 3),
     services: normalizeTop(extractItems(servicesRes.data), "service").slice(0, 3),
-    source: "products/trending+services/trending"
+    source: `products/trending+services/trending:${servicesRes.source}`
   };
 };
 

@@ -23,6 +23,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const TOKEN_KEY = "uniserve_token";
+const SOCKET_TOKEN_KEY = "accessToken";
 
 const readStoredToken = () => {
   if (typeof window === "undefined") return null;
@@ -33,6 +34,18 @@ const clearStoredToken = () => {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.sessionStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(SOCKET_TOKEN_KEY);
+};
+
+const syncSocketToken = (token: string | null) => {
+  if (typeof window === "undefined") return;
+
+  if (token) {
+    window.localStorage.setItem(SOCKET_TOKEN_KEY, token);
+    return;
+  }
+
+  window.localStorage.removeItem(SOCKET_TOKEN_KEY);
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -61,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!storeHydrated) return;
 
     setToken(storeToken);
+    syncSocketToken(storeToken);
 
     if (storeAuthenticated && storeRole) {
       setUser({
@@ -99,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     setUser(res.data.user);
     setToken(res.data.token);
+    syncSocketToken(res.data.token);
     setStoreSession(
       res.data.token,
       {
@@ -119,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await api.post<AuthResponse>("/auth/register", data);
     setUser(res.data.user);
     setToken(res.data.token);
+    syncSocketToken(res.data.token);
     setStoreSession(
       res.data.token,
       {
@@ -133,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     setUser(null);
     setToken(null);
+    syncSocketToken(null);
     clearStoredToken();
     logoutStore();
   };

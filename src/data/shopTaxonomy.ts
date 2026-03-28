@@ -6,6 +6,11 @@ import {
   type LocalizedText,
   type SupportedLocale
 } from "@/lib/localization";
+import {
+  getProductAudienceLabel,
+  getProductConditionLabel,
+  getProductSeasonLabel
+} from "@/lib/productsPresentation";
 
 export type ShopCategorySlug =
   | "all"
@@ -332,10 +337,11 @@ export const buildProductSpecSnippet = (product: Product, locale: SupportedLocal
     if (memory) snippets.push(`${resolveLocalizedText(tx("RAM", "RAM", "RAM", "RAM"), locale)} ${memory}`);
     if (storage) snippets.push(storage);
     if (warranty) snippets.push(`${resolveLocalizedText(tx("Warranty", "Kafolat", "Гарантия", "보증"), locale)} ${warranty}`);
+    if (product.condition) snippets.push(getProductConditionLabel(product.condition, locale));
   } else if (meta.slug === "fashion") {
     if (product.size) snippets.push(`${resolveLocalizedText(tx("Size", "O'lcham", "Размер", "사이즈"), locale)} ${product.size.toUpperCase()}`);
-    if (product.season) snippets.push(product.season);
-    if (product.audience) snippets.push(product.audience);
+    if (product.season) snippets.push(getProductSeasonLabel(product.season, locale));
+    if (product.audience) snippets.push(getProductAudienceLabel(product.audience, locale));
     const material = pickSpecification(product, ["material", "fabric"]);
     if (material) snippets.push(material);
   } else if (meta.slug === "food") {
@@ -351,7 +357,7 @@ export const buildProductSpecSnippet = (product: Product, locale: SupportedLocal
     if (product.brand) snippets.push(product.brand);
     if (vehicleType) snippets.push(vehicleType);
     if (compatibility) snippets.push(compatibility);
-    if (product.condition) snippets.push(product.condition);
+    if (product.condition) snippets.push(getProductConditionLabel(product.condition, locale));
   } else if (meta.slug === "home-appliances") {
     const capacity = pickSpecification(product, ["capacity", "sig'im"]);
     const power = pickSpecification(product, ["power", "quvvat"]);
@@ -360,9 +366,10 @@ export const buildProductSpecSnippet = (product: Product, locale: SupportedLocal
     if (capacity) snippets.push(capacity);
     if (power) snippets.push(power);
     if (dimensions) snippets.push(dimensions);
+    if (product.condition) snippets.push(getProductConditionLabel(product.condition, locale));
   } else if (meta.slug === "beauty") {
     if (product.brand) snippets.push(product.brand);
-    if (product.audience) snippets.push(product.audience);
+    if (product.audience) snippets.push(getProductAudienceLabel(product.audience, locale));
     const formula = pickSpecification(product, ["formula", "finish", "type"]);
     const size = pickSpecification(product, ["size", "volume", "ml"]);
     if (formula) snippets.push(formula);
@@ -371,7 +378,7 @@ export const buildProductSpecSnippet = (product: Product, locale: SupportedLocal
 
   if (snippets.length === 0) {
     if (product.brand) snippets.push(product.brand);
-    if (product.condition) snippets.push(product.condition);
+    if (product.condition) snippets.push(getProductConditionLabel(product.condition, locale));
     if (product.category) snippets.push(getShopCategoryLabel(product.category, locale));
   }
 

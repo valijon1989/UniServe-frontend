@@ -12,13 +12,18 @@ import type { Product } from "@/api/products";
 import { getShopCategoryMeta, resolveShopCategorySlug } from "@/data/shopTaxonomy";
 import { useI18n } from "@/context/i18n";
 import { resolveLocalizedText } from "@/lib/localization";
+import {
+  formatProductPaginationSummary,
+  formatProductResultCount,
+  getLocalizedProductSearchChips,
+  getProductAudienceLabel,
+  getProductConditionLabel,
+  getProductDeliveryLabel,
+  getProductSeasonLabel
+} from "@/lib/productsPresentation";
 
 const PRODUCT_IMAGE_POOL_SIZE = 36;
-const DELIVERY_OPTIONS = [
-  { key: "fast", label: "Tez" },
-  { key: "tomorrow", label: "Ertaga" },
-  { key: "standard", label: "Oddiy" }
-];
+const DELIVERY_OPTIONS = ["fast", "tomorrow", "standard"] as const;
 
 type QuickFiltersState = {
   priceMin: string;
@@ -63,7 +68,7 @@ const getDeliveryMeta = (item: Product) => {
   const base = hashString(seed);
   const delivery = DELIVERY_OPTIONS[base % DELIVERY_OPTIONS.length];
   const inStock = base % 9 !== 0;
-  return { delivery: delivery.key, deliveryLabel: delivery.label, inStock };
+  return { delivery, inStock };
 };
 
 const withProductImages = (
@@ -88,6 +93,10 @@ const withProductImages = (
 
 export default function ProductsPage() {
   const { t, language } = useI18n();
+  const tp = (key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
   const {
     items,
     loading,
@@ -222,59 +231,18 @@ export default function ProductsPage() {
   });
   const isClothingCategory = activeCategory === "fashion";
 
-  const foodSubcategories = [
-    { key: "tayyor", label: "Tayyor mahsulotlar" },
-    { key: "yarim-tayyor", label: "Yarim tayyor" },
-    { key: "bolalar", label: "Bolalar" },
-    { key: "goshtli", label: "Go'shtli mahsulotlar" },
-    { key: "exclusive", label: "Exclusive" }
-  ] as const;
+  const localizeSubcategories = (slug: string) =>
+    getShopCategoryMeta(slug).subcategories.map((sub) => ({
+      key: sub.key,
+      label: resolveLocalizedText(sub.label, language) || sub.key
+    }));
 
-  const beautySubcategories = [
-    { key: "fragrance", label: "Atirlar" },
-    { key: "skincare", label: "Yuz kremlari" },
-    { key: "haircare", label: "Soch uchun" },
-    { key: "makeup", label: "Bo'yanish vositalari" },
-    { key: "bodycare", label: "Tana parvarishi" },
-    { key: "nails", label: "Manikyur/Pedikyur" },
-    { key: "tools", label: "Asboblar va aksessuarlar" },
-    { key: "bathspa", label: "Vannalar va spa" },
-    { key: "suncare", label: "Quyoshdan himoya" }
-  ] as const;
-
-  const electronicsSubcategories = [
-    { key: "pc", label: "PC" },
-    { key: "mobile", label: "Mobile" },
-    { key: "tv", label: "TV" },
-    { key: "game", label: "Game" },
-    { key: "cameras", label: "Cameras" },
-    { key: "others", label: "Others" }
-  ] as const;
-
-  const autoSubcategories = [
-    { key: "cars", label: "Avtomobillar" },
-    { key: "car-parts", label: "Avto ehtiyot qismlar" },
-    { key: "tech", label: "Texnika" },
-    { key: "tech-parts", label: "Texnika ehtiyot qismlar" }
-  ] as const;
-
-  const homeSubcategories = [
-    { key: "vacuum", label: "Chang yutkich" },
-    { key: "washer", label: "Kir yuvish mashinalari" },
-    { key: "kitchen", label: "Oshxona texnikalari" },
-    { key: "fridge", label: "Sovutkich/Muzlatkichlar" },
-    { key: "ac", label: "Havo sovutgich" },
-    { key: "air-purifier", label: "Havo tozalagich" },
-    { key: "others-home", label: "Others" }
-  ] as const;
-
-  const clothingSubcategories = [
-    { key: "men", label: "Erkaklar" },
-    { key: "women", label: "Ayollar" },
-    { key: "kids", label: "Bolalar" },
-    { key: "elderly", label: "Keksalar" },
-    { key: "special", label: "Maxsus bo'lim" }
-  ] as const;
+  const foodSubcategories = useMemo(() => localizeSubcategories("food"), [language]);
+  const beautySubcategories = useMemo(() => localizeSubcategories("beauty"), [language]);
+  const electronicsSubcategories = useMemo(() => localizeSubcategories("electronics"), [language]);
+  const autoSubcategories = useMemo(() => localizeSubcategories("auto-tech"), [language]);
+  const homeSubcategories = useMemo(() => localizeSubcategories("home-appliances"), [language]);
+  const clothingSubcategories = useMemo(() => localizeSubcategories("fashion"), [language]);
 
   const foodProductsMock: Record<string, Product[]> = withProductImages({
     tayyor: [
@@ -1943,89 +1911,97 @@ export default function ProductsPage() {
         ? false
         : loading;
 
+  const commonAllLabel = tp("common.all", "All");
+  const searchLabel = tp("products.filters.search", "Search");
+  const categoryFilterLabel = tp("products.filters.category", "Category");
+  const priceFilterLabel = tp("products.filters.price", "Price");
+  const brandFilterLabel = tp("products.filters.brand", "Brand");
+  const rating45Label = tp("products.filters.rating45", "Rating 4.5+");
+  const inStockLabel = tp("products.filters.inStock", "In stock");
+  const conditionLabel = tp("products.filters.condition", "Condition");
+  const deliveryLabel = tp("products.filters.delivery", "Delivery");
+  const clearFiltersLabel = tp("products.filters.clear", "Clear filters");
+  const minPriceLabel = tp("products.filters.priceMin", "Min price");
+  const maxPriceLabel = tp("products.filters.priceMax", "Max price");
+  const audienceLabel = tp("products.filters.audience", "Audience");
+  const sizeLabel = tp("products.filters.size", "Size");
+  const seasonLabel = tp("products.filters.season", "Season");
+  const sortLabel = tp("products.filters.sort", "Sort");
+  const mobileFiltersLabel = tp("products.filters.mobileTitle", "Filters");
+  const closeLabel = tp("products.filters.close", "Close");
+  const productsTitle = tp("products.page.title", "Products");
   const sortOptions: Array<{
     value: "relevance" | "bestseller" | "toprated" | "priceLow" | "priceHigh" | "newest";
     label: string;
   }> = [
-    { value: "relevance", label: t({ en: "Best match", uz: "Eng mos", ru: "Лучшее совпадение", ko: "가장 관련도 높음" }) },
-    { value: "bestseller", label: t({ en: "Best seller", uz: "Eng ko'p sotilgan", ru: "Хиты продаж", ko: "베스트셀러" }) },
-    { value: "toprated", label: t({ en: "Top rated", uz: "Eng yuqori baholangan", ru: "С высоким рейтингом", ko: "평점 높은 순" }) },
-    { value: "priceLow", label: t({ en: "Price: low to high", uz: "Arzon → qimmat", ru: "Цена: по возрастанию", ko: "가격 낮은 순" }) },
-    { value: "priceHigh", label: t({ en: "Price: high to low", uz: "Qimmat → arzon", ru: "Цена: по убыванию", ko: "가격 높은 순" }) },
-    { value: "newest", label: t({ en: "Newest", uz: "Yangi kelgan", ru: "Новые", ko: "최신순" }) }
+    { value: "relevance", label: tp("common.bestMatch", "Best match") },
+    { value: "bestseller", label: tp("products.filters.sort.bestseller", "Best seller") },
+    { value: "toprated", label: tp("products.filters.sort.toprated", "Top rated") },
+    { value: "priceLow", label: tp("products.filters.sort.priceLow", "Price: low to high") },
+    { value: "priceHigh", label: tp("products.filters.sort.priceHigh", "Price: high to low") },
+    { value: "newest", label: tp("products.filters.sort.newest", "Newest") }
   ];
 
-  const formatVisibleCount = (value: number) => new Intl.NumberFormat(language === "ko" ? "ko-KR" : language).format(value);
   const visibleCount = sortedDisplayItems.length;
-  const resultCountText = t({
-    en: `${formatVisibleCount(visibleCount)} products`,
-    uz: `${formatVisibleCount(visibleCount)} ta mahsulot`,
-    ru: `${formatVisibleCount(visibleCount)} товаров`,
-    ko: `${formatVisibleCount(visibleCount)}개 상품`
-  });
+  const resultCountText = formatProductResultCount(visibleCount, language);
 
   const deliveryFilterLabel =
     quickFilters.delivery === "fast"
-      ? t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })
+      ? getProductDeliveryLabel("fast", language)
       : quickFilters.delivery === "tomorrow"
-        ? t({ en: "Tomorrow delivery", uz: "Ertaga yetkazish", ru: "Доставка завтра", ko: "내일 배송" })
+        ? getProductDeliveryLabel("tomorrow", language)
         : quickFilters.delivery === "standard"
-          ? t({ en: "Standard delivery", uz: "Standart yetkazish", ru: "Стандартная доставка", ko: "일반 배송" })
+          ? getProductDeliveryLabel("standard", language)
           : "";
 
   const conditionFilterLabel =
     quickFilters.condition === "new"
-      ? t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })
+      ? getProductConditionLabel("new", language)
       : quickFilters.condition === "used"
-        ? t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })
+        ? getProductConditionLabel("used", language)
         : "";
 
   const activeFilters = [
     activeCategory !== "all"
       ? {
           key: "category",
-          label: `${t({ en: "Category", uz: "Kategoriya", ru: "Категория", ko: "카테고리" })}: ${resolveLocalizedText(activeCategoryMeta.label, language)}`
+          label: `${categoryFilterLabel}: ${resolveLocalizedText(activeCategoryMeta.label, language)}`
         }
       : null,
     searchQuery.trim()
       ? {
           key: "search",
-          label: `${t({ en: "Search", uz: "Qidiruv", ru: "Поиск", ko: "검색" })}: ${searchQuery.trim()}`
+          label: `${searchLabel}: ${searchQuery.trim()}`
         }
       : null,
     fastOnly
       ? {
           key: "fast-only",
-          label: t({ en: "Fast shipping only", uz: "Faqat tez yetkazish", ru: "Только быстрая доставка", ko: "빠른 배송만" })
+          label: tp("products.filters.fastOnly", "Fast delivery only")
         }
       : null,
     quickFilters.priceMin || quickFilters.priceMax
       ? {
           key: "price",
-          label: t({
-            en: `Price: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Any"}`,
-            uz: `Narx: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Ixtiyoriy"}`,
-            ru: `Цена: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "Любая"}`,
-            ko: `가격: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || "전체"}`
-          })
+          label: `${priceFilterLabel}: ${quickFilters.priceMin || "0"} - ${quickFilters.priceMax || commonAllLabel}`
         }
       : null,
     quickFilters.brand
       ? {
           key: "brand",
-          label: `${t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}: ${quickFilters.brand}`
+          label: `${brandFilterLabel}: ${quickFilters.brand}`
         }
       : null,
     quickFilters.rating45
       ? {
           key: "rating",
-          label: t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })
+          label: rating45Label
         }
       : null,
     quickFilters.inStock
       ? {
           key: "stock",
-          label: t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })
+          label: inStockLabel
         }
       : null,
     deliveryFilterLabel
@@ -2037,7 +2013,7 @@ export default function ProductsPage() {
     conditionFilterLabel
       ? {
           key: "condition",
-          label: `${t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}: ${conditionFilterLabel}`
+          label: `${conditionLabel}: ${conditionFilterLabel}`
         }
       : null
   ].filter((chip): chip is { key: string; label: string } => Boolean(chip));
@@ -2079,7 +2055,7 @@ export default function ProductsPage() {
         return "linear-gradient(180deg, #f9fafb 0%, #ffffff 100%)";
     }
   }, [activeCategory]);
-  const topSearchTags = ["CarPlay", "SSD", "HDMI", "Powerbank", "iPhone case", "Adapter"];
+  const topSearchTags = useMemo(() => getLocalizedProductSearchChips(language), [language]);
   const categoryQuick = useMemo(
     () => [
       { key: "electronics", icon: "💻", label: resolveLocalizedText(getShopCategoryMeta("electronics").label, language) },
@@ -2100,47 +2076,47 @@ export default function ProductsPage() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t({
-                en: "Search products (adapter, SSD, iPhone case...)",
-                uz: "Mahsulot qidiring (adapter, SSD, iPhone case...)",
-                ru: "Ищите товары (adapter, SSD, iPhone case...)",
-                ko: "상품 검색 (adapter, SSD, iPhone case...)"
-              })}
+              aria-label={tp("products.page.searchPlaceholder", "Search products")}
+              placeholder={tp("products.page.searchPlaceholder", "Search products (adapter, SSD, iPhone case...)")}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
             />
           </div>
           <div className="hidden items-center gap-2 text-xs text-slate-500 lg:flex">
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
-              {t({ en: "Secure payment", uz: "Xavfsiz to'lov", ru: "Безопасная оплата", ko: "안전 결제" })}
+              {tp("products.tags.securePayment", "Secure payment")}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1">
-              {t({ en: "Easy returns", uz: "Qaytarish oson", ru: "Легкий возврат", ko: "쉬운 반품" })}
+              {tp("products.tags.easyReturns", "Easy returns")}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1">
-              {t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })}
+              {tp("products.tags.fastDelivery", "Fast delivery")}
             </span>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
           <span className="text-slate-400">
-            {t({ en: "Top search:", uz: "Top qidiruv:", ru: "Популярный поиск:", ko: "인기 검색:" })}
+            {tp("products.tags.topSearch", "Top search:")}
           </span>
           {topSearchTags.map((tag) => (
             <button
-              key={tag}
+              key={tag.query}
               type="button"
-              onClick={() => setSearchQuery(tag)}
+              aria-label={tag.label}
+              title={tag.label}
+              onClick={() => setSearchQuery(tag.query)}
               className="rounded-full border border-slate-200 bg-white px-3 py-1"
             >
-              {tag}
+              {tag.label}
             </button>
           ))}
           <button
             type="button"
             onClick={() => setFastOnly((prev) => !prev)}
+            aria-pressed={fastOnly}
+            aria-label={tp("products.filters.fastOnly", "Fast delivery only")}
             className={`rounded-full px-3 py-1 ${fastOnly ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
           >
-            {t({ en: "Fast delivery", uz: "Tez yetkazish", ru: "Быстрая доставка", ko: "빠른 배송" })}
+            {tp("products.tags.fastDelivery", "Fast delivery")}
           </button>
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -2148,6 +2124,8 @@ export default function ProductsPage() {
             <button
               key={cat.label}
               type="button"
+              aria-label={cat.label}
+              title={cat.label}
               onClick={() => handleCategorySelect(cat.key)}
               className={`flex min-w-[140px] items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
                 filters.category === cat.key ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"
@@ -2169,7 +2147,7 @@ export default function ProductsPage() {
         }}
       >
         <p className="text-sm uppercase tracking-[0.15em]">
-          {t({ en: "UniServe · Marketplace", uz: "UniServe · Marketplace", ru: "UniServe · Marketplace", ko: "UniServe · Marketplace" })}
+          {tp("products.page.marketplaceEyebrow", "UniServe · Marketplace")}
         </p>
         <h1 className="mt-2 text-3xl font-extrabold">
           {resolveLocalizedText(activeCategoryMeta.heroTitle, language)}
@@ -2190,20 +2168,22 @@ export default function ProductsPage() {
         <div className="sidebar-stack">
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">
-              {t({ en: "Quick filters", uz: "Tezkor filtrlar", ru: "Быстрые фильтры", ko: "빠른 필터" })}
+              {tp("products.filters.quickTitle", "Quick filters")}
             </p>
             <div className="mt-3 grid gap-3 text-xs text-slate-600">
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  placeholder={t({ en: "Min price", uz: "Min narx", ru: "Мин цена", ko: "최소 가격" })}
+                  aria-label={minPriceLabel}
+                  placeholder={minPriceLabel}
                   value={quickFilters.priceMin}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 />
                 <input
                   type="number"
-                  placeholder={t({ en: "Max price", uz: "Max narx", ru: "Макс цена", ko: "최대 가격" })}
+                  aria-label={maxPriceLabel}
+                  placeholder={maxPriceLabel}
                   value={quickFilters.priceMax}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2211,7 +2191,8 @@ export default function ProductsPage() {
               </div>
               <input
                 type="text"
-                placeholder={t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}
+                aria-label={brandFilterLabel}
+                placeholder={brandFilterLabel}
                 value={quickFilters.brand}
                 onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
                 className="rounded-lg border border-slate-200 px-3 py-2"
@@ -2222,7 +2203,7 @@ export default function ProductsPage() {
                   checked={quickFilters.rating45}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
                 />
-                {t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })}
+                {rating45Label}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -2230,7 +2211,7 @@ export default function ProductsPage() {
                   checked={quickFilters.inStock}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
                 />
-                {t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })}
+                {inStockLabel}
               </label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <select
@@ -2241,12 +2222,13 @@ export default function ProductsPage() {
                       delivery: e.target.value as QuickFiltersState["delivery"]
                     }))
                   }
+                  aria-label={deliveryLabel}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 >
-                  <option value="any">{t({ en: "Delivery", uz: "Yetkazish", ru: "Доставка", ko: "배송" })}</option>
-                  <option value="fast">{t({ en: "Fast", uz: "Tez", ru: "Быстрая", ko: "빠름" })}</option>
-                  <option value="tomorrow">{t({ en: "Tomorrow", uz: "Ertaga", ru: "Завтра", ko: "내일" })}</option>
-                  <option value="standard">{t({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "표준" })}</option>
+                  <option value="any">{deliveryLabel}</option>
+                  <option value="fast">{getProductDeliveryLabel("fast", language)}</option>
+                  <option value="tomorrow">{getProductDeliveryLabel("tomorrow", language)}</option>
+                  <option value="standard">{getProductDeliveryLabel("standard", language)}</option>
                 </select>
                 <select
                   value={quickFilters.condition}
@@ -2256,11 +2238,12 @@ export default function ProductsPage() {
                       condition: e.target.value as QuickFiltersState["condition"]
                     }))
                   }
+                  aria-label={conditionLabel}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 >
-                  <option value="any">{t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}</option>
-                  <option value="new">{t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })}</option>
-                  <option value="used">{t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })}</option>
+                  <option value="any">{conditionLabel}</option>
+                  <option value="new">{getProductConditionLabel("new", language)}</option>
+                  <option value="used">{getProductConditionLabel("used", language)}</option>
                 </select>
               </div>
               <button
@@ -2268,7 +2251,7 @@ export default function ProductsPage() {
                 onClick={resetQuickFilterState}
                 className="rounded-full border border-slate-200 px-3 py-2 text-xs text-slate-600"
               >
-                {t({ en: "Clear filters", uz: "Filtrlarni tiklash", ru: "Сбросить фильтры", ko: "필터 초기화" })}
+                {clearFiltersLabel}
               </button>
             </div>
           </div>
@@ -2282,7 +2265,7 @@ export default function ProductsPage() {
 
           {isFoodCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Oziq-ovqat bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.foodTitle", "Food section")}</p>
               <div className="subpanel-items">
                 {foodSubcategories.map((sub) => {
                   const active = foodSubcategory === sub.key;
@@ -2300,10 +2283,11 @@ export default function ProductsPage() {
               </div>
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brend yoki yetkazib beruvchi</label>
+                  <label className="subpanel-label">{tp("products.filters.brandOrSupplier", "Brand or supplier")}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: Nestle"
+                    aria-label={tp("products.filters.brandOrSupplier", "Brand or supplier")}
+                    placeholder={tp("products.filters.placeholder.nestle", "Example: Nestle")}
                     value={foodFilters.brand}
                     onChange={(e) => setFoodFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2311,7 +2295,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2326,7 +2310,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="500"
@@ -2342,7 +2326,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Holati</label>
+                  <label className="subpanel-label">{conditionLabel}</label>
                   <select
                     value={foodFilters.condition}
                     onChange={(e) =>
@@ -2353,9 +2337,9 @@ export default function ProductsPage() {
                     }
                     className="subpanel-input"
                   >
-                    <option value="any">Barchasi</option>
-                    <option value="fresh">Yangi / yangi tayyorlangan</option>
-                    <option value="frozen">Muzlatilgan</option>
+                    <option value="any">{commonAllLabel}</option>
+                    <option value="fresh">{getProductConditionLabel("fresh", language)}</option>
+                    <option value="frozen">{getProductConditionLabel("frozen", language)}</option>
                   </select>
                 </div>
                 <div className="subpanel-actions">
@@ -2371,7 +2355,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2380,7 +2364,7 @@ export default function ProductsPage() {
 
           {isElectronicsCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Elektronika bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.electronicsTitle", "Electronics section")}</p>
               <div className="subpanel-items">
                 {electronicsSubcategories.map((sub) => {
                   const active = electronicsSubcategory === sub.key;
@@ -2399,10 +2383,11 @@ export default function ProductsPage() {
 
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brand</label>
+                  <label className="subpanel-label">{brandFilterLabel}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: Samsung"
+                    aria-label={brandFilterLabel}
+                    placeholder={tp("products.filters.placeholder.samsung", "Example: Samsung")}
                     value={electronicsFilters.brand}
                     onChange={(e) => setElectronicsFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2410,7 +2395,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2425,7 +2410,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="3000"
@@ -2441,7 +2426,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Holati</label>
+                  <label className="subpanel-label">{conditionLabel}</label>
                   <select
                     value={electronicsFilters.condition}
                     onChange={(e) =>
@@ -2452,9 +2437,9 @@ export default function ProductsPage() {
                     }
                     className="subpanel-input"
                   >
-                    <option value="any">Barchasi</option>
-                    <option value="new">Yangi</option>
-                    <option value="used">Ishlatilgan</option>
+                    <option value="any">{commonAllLabel}</option>
+                    <option value="new">{getProductConditionLabel("new", language)}</option>
+                    <option value="used">{getProductConditionLabel("used", language)}</option>
                   </select>
                 </div>
                 <div className="subpanel-actions">
@@ -2470,7 +2455,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2479,7 +2464,7 @@ export default function ProductsPage() {
 
           {isBeautyCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Go'zallik bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.beautyTitle", "Beauty section")}</p>
               <div className="subpanel-items">
                 {beautySubcategories.map((sub) => {
                   const active = beautySubcategory === sub.key;
@@ -2497,10 +2482,11 @@ export default function ProductsPage() {
               </div>
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brend</label>
+                  <label className="subpanel-label">{brandFilterLabel}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: Dior"
+                    aria-label={brandFilterLabel}
+                    placeholder={tp("products.filters.placeholder.dior", "Example: Dior")}
                     value={beautyFilters.brand}
                     onChange={(e) => setBeautyFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2508,7 +2494,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2523,7 +2509,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="300"
@@ -2539,7 +2525,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Auditoriya</label>
+                  <label className="subpanel-label">{audienceLabel}</label>
                   <select
                     value={beautyFilters.audience}
                     onChange={(e) =>
@@ -2550,11 +2536,11 @@ export default function ProductsPage() {
                     }
                     className="subpanel-input"
                   >
-                    <option value="any">Barchasi</option>
-                    <option value="women">Ayollar</option>
-                    <option value="men">Erkaklar</option>
-                    <option value="kids">Bolalar</option>
-                    <option value="unisex">Unisex</option>
+                    <option value="any">{commonAllLabel}</option>
+                    <option value="women">{getProductAudienceLabel("women", language)}</option>
+                    <option value="men">{getProductAudienceLabel("men", language)}</option>
+                    <option value="kids">{getProductAudienceLabel("kids", language)}</option>
+                    <option value="unisex">{getProductAudienceLabel("unisex", language)}</option>
                   </select>
                 </div>
                 <div className="subpanel-actions">
@@ -2570,7 +2556,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2579,7 +2565,7 @@ export default function ProductsPage() {
 
           {isAutoCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Avtomobil va texnika bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.autoTitle", "Auto & tech section")}</p>
               <div className="subpanel-items">
                 {autoSubcategories.map((sub) => {
                   const active = autoSubcategory === sub.key;
@@ -2597,10 +2583,11 @@ export default function ProductsPage() {
               </div>
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brend/Model</label>
+                  <label className="subpanel-label">{tp("products.filters.brandOrModel", "Brand / model")}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: Hyundai"
+                    aria-label={tp("products.filters.brandOrModel", "Brand / model")}
+                    placeholder={tp("products.filters.placeholder.hyundai", "Example: Hyundai")}
                     value={autoFilters.brand}
                     onChange={(e) => setAutoFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2608,7 +2595,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2623,7 +2610,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="50000"
@@ -2639,7 +2626,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Holati</label>
+                  <label className="subpanel-label">{conditionLabel}</label>
                   <select
                     value={autoFilters.condition}
                     onChange={(e) =>
@@ -2650,9 +2637,9 @@ export default function ProductsPage() {
                     }
                     className="subpanel-input"
                   >
-                    <option value="any">Barchasi</option>
-                    <option value="new">Yangi</option>
-                    <option value="used">Ishlatilgan</option>
+                    <option value="any">{commonAllLabel}</option>
+                    <option value="new">{getProductConditionLabel("new", language)}</option>
+                    <option value="used">{getProductConditionLabel("used", language)}</option>
                   </select>
                 </div>
                 <div className="subpanel-actions">
@@ -2668,7 +2655,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2677,7 +2664,7 @@ export default function ProductsPage() {
 
           {isHomeCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Maishiy uskunalar bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.homeTitle", "Home appliances section")}</p>
               <div className="subpanel-items">
                 {homeSubcategories.map((sub) => {
                   const active = homeSubcategory === sub.key;
@@ -2695,10 +2682,11 @@ export default function ProductsPage() {
               </div>
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brend/Model</label>
+                  <label className="subpanel-label">{tp("products.filters.brandOrModel", "Brand / model")}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: LG"
+                    aria-label={tp("products.filters.brandOrModel", "Brand / model")}
+                    placeholder={tp("products.filters.placeholder.lg", "Example: LG")}
                     value={homeFilters.brand}
                     onChange={(e) => setHomeFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2706,7 +2694,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2721,7 +2709,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="2000"
@@ -2737,7 +2725,7 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Holati</label>
+                  <label className="subpanel-label">{conditionLabel}</label>
                   <select
                     value={homeFilters.condition}
                     onChange={(e) =>
@@ -2748,9 +2736,9 @@ export default function ProductsPage() {
                     }
                     className="subpanel-input"
                   >
-                    <option value="any">Barchasi</option>
-                    <option value="new">Yangi</option>
-                    <option value="used">Ishlatilgan</option>
+                    <option value="any">{commonAllLabel}</option>
+                    <option value="new">{getProductConditionLabel("new", language)}</option>
+                    <option value="used">{getProductConditionLabel("used", language)}</option>
                   </select>
                 </div>
                 <div className="subpanel-actions">
@@ -2766,7 +2754,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2775,7 +2763,7 @@ export default function ProductsPage() {
 
           {isClothingCategory && (
             <div className="food-subpanel">
-              <p className="subpanel-title">Kiyim-kechak bo'limi</p>
+              <p className="subpanel-title">{tp("products.sidebar.fashionTitle", "Fashion section")}</p>
               <div className="subpanel-items">
                 {clothingSubcategories.map((sub) => {
                   const active = clothingSubcategory === sub.key;
@@ -2793,10 +2781,11 @@ export default function ProductsPage() {
               </div>
               <div className="subpanel-filter">
                 <div className="subpanel-row">
-                  <label className="subpanel-label">Brend</label>
+                  <label className="subpanel-label">{brandFilterLabel}</label>
                   <input
                     type="text"
-                    placeholder="Masalan: Zara"
+                    aria-label={brandFilterLabel}
+                    placeholder={tp("products.filters.placeholder.zara", "Example: Zara")}
                     value={clothingFilters.brand}
                     onChange={(e) => setClothingFilters((f) => ({ ...f, brand: e.target.value }))}
                     className="subpanel-input"
@@ -2804,7 +2793,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">Narx min</label>
+                    <label className="subpanel-label">{minPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -2819,7 +2808,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="subpanel-label">Narx max</label>
+                    <label className="subpanel-label">{maxPriceLabel}</label>
                     <input
                       type="number"
                       placeholder="500"
@@ -2836,7 +2825,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="subpanel-row two-cols">
                   <div>
-                    <label className="subpanel-label">O'lcham</label>
+                    <label className="subpanel-label">{sizeLabel}</label>
                     <select
                       value={clothingFilters.size}
                       onChange={(e) =>
@@ -2847,7 +2836,7 @@ export default function ProductsPage() {
                       }
                       className="subpanel-input"
                     >
-                      <option value="any">Barchasi</option>
+                      <option value="any">{commonAllLabel}</option>
                       <option value="s">S</option>
                       <option value="m">M</option>
                       <option value="l">L</option>
@@ -2855,7 +2844,7 @@ export default function ProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="subpanel-label">Mavsum</label>
+                    <label className="subpanel-label">{seasonLabel}</label>
                     <select
                       value={clothingFilters.season}
                       onChange={(e) =>
@@ -2866,10 +2855,10 @@ export default function ProductsPage() {
                       }
                       className="subpanel-input"
                     >
-                      <option value="any">Barchasi</option>
-                      <option value="summer">Yozgi</option>
-                      <option value="winter">Qishki</option>
-                      <option value="allseason">Barcha mavsum</option>
+                      <option value="any">{commonAllLabel}</option>
+                      <option value="summer">{getProductSeasonLabel("summer", language)}</option>
+                      <option value="winter">{getProductSeasonLabel("winter", language)}</option>
+                      <option value="allseason">{getProductSeasonLabel("allseason", language)}</option>
                     </select>
                   </div>
                 </div>
@@ -2887,7 +2876,7 @@ export default function ProductsPage() {
                       })
                     }
                   >
-                    Filtrlarni tiklash
+                    {clearFiltersLabel}
                   </button>
                 </div>
               </div>
@@ -2900,7 +2889,7 @@ export default function ProductsPage() {
             resultCount={visibleCount}
             resultLabel={
               activeCategory === "all"
-                ? t({ en: "Products", uz: "Mahsulotlar", ru: "Товары", ko: "상품" })
+                ? productsTitle
                 : resolveLocalizedText(activeCategoryMeta.shortLabel, language)
             }
             resultCountText={resultCountText}
@@ -2909,17 +2898,16 @@ export default function ProductsPage() {
             onSortChange={(value) => setSortBy(value)}
             activeFilters={activeFilters}
             onClearFilters={activeFilters.length > 0 ? clearAllListingFilters : undefined}
-            sortLabel={t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
-            emptyFiltersLabel={t({
-              en: "Refine this catalog with search, category, price, or delivery filters.",
-              uz: "Katalogni qidiruv, kategoriya, narx yoki yetkazish filtrlari bilan aniqlashtiring.",
-              ru: "Уточните каталог поиском, категорией, ценой или фильтрами доставки.",
-              ko: "검색, 카테고리, 가격, 배송 필터로 결과를 더 좁혀보세요."
-            })}
-            clearFiltersLabel={t({ en: "Clear filters", uz: "Filtrlarni tozalash", ru: "Очистить фильтры", ko: "필터 초기화" })}
+            sortLabel={sortLabel}
+            emptyFiltersLabel={tp(
+              "products.filters.emptyState",
+              "Refine this catalog with search, category, price, or delivery filters."
+            )}
+            clearFiltersLabel={clearFiltersLabel}
           />
 
           <ProductGrid
+            className={displayLoading ? "relative" : ""}
             empty={
               !displayLoading && sortedDisplayItems.length === 0 ? (
                 <div className="mt-4 rounded-[1.7rem] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-12 text-center">
@@ -2927,20 +2915,13 @@ export default function ProductsPage() {
                     0
                   </div>
                   <h3 className="mt-4 text-lg font-bold text-slate-900">
-                    {t({
-                      en: "Nothing matched these filters",
-                      uz: "Bu filtrlarga mos mahsulot topilmadi",
-                      ru: "По этим фильтрам ничего не найдено",
-                      ko: "이 필터에 맞는 상품이 없습니다"
-                    })}
+                    {tp("products.states.emptyTitle", "Nothing matched these filters")}
                   </h3>
                   <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                    {t({
-                      en: "Try widening the price range, changing the category, or clearing a few filters to see more products.",
-                      uz: "Ko'proq mahsulot ko'rish uchun narx oralig'ini kengaytiring, kategoriyani o'zgartiring yoki bir nechta filtrni tozalang.",
-                      ru: "Попробуйте расширить диапазон цен, сменить категорию или очистить несколько фильтров, чтобы увидеть больше товаров.",
-                      ko: "더 많은 상품을 보려면 가격 범위를 넓히거나 카테고리를 바꾸거나 일부 필터를 해제하세요."
-                    })}
+                    {tp(
+                      "products.states.emptyDescription",
+                      "Try widening the price range, changing the category, or clearing a few filters to see more products."
+                    )}
                   </p>
                   {activeFilters.length > 0 ? (
                     <div className="mt-5">
@@ -2949,7 +2930,7 @@ export default function ProductsPage() {
                         onClick={clearAllListingFilters}
                         className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                       >
-                        {t({ en: "Reset all filters", uz: "Barcha filtrlarni tiklash", ru: "Сбросить все фильтры", ko: "모든 필터 초기화" })}
+                        {tp("products.filters.resetAll", "Reset all filters")}
                       </button>
                     </div>
                   ) : null}
@@ -2964,20 +2945,16 @@ export default function ProductsPage() {
                   limit={pagination.limit}
                   onPageChange={handlePageChange}
                   labels={{
-                    previous: t({ en: "Previous", uz: "Oldingi", ru: "Назад", ko: "이전" }),
-                    next: t({ en: "Next", uz: "Keyingi", ru: "Далее", ko: "다음" }),
+                    previous: tp("products.pagination.previous", "Previous"),
+                    next: tp("products.pagination.next", "Next"),
                     summary: ({ total, totalPages }) =>
-                      t({
-                        en: `Total: ${formatVisibleCount(total)} products · ${formatVisibleCount(totalPages)} pages`,
-                        uz: `Jami: ${formatVisibleCount(total)} ta mahsulot · ${formatVisibleCount(totalPages)} sahifa`,
-                        ru: `Всего: ${formatVisibleCount(total)} товаров · ${formatVisibleCount(totalPages)} страниц`,
-                        ko: `총 ${formatVisibleCount(total)}개 상품 · ${formatVisibleCount(totalPages)}페이지`
-                      })
+                      formatProductPaginationSummary(total, totalPages, language)
                   }}
                 />
               ) : undefined
             }
           >
+            {displayLoading ? <span className="sr-only">{tp("products.states.loading", "Loading products")}</span> : null}
             {displayLoading
               ? Array.from({ length: 8 }, (_, idx) => <ProductCardSkeleton key={`product-skeleton-${idx}`} />)
               : sortedDisplayItems.map((p, idx) => <ProductCard key={resolveProductKey(p, idx)} data={p} />)}
@@ -2988,14 +2965,14 @@ export default function ProductsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    {t({ en: "Recently viewed", uz: "Yaqinda ko'rilganlar", ru: "Недавно просмотренные", ko: "최근 본 상품" })}
+                    {tp("products.page.recentlyViewed", "Recently viewed")}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {t({ en: "Quick revisit", uz: "Tez qaytish", ru: "Быстрый возврат", ko: "빠른 다시보기" })}
+                    {tp("products.page.recentlyViewedSubtitle", "Quick revisit")}
                   </p>
                 </div>
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
-                  {t({ en: "Keep high-intent products visible", uz: "Qiziqish bildirgan mahsulotlarni oldinda saqlang", ru: "Держите интересные товары под рукой", ko: "관심 상품을 바로 다시 볼 수 있습니다" })}
+                  {tp("products.page.recentlyViewedHint", "Keep high-intent products visible")}
                 </span>
               </div>
               <div className="mt-4 grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -3012,16 +2989,18 @@ export default function ProductsPage() {
         <button
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
+          aria-label={tp("products.filters.mobileOpen", "Open filters")}
           className="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
         >
-          {t({ en: "Filter", uz: "Filtr", ru: "Фильтр", ko: "필터" })}
+          {tp("products.filters.button", "Filter")}
         </button>
         <button
           type="button"
           onClick={() => setMobileSortOpen(true)}
+          aria-label={tp("products.filters.mobileSortOpen", "Open sort options")}
           className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
         >
-          {t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
+          {sortLabel}
         </button>
       </div>
 
@@ -3030,28 +3009,30 @@ export default function ProductsPage() {
           <div className="w-full rounded-t-3xl bg-white p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">
-                {t({ en: "Filters", uz: "Filtrlar", ru: "Фильтры", ko: "필터" })}
+                {mobileFiltersLabel}
               </p>
               <button
                 type="button"
                 onClick={() => setMobileFiltersOpen(false)}
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs"
               >
-                {t({ en: "Close", uz: "Yopish", ru: "Закрыть", ko: "닫기" })}
+                {closeLabel}
               </button>
             </div>
             <div className="mt-4 grid gap-3 text-xs text-slate-600">
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  placeholder={t({ en: "Min price", uz: "Min narx", ru: "Мин цена", ko: "최소 가격" })}
+                  aria-label={minPriceLabel}
+                  placeholder={minPriceLabel}
                   value={quickFilters.priceMin}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMin: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
                 />
                 <input
                   type="number"
-                  placeholder={t({ en: "Max price", uz: "Max narx", ru: "Макс цена", ko: "최대 가격" })}
+                  aria-label={maxPriceLabel}
+                  placeholder={maxPriceLabel}
                   value={quickFilters.priceMax}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, priceMax: e.target.value }))}
                   className="rounded-lg border border-slate-200 px-3 py-2"
@@ -3059,7 +3040,8 @@ export default function ProductsPage() {
               </div>
               <input
                 type="text"
-                placeholder={t({ en: "Brand", uz: "Brend", ru: "Бренд", ko: "브랜드" })}
+                aria-label={brandFilterLabel}
+                placeholder={brandFilterLabel}
                 value={quickFilters.brand}
                 onChange={(e) => setQuickFilters((prev) => ({ ...prev, brand: e.target.value }))}
                 className="rounded-lg border border-slate-200 px-3 py-2"
@@ -3070,7 +3052,7 @@ export default function ProductsPage() {
                   checked={quickFilters.rating45}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, rating45: e.target.checked }))}
                 />
-                {t({ en: "Rating 4.5+", uz: "4.5+ reyting", ru: "Рейтинг 4.5+", ko: "평점 4.5+" })}
+                {rating45Label}
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -3078,7 +3060,7 @@ export default function ProductsPage() {
                   checked={quickFilters.inStock}
                   onChange={(e) => setQuickFilters((prev) => ({ ...prev, inStock: e.target.checked }))}
                 />
-                {t({ en: "In stock", uz: "Omborda", ru: "В наличии", ko: "재고 있음" })}
+                {inStockLabel}
               </label>
               <select
                 value={quickFilters.delivery}
@@ -3088,12 +3070,13 @@ export default function ProductsPage() {
                     delivery: e.target.value as QuickFiltersState["delivery"]
                   }))
                 }
+                aria-label={deliveryLabel}
                 className="rounded-lg border border-slate-200 px-3 py-2"
               >
-                <option value="any">{t({ en: "Delivery", uz: "Yetkazish", ru: "Доставка", ko: "배송" })}</option>
-                <option value="fast">{t({ en: "Fast", uz: "Tez", ru: "Быстрая", ko: "빠름" })}</option>
-                <option value="tomorrow">{t({ en: "Tomorrow", uz: "Ertaga", ru: "Завтра", ko: "내일" })}</option>
-                <option value="standard">{t({ en: "Standard", uz: "Oddiy", ru: "Стандарт", ko: "표준" })}</option>
+                <option value="any">{deliveryLabel}</option>
+                <option value="fast">{getProductDeliveryLabel("fast", language)}</option>
+                <option value="tomorrow">{getProductDeliveryLabel("tomorrow", language)}</option>
+                <option value="standard">{getProductDeliveryLabel("standard", language)}</option>
               </select>
               <select
                 value={quickFilters.condition}
@@ -3103,11 +3086,12 @@ export default function ProductsPage() {
                     condition: e.target.value as QuickFiltersState["condition"]
                   }))
                 }
+                aria-label={conditionLabel}
                 className="rounded-lg border border-slate-200 px-3 py-2"
               >
-                <option value="any">{t({ en: "Condition", uz: "Holati", ru: "Состояние", ko: "상태" })}</option>
-                <option value="new">{t({ en: "New", uz: "Yangi", ru: "Новый", ko: "새 상품" })}</option>
-                <option value="used">{t({ en: "Used", uz: "Ishlatilgan", ru: "Б/у", ko: "중고" })}</option>
+                <option value="any">{conditionLabel}</option>
+                <option value="new">{getProductConditionLabel("new", language)}</option>
+                <option value="used">{getProductConditionLabel("used", language)}</option>
               </select>
             </div>
           </div>
@@ -3119,34 +3103,27 @@ export default function ProductsPage() {
           <div className="w-full rounded-t-3xl bg-white p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">
-                {t({ en: "Sort", uz: "Saralash", ru: "Сортировка", ko: "정렬" })}
+                {sortLabel}
               </p>
               <button
                 type="button"
                 onClick={() => setMobileSortOpen(false)}
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs"
               >
-                {t({ en: "Close", uz: "Yopish", ru: "Закрыть", ko: "닫기" })}
+                {closeLabel}
               </button>
             </div>
             <div className="mt-3 grid gap-2 text-xs">
-              {[
-                { id: "relevance", label: t({ en: "Best match", uz: "Eng mos", ru: "Лучшее совпадение", ko: "가장 관련도 높음" }) },
-                { id: "bestseller", label: t({ en: "Best seller", uz: "Eng ko'p sotilgan", ru: "Хиты продаж", ko: "베스트셀러" }) },
-                { id: "toprated", label: t({ en: "Top rated", uz: "Eng yuqori baholangan", ru: "С высоким рейтингом", ko: "평점 높은 순" }) },
-                { id: "priceLow", label: t({ en: "Price: low to high", uz: "Arzon → qimmat", ru: "Цена: по возрастанию", ko: "가격 낮은 순" }) },
-                { id: "priceHigh", label: t({ en: "Price: high to low", uz: "Qimmat → arzon", ru: "Цена: по убыванию", ko: "가격 높은 순" }) },
-                { id: "newest", label: t({ en: "Newest", uz: "Yangi kelgan", ru: "Новые", ko: "최신순" }) }
-              ].map((item) => (
+              {sortOptions.map((item) => (
                 <button
-                  key={item.id}
+                  key={item.value}
                   type="button"
                   onClick={() => {
-                    setSortBy(item.id as typeof sortBy);
+                    setSortBy(item.value);
                     setMobileSortOpen(false);
                   }}
                   className={`rounded-xl border px-3 py-2 text-left ${
-                    sortBy === item.id ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200"
+                    sortBy === item.value ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200"
                   }`}
                 >
                   {item.label}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getProducts, type Product } from "@/api/products";
+import { useI18n } from "@/context/i18n";
 
 interface PaginationState {
   page: number;
@@ -12,6 +13,7 @@ interface PaginationState {
 type Filters = Record<string, any>;
 
 export function useProducts(initial: Filters = {}) {
+  const { language } = useI18n();
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Filters>(initial);
@@ -24,7 +26,7 @@ export function useProducts(initial: Filters = {}) {
     let active = true;
     setLoading(true);
 
-    getProducts({ ...filters, ...pagination })
+    getProducts({ ...filters, ...pagination }, language)
       .then((res) => {
         if (!active) return;
         setItems(res.products);
@@ -43,7 +45,7 @@ export function useProducts(initial: Filters = {}) {
     return () => {
       active = false;
     };
-  }, [filters, pagination.page, pagination.limit]);
+  }, [filters, language, pagination.page, pagination.limit]);
 
   return { items, loading, filters, setFilters, pagination, setPagination };
 }

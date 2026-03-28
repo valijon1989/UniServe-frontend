@@ -1,3 +1,4 @@
+import { normalizeAdminHref } from "@/lib/adminRouteAlias";
 import { api, appApi } from "./client";
 import type {
   AdminAccess,
@@ -389,7 +390,7 @@ const normalizeScopes = (value: unknown): AdminScope[] => {
 const normalizeWorkspaceNavItem = (value: unknown) => {
   const raw = asRecord(value);
   if (!raw) return null;
-  const href = String(raw.href || "").trim();
+  const href = normalizeAdminHref(String(raw.href || "").trim());
   if (!href) return null;
   return {
     id: String(raw.id || href),

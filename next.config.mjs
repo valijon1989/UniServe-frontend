@@ -1,5 +1,7 @@
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const sharedConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
@@ -66,4 +68,10 @@ const nextConfig = {
   }
 };
 
-export default nextConfig;
+export default function nextConfig(phase) {
+  return {
+    ...sharedConfig,
+    // Keep dev artifacts isolated so a production build does not break a running dev server.
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next"
+  };
+}
